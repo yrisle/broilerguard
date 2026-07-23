@@ -24,12 +24,15 @@ import NotificationsScreen from "../screens/Settings/NotificationsScreen";
 import SettingsScreen from "../screens/Settings/SettingsScreen";
 
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../hooks/useTheme";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
 // Main Tab Navigator
 const MainTabs = () => {
+  const { colors } = useTheme();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -44,23 +47,23 @@ const MainTabs = () => {
           ) as any;
           return <Icon name={resolvedName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: "#FFD62E",
-        tabBarInactiveTintColor: "#8B7355",
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: "#FFFFFF",
+          backgroundColor: colors.card,
           borderTopWidth: 1,
-          borderTopColor: "rgba(255, 214, 46, 0.2)",
+          borderTopColor: colors.border,
           paddingBottom: 8,
           height: 60,
         },
         headerStyle: {
-          backgroundColor: "#FFFCF2",
+          backgroundColor: colors.background,
           shadowColor: "transparent",
           elevation: 0,
         },
         headerTitleStyle: {
           fontWeight: "600",
-          color: "#3E2C1C",
+          color: colors.text,
         },
       })}
     >
