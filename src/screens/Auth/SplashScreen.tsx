@@ -1,4 +1,4 @@
-﻿// src/screens/Auth/SplashScreen.tsx
+// src/screens/Auth/SplashScreen.tsx
 import React, { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../../context/AuthContext";
