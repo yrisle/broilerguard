@@ -14,7 +14,7 @@ import {
 import { dashboard, sensors } from "../../api/endpoints";
 import Card from "../../components/common/Card";
 import LevelIndicator from "../../components/sensors/LevelIndicator";
-import { useTheme } from "../../hooks/useTheme";
+import { useTheme } from "../../theme/ThemeContext";
 
 const DashboardScreen = () => {
   const { colors } = useTheme();
@@ -219,8 +219,8 @@ const DashboardScreen = () => {
         <View style={styles.row}>
           <Card style={styles.halfCard}>
             <View style={styles.automationItem}>
-              <Icon name="options-outline" size={32} color={colors.primary} />
-              <View>
+              <Icon name="options-outline" size={28} color={colors.primary} />
+              <View style={styles.automationInfo}>
                 <Text style={[styles.automationLabel, { color: colors.text }]}>
                   Fan
                 </Text>
@@ -257,8 +257,8 @@ const DashboardScreen = () => {
           </Card>
           <Card style={styles.halfCard}>
             <View style={styles.automationItem}>
-              <Icon name="water" size={32} color={colors.info} />
-              <View>
+              <Icon name="water" size={28} color={colors.info} />
+              <View style={styles.automationInfo}>
                 <Text style={[styles.automationLabel, { color: colors.text }]}>
                   Water Pump
                 </Text>
@@ -471,18 +471,23 @@ const styles = StyleSheet.create({
   automationItem: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
     paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  automationInfo: {
+    marginLeft: 12,
+    flex: 1,
   },
   automationLabel: {
     fontSize: 14,
     fontWeight: "600",
+    marginBottom: 4,
   },
   statusIndicator: {
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
-    marginTop: 4,
+    alignSelf: "flex-start",
   },
   statusOn: {},
   statusOff: {},
