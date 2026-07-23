@@ -3,16 +3,18 @@ import { Redirect } from "expo-router";
 import React from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../src/context/AuthContext";
+import { useTheme } from "../src/hooks/useTheme";
 
 function RootLayout() {
+  const { colors } = useTheme();
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Text style={styles.logo}>🐔</Text>
-        <Text style={styles.title}>BroilerGuard</Text>
-        <ActivityIndicator size="large" color="#FFD62E" />
+        <Text style={[styles.title, { color: colors.text }]}>BroilerGuard</Text>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -31,7 +33,6 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFCF2",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -41,7 +42,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "800",
-    color: "#3E2C1C",
     marginTop: 12,
   },
 });

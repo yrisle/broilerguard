@@ -3,20 +3,22 @@ import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useAuth } from "../src/context/AuthContext";
+import { useTheme } from "../src/hooks/useTheme";
 
 export default function LoginScreen() {
+  const { colors } = useTheme();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,30 +45,51 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.brandSection}>
-          <View style={styles.logoContainer}>
+          <View
+            style={[styles.logoContainer, { backgroundColor: colors.primary }]}
+          >
             <Text style={styles.logoIcon}>🐔</Text>
           </View>
-          <Text style={styles.brandName}>BroilerGuard</Text>
-          <Text style={styles.brandTagline}>Smart Poultry Management</Text>
+          <Text style={[styles.brandName, { color: colors.text }]}>
+            BroilerGuard
+          </Text>
+          <Text style={[styles.brandTagline, { color: colors.textMuted }]}>
+            Smart Poultry Management
+          </Text>
         </View>
 
-        <View style={styles.formSection}>
-          <Text style={styles.welcomeText}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Sign in to manage your farm</Text>
+        <View style={[styles.formSection, { backgroundColor: colors.card }]}>
+          <Text style={[styles.welcomeText, { color: colors.text }]}>
+            Welcome Back
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+            Sign in to manage your farm
+          </Text>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Username</Text>
-            <View style={styles.inputWrapper}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>
+              Username
+            </Text>
+            <View
+              style={[
+                styles.inputWrapper,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
               <Text style={styles.inputIcon}>👤</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: colors.text }]}
                 placeholder="Enter your username"
+                placeholderTextColor={colors.textMuted}
                 value={username}
                 onChangeText={setUsername}
                 autoCapitalize="none"
@@ -76,12 +99,23 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.inputWrapper}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>
+              Password
+            </Text>
+            <View
+              style={[
+                styles.inputWrapper,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
               <Text style={styles.inputIcon}>🔒</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: colors.text }]}
                 placeholder="Enter your password"
+                placeholderTextColor={colors.textMuted}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -97,31 +131,53 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotText}>Forgot password?</Text>
+            <Text style={[styles.forgotText, { color: colors.primaryDark }]}>
+              Forgot password?
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.loginButton, loading && styles.disabledButton]}
+            style={[
+              styles.loginButton,
+              { backgroundColor: colors.primary },
+              loading && styles.disabledButton,
+            ]}
             onPress={handleLogin}
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#3E2C1C" />
+              <ActivityIndicator color={colors.text} />
             ) : (
-              <Text style={styles.loginButtonText}>Sign In</Text>
+              <Text style={[styles.loginButtonText, { color: colors.text }]}>
+                Sign In
+              </Text>
             )}
           </TouchableOpacity>
 
-          <View style={styles.demoContainer}>
-            <Text style={styles.demoLabel}>Demo Credentials</Text>
+          <View
+            style={[
+              styles.demoContainer,
+              {
+                backgroundColor: colors.primaryLight,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.demoLabel, { color: colors.textMuted }]}>
+              Demo Credentials
+            </Text>
             <View style={styles.demoRow}>
-              <Text style={styles.demoText}>Username: admin</Text>
-              <Text style={styles.demoText}>Password: broilerguard2025</Text>
+              <Text style={[styles.demoText, { color: colors.primaryDark }]}>
+                Username: admin
+              </Text>
+              <Text style={[styles.demoText, { color: colors.primaryDark }]}>
+                Password: broilerguard2025
+              </Text>
             </View>
           </View>
         </View>
 
-        <Text style={styles.footer}>
+        <Text style={[styles.footer, { color: colors.textMuted }]}>
           © 2025 BroilerGuard. All rights reserved.
         </Text>
       </ScrollView>
@@ -132,7 +188,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFCF2",
   },
   scrollContent: {
     flexGrow: 1,
@@ -146,7 +201,6 @@ const styles = StyleSheet.create({
   logoContainer: {
     width: 80,
     height: 80,
-    backgroundColor: "#FFD62E",
     borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
@@ -158,18 +212,14 @@ const styles = StyleSheet.create({
   brandName: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#3E2C1C",
   },
   brandTagline: {
     fontSize: 14,
-    color: "#8B7355",
     marginTop: 4,
   },
   formSection: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 24,
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
@@ -178,12 +228,10 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 22,
     fontWeight: "700",
-    color: "#3E2C1C",
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: "#8B7355",
     marginBottom: 24,
   },
   inputContainer: {
@@ -192,15 +240,12 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#5C4A1E",
     marginBottom: 6,
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFCF2",
     borderWidth: 1.5,
-    borderColor: "rgba(255, 214, 46, 0.3)",
     borderRadius: 12,
     paddingHorizontal: 12,
   },
@@ -212,7 +257,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     fontSize: 16,
-    color: "#3E2C1C",
   },
   eyeIcon: {
     padding: 8,
@@ -222,16 +266,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   forgotText: {
-    color: "#B38F00",
     fontSize: 14,
     fontWeight: "500",
   },
   loginButton: {
-    backgroundColor: "#FFD62E",
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
-    shadowColor: "#FFD62E",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -243,20 +284,16 @@ const styles = StyleSheet.create({
   loginButtonText: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#3E2C1C",
   },
   demoContainer: {
     marginTop: 20,
     padding: 16,
-    backgroundColor: "rgba(255, 214, 46, 0.08)",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.2)",
   },
   demoLabel: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#8B7355",
     marginBottom: 8,
   },
   demoRow: {
@@ -266,13 +303,11 @@ const styles = StyleSheet.create({
   },
   demoText: {
     fontSize: 12,
-    color: "#B38F00",
     fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
   },
   footer: {
     textAlign: "center",
     marginTop: 24,
     fontSize: 12,
-    color: "#8B7355",
   },
 });
