@@ -2,82 +2,125 @@
 
 export const Colors = {
   light: {
-    primary: "#FFD62E",
-    primaryDark: "#E6B800",
-    primaryLight: "#FFF3CC",
+    // PRIMARY COLORS - Green/Earthy Theme
+    primary: "#8DB48E",
+    primaryDark: "#4D724D",
+    primaryLight: "#D4E8D4",
 
-    success: "#27AE60",
-    successLight: "#E8F5E9",
-
-    warning: "#F39C12",
-    warningLight: "#FFF8E1",
-
-    danger: "#E74C3C",
-    dangerLight: "#FDEDEC",
-
-    info: "#2980B9",
-    infoLight: "#EBF5FB",
-
-    orange: "#E67E22",
-    orangeLight: "#FDF2E9",
-
-    background: "#FFFCF2",
-    backgroundSecondary: "#FFF8E0",
+    // BACKGROUNDS
+    background: "#F5F5F5",
+    backgroundSecondary: "#E8F0E8",
     card: "#FFFFFF",
 
-    text: "#3E2C1C",
-    textSecondary: "#5C4A1E",
-    textMuted: "#8B7355",
+    // TEXT COLORS
+    text: "#2C3E2C",
+    textSecondary: "#4D724D",
+    textMuted: "#6B8A6B",
 
-    border: "rgba(255, 214, 46, 0.2)",
-    shadow: "rgba(139, 115, 30, 0.06)",
-    shadowDark: "rgba(139, 115, 30, 0.1)",
+    // STATUS COLORS
+    success: "#4D724D",
+    successLight: "#D4E8D4",
 
+    warning: "#C8A24A",
+    warningLight: "#F4EEDC",
+
+    danger: "#A44A3F",
+    dangerLight: "#F6E9E7",
+
+    info: "#4F6C7A",
+    infoLight: "#EAF0F3",
+
+    orange: "#B9772A",
+    orangeLight: "#F9EFE5",
+
+    purple: "#8E44AD",
+
+    // BORDER & SHADOW
+    border: "rgba(77, 114, 77, 0.15)",
+    shadow: "rgba(77, 114, 77, 0.08)",
+    shadowDark: "rgba(77, 114, 77, 0.12)",
+
+    // SIDEBAR
     sidebar: {
-      background: "#5C3D2E",
-      text: "#E8D5C4",
-      muted: "#B8977A",
-      hover: "rgba(255, 214, 46, 0.12)",
+      background: "#3A5C3A",
+      text: "#F5F5F5",
+      muted: "#A8C8A8",
+      hover: "rgba(141, 180, 142, 0.2)",
+    },
+
+    // COMPONENT SPECIFIC
+    input: {
+      background: "#FFFFFF",
+      border: "#D4E8D4",
+      focus: "#8DB48E",
+    },
+    button: {
+      primary: "#4D724D",
+      primaryText: "#FFFFFF",
+      secondary: "#E8F0E8",
+      secondaryText: "#2C3E2C",
     },
   },
 
   dark: {
-    primary: "#FFD62E",
-    primaryDark: "#E6B800",
-    primaryLight: "#2D2D1A",
+    // PRIMARY COLORS - Dark Mode
+    primary: "#8DB48E",
+    primaryDark: "#4D724D",
+    primaryLight: "#2C3E2C",
 
-    success: "#2ECC71",
-    successLight: "#1A2D1A",
+    // BACKGROUNDS
+    background: "#1A1A1A",
+    backgroundSecondary: "#2C3E2C",
+    card: "#2C3E2C",
 
-    warning: "#F1C40F",
-    warningLight: "#2D2D1A",
+    // TEXT COLORS
+    text: "#F5F5F5",
+    textSecondary: "#A8C8A8",
+    textMuted: "#6B8A6B",
 
-    danger: "#E74C3C",
-    dangerLight: "#2D1A1A",
+    // STATUS COLORS
+    success: "#4D724D",
+    successLight: "#2C3E2C",
 
-    info: "#3498DB",
+    warning: "#C8A24A",
+    warningLight: "#3D3520",
+
+    danger: "#A44A3F",
+    dangerLight: "#3D201A",
+
+    info: "#4F6C7A",
     infoLight: "#1A2D3D",
 
-    orange: "#E67E22",
-    orangeLight: "#2D1A0D",
+    orange: "#B9772A",
+    orangeLight: "#3D2A1A",
 
-    background: "#1A1A1A",
-    backgroundSecondary: "#2D2D2D",
-    card: "#2D2D2D",
+    purple: "#8E44AD",
+    purpleLight: "#2D1A3D",
 
-    text: "#F5F0E0",
-    textSecondary: "#C4B8A0",
-    textMuted: "#8B7A5A",
-
-    border: "rgba(255, 214, 46, 0.1)",
+    // BORDER & SHADOW
+    border: "rgba(141, 180, 142, 0.15)",
     shadow: "rgba(0, 0, 0, 0.3)",
     shadowDark: "rgba(0, 0, 0, 0.5)",
 
+    // SIDEBAR
     sidebar: {
-      background: "#2D1A0D",
-      text: "#E8D5C4",
-      muted: "#8B7A5A",
-      hover: "rgba(255, 214, 46, 0.08)",
+      background: "#2C3E2C",
+      text: "#E8F0E8",
+      muted: "#6B8A6B",
+      hover: "rgba(141, 180, 142, 0.15)",
+    },
+
+    // COMPONENT SPECIFIC
+    input: {
+      background: "#3D3D3D",
+      border: "#4D724D",
+      focus: "#8DB48E",
+    },
+    button: {
+      primary: "#8DB48E",
+      primaryText: "#1A1A1A",
+      secondary: "#3D3D3D",
+      secondaryText: "#F5F5F5",
     },
   },
 };
