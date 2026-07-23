@@ -1,33 +1,56 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+// app/(tabs)/_layout.tsx
+import { Tabs } from "expo-router";
+import React from "react";
+import { Text } from "react-native";
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+        tabBarActiveTintColor: "#FFD62E",
+        tabBarInactiveTintColor: "#8B7355",
+        tabBarStyle: {
+          backgroundColor: "#FFFFFF",
+          borderTopWidth: 1,
+          borderTopColor: "rgba(255, 214, 46, 0.2)",
+          paddingBottom: 8,
+          height: 60,
+        },
+        headerStyle: {
+          backgroundColor: "#FFFCF2",
+        },
+        headerTitleStyle: {
+          fontWeight: "600",
+          color: "#3E2C1C",
+        },
+      }}
+    >
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: "Home",
+          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>🏠</Text>,
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="sensors"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: "Sensors",
+          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>🌡️</Text>,
+        }}
+      />
+      <Tabs.Screen
+        name="camera"
+        options={{
+          title: "Camera",
+          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>📷</Text>,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>⚙️</Text>,
         }}
       />
     </Tabs>
