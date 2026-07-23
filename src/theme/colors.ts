@@ -13,7 +13,7 @@ export const Colors = {
     card: "#FFFFFF",
 
     // TEXT COLORS
-    text: "#2C3E2C",
+    text: "#192119",
     textSecondary: "#4D724D",
     textMuted: "#6B8A6B",
 
