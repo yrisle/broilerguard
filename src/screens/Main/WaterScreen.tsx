@@ -1,18 +1,20 @@
 // src/screens/Main/WaterScreen.tsx
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import api from "../../api/client";
+import { useTheme } from "../../hooks/useTheme";
 
 const WaterScreen = () => {
+  const { colors } = useTheme();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -58,8 +60,8 @@ const WaterScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FFD62E" />
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -70,50 +72,57 @@ const WaterScreen = () => {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      {/* Water Level */}
-      <View style={styles.levelCard}>
+      <View style={[styles.levelCard, { backgroundColor: colors.card }]}>
         <View style={styles.levelHeader}>
-          <Text style={styles.levelTitle}>💧 Water Level</Text>
+          <Text style={[styles.levelTitle, { color: colors.text }]}>
+            💧 Water Level
+          </Text>
           <Text
             style={[
               styles.levelStatus,
-              percentage < 20 && styles.levelStatusLow,
+              percentage < 20
+                ? [styles.levelStatusLow, { color: colors.danger }]
+                : { color: colors.success },
             ]}
           >
             {percentage < 20 ? "⚠️ LOW" : "✅ OK"}
           </Text>
         </View>
         <View style={styles.tankContainer}>
-          <View style={styles.tank}>
+          <View style={[styles.tank, { borderColor: colors.textMuted }]}>
             <View
               style={[
                 styles.tankFill,
-                { height: `${Math.min(percentage, 100)}%` },
+                {
+                  height: `${Math.min(percentage, 100)}%`,
+                  backgroundColor: colors.info,
+                },
               ]}
             />
             <Text style={styles.tankLabel}>{percentage.toFixed(0)}%</Text>
           </View>
         </View>
-        <Text style={styles.levelText}>
+        <Text style={[styles.levelText, { color: colors.textMuted }]}>
           {level.toFixed(0)} L / {capacity} L
         </Text>
       </View>
 
-      {/* Quick Release */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>⚡ Quick Release</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          ⚡ Quick Release
+        </Text>
         <View style={styles.releaseButtons}>
           {[15, 30, 60].map((seconds) => {
             const amount = (seconds * 0.5).toFixed(1);
             return (
               <TouchableOpacity
                 key={seconds}
-                style={styles.releaseBtn}
+                style={[styles.releaseBtn, { backgroundColor: colors.info }]}
                 onPress={() => handleWaterRelease(seconds)}
               >
                 <Text style={styles.releaseBtnText}>{seconds}s</Text>
@@ -122,27 +131,64 @@ const WaterScreen = () => {
             );
           })}
         </View>
-        <TouchableOpacity style={styles.customReleaseBtn}>
-          <Text style={styles.customReleaseText}>Custom Duration →</Text>
+        <TouchableOpacity
+          style={[
+            styles.customReleaseBtn,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.customReleaseText, { color: colors.info }]}>
+            Custom Duration →
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Pump Status */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🔄 Water Pump</Text>
-        <View style={styles.pumpCard}>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          🔄 Water Pump
+        </Text>
+        <View
+          style={[
+            styles.pumpCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}
+        >
           <Text style={styles.pumpIcon}>🔧</Text>
           <View style={styles.pumpInfo}>
-            <Text style={styles.pumpLabel}>Main Water Pump</Text>
+            <Text style={[styles.pumpLabel, { color: colors.text }]}>
+              Main Water Pump
+            </Text>
             <View
               style={[
                 styles.pumpStatus,
                 data?.pump?.status === "ON"
-                  ? styles.pumpRunning
-                  : styles.pumpStopped,
+                  ? [
+                      styles.pumpRunning,
+                      { backgroundColor: colors.successLight },
+                    ]
+                  : [
+                      styles.pumpStopped,
+                      { backgroundColor: colors.dangerLight },
+                    ],
               ]}
             >
-              <Text style={styles.pumpStatusText}>
+              <Text
+                style={[
+                  styles.pumpStatusText,
+                  {
+                    color:
+                      data?.pump?.status === "ON"
+                        ? colors.success
+                        : colors.danger,
+                  },
+                ]}
+              >
                 {data?.pump?.status === "ON" ? "▶️ RUNNING" : "⏹️ STOPPED"}
               </Text>
             </View>
@@ -150,18 +196,38 @@ const WaterScreen = () => {
         </View>
       </View>
 
-      {/* Recent Activity */}
       <View style={[styles.section, styles.lastSection]}>
-        <Text style={styles.sectionTitle}>📋 Recent Activity</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          📋 Recent Activity
+        </Text>
         {data?.logs?.slice(0, 5).map((log: any, index: number) => (
-          <View key={index} style={styles.logItem}>
-            <Text style={styles.logTime}>
+          <View
+            key={index}
+            style={[
+              styles.logItem,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.logTime, { color: colors.textMuted }]}>
               {new Date(log.timestamp).toLocaleTimeString()}
             </Text>
-            <Text style={styles.logAction}>
+            <Text style={[styles.logAction, { color: colors.text }]}>
               💧 Released {log.water_amount} L
             </Text>
-            <Text style={styles.logTrigger}>{log.trigger}</Text>
+            <Text
+              style={[
+                styles.logTrigger,
+                {
+                  color: colors.textMuted,
+                  backgroundColor: colors.backgroundSecondary,
+                },
+              ]}
+            >
+              {log.trigger}
+            </Text>
           </View>
         ))}
       </View>
@@ -172,7 +238,6 @@ const WaterScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFCF2",
   },
   centered: {
     flex: 1,
@@ -180,12 +245,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   levelCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 20,
     margin: 16,
     alignItems: "center",
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -201,16 +264,12 @@ const styles = StyleSheet.create({
   levelTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#3E2C1C",
   },
   levelStatus: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#27AE60",
   },
-  levelStatusLow: {
-    color: "#E74C3C",
-  },
+  levelStatusLow: {},
   tankContainer: {
     width: 120,
     height: 160,
@@ -221,17 +280,15 @@ const styles = StyleSheet.create({
     width: 100,
     height: 140,
     borderWidth: 4,
-    borderColor: "#8B7355",
     borderRadius: 10,
     overflow: "hidden",
-    backgroundColor: "#F0E8D8",
     position: "relative",
+    backgroundColor: "#F0E8D8",
   },
   tankFill: {
     position: "absolute",
     bottom: 0,
     width: "100%",
-    backgroundColor: "#2980B9",
   },
   tankLabel: {
     position: "absolute",
@@ -248,7 +305,6 @@ const styles = StyleSheet.create({
   levelText: {
     marginTop: 8,
     fontSize: 14,
-    color: "#8B7355",
   },
   section: {
     paddingHorizontal: 16,
@@ -257,7 +313,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#5C4A1E",
     marginBottom: 12,
   },
   releaseButtons: {
@@ -266,7 +321,6 @@ const styles = StyleSheet.create({
   },
   releaseBtn: {
     flex: 1,
-    backgroundColor: "#2980B9",
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
@@ -283,27 +337,22 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   customReleaseBtn: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
     marginTop: 10,
     borderWidth: 1,
-    borderColor: "rgba(41, 128, 185, 0.3)",
   },
   customReleaseText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#2980B9",
   },
   pumpCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.1)",
   },
   pumpIcon: {
     fontSize: 32,
@@ -315,7 +364,6 @@ const styles = StyleSheet.create({
   pumpLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#3E2C1C",
   },
   pumpStatus: {
     marginTop: 4,
@@ -324,12 +372,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignSelf: "flex-start",
   },
-  pumpRunning: {
-    backgroundColor: "#E8F5E9",
-  },
-  pumpStopped: {
-    backgroundColor: "#FDEDEC",
-  },
+  pumpRunning: {},
+  pumpStopped: {},
   pumpStatusText: {
     fontSize: 12,
     fontWeight: "700",
@@ -341,30 +385,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
     borderRadius: 10,
     padding: 12,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.05)",
   },
   logTime: {
     fontSize: 12,
-    color: "#8B7355",
     width: 70,
   },
   logAction: {
     flex: 1,
     fontSize: 13,
-    color: "#3E2C1C",
   },
   logTrigger: {
     fontSize: 11,
-    color: "#8B7355",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
-    backgroundColor: "#F0E8D8",
   },
 });
 

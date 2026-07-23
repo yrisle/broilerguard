@@ -1,20 +1,22 @@
 // src/screens/Automation/WaterPumpScreen.tsx
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import api from "../../api/client";
+import { useTheme } from "../../hooks/useTheme";
 
 function WaterPumpScreen() {
+  const { colors } = useTheme();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -82,8 +84,8 @@ function WaterPumpScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FFD62E" />
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -95,28 +97,38 @@ function WaterPumpScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <Text style={styles.title}>💧 Water Pump</Text>
-      <Text style={styles.subtitle}>Automated watering system</Text>
+      <Text style={[styles.title, { color: colors.text }]}>💧 Water Pump</Text>
+      <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+        Automated watering system
+      </Text>
 
-      {/* Pump Status */}
-      <View style={styles.statusCard}>
-        <View style={styles.pumpIconContainer}>
+      <View style={[styles.statusCard, { backgroundColor: colors.card }]}>
+        <View
+          style={[
+            styles.pumpIconContainer,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           <Text
             style={[styles.pumpIcon, pumpStatus === "ON" && styles.pumpIconOn]}
           >
             💧
           </Text>
         </View>
-        <Text style={styles.pumpStatusLabel}>Water Pump is</Text>
+        <Text style={[styles.pumpStatusLabel, { color: colors.textMuted }]}>
+          Water Pump is
+        </Text>
         <Text
           style={[
             styles.pumpStatusText,
-            pumpStatus === "ON" ? styles.statusOn : styles.statusOff,
+            pumpStatus === "ON"
+              ? [styles.statusOn, { color: colors.success }]
+              : [styles.statusOff, { color: colors.danger }],
           ]}
         >
           {pumpStatus === "ON" ? "RUNNING" : "STOPPED"}
@@ -124,7 +136,9 @@ function WaterPumpScreen() {
         <TouchableOpacity
           style={[
             styles.toggleBtn,
-            pumpStatus === "ON" ? styles.toggleOn : styles.toggleOff,
+            pumpStatus === "ON"
+              ? [styles.toggleOn, { backgroundColor: colors.danger }]
+              : [styles.toggleOff, { backgroundColor: colors.success }],
           ]}
           onPress={togglePump}
         >
@@ -134,52 +148,63 @@ function WaterPumpScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Water Level */}
-      <View style={styles.levelCard}>
-        <Text style={styles.levelTitle}>📊 Water Level</Text>
+      <View style={[styles.levelCard, { backgroundColor: colors.card }]}>
+        <Text style={[styles.levelTitle, { color: colors.textSecondary }]}>
+          📊 Water Level
+        </Text>
         <View style={styles.tankContainer}>
-          <View style={styles.tank}>
+          <View style={[styles.tank, { borderColor: colors.textMuted }]}>
             <View
               style={[
                 styles.tankFill,
-                { height: `${Math.min(percentage, 100)}%` },
+                {
+                  height: `${Math.min(percentage, 100)}%`,
+                  backgroundColor: colors.info,
+                },
               ]}
             />
             <Text style={styles.tankLabel}>{percentage.toFixed(0)}%</Text>
           </View>
         </View>
-        <Text style={styles.levelText}>
+        <Text style={[styles.levelText, { color: colors.textMuted }]}>
           {level.toFixed(0)} L / {capacity} L
         </Text>
       </View>
 
-      {/* Auto Mode */}
-      <View style={styles.autoCard}>
+      <View
+        style={[
+          styles.autoCard,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+      >
         <View style={styles.autoRow}>
           <View>
-            <Text style={styles.autoLabel}>🤖 Auto Mode</Text>
-            <Text style={styles.autoDesc}>
+            <Text style={[styles.autoLabel, { color: colors.text }]}>
+              🤖 Auto Mode
+            </Text>
+            <Text style={[styles.autoDesc, { color: colors.textMuted }]}>
               {autoMode ? "Water released automatically" : "Manual mode only"}
             </Text>
           </View>
           <Switch
             value={autoMode}
             onValueChange={toggleAutoMode}
-            trackColor={{ false: "#E0D5C0", true: "#FFD62E" }}
+            trackColor={{ false: "#E0D5C0", true: colors.primary }}
           />
         </View>
       </View>
 
-      {/* Manual Release */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>✋ Manual Release</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          ✋ Manual Release
+        </Text>
         <View style={styles.releaseButtons}>
           {[15, 30, 60].map((seconds) => {
             const amount = (seconds * 0.5).toFixed(1);
             return (
               <TouchableOpacity
                 key={seconds}
-                style={styles.releaseBtn}
+                style={[styles.releaseBtn, { backgroundColor: colors.info }]}
                 onPress={() => handleWaterRelease(seconds)}
               >
                 <Text style={styles.releaseBtnText}>{seconds}s</Text>
@@ -190,14 +215,22 @@ function WaterPumpScreen() {
         </View>
         <View style={styles.customRelease}>
           <TextInput
-            style={styles.customInput}
+            style={[
+              styles.customInput,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
             value={customDuration}
             onChangeText={setCustomDuration}
             keyboardType="numeric"
             placeholder="30"
+            placeholderTextColor={colors.textMuted}
           />
           <TouchableOpacity
-            style={styles.customBtn}
+            style={[styles.customBtn, { backgroundColor: colors.info }]}
             onPress={() => handleWaterRelease(parseInt(customDuration) || 30)}
           >
             <Text style={styles.customBtnText}>Release</Text>
@@ -205,28 +238,56 @@ function WaterPumpScreen() {
         </View>
       </View>
 
-      {/* Schedules */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📅 Watering Schedule</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          📅 Watering Schedule
+        </Text>
         {data?.schedules?.map((schedule: any, index: number) => (
-          <View key={index} style={styles.scheduleItem}>
+          <View
+            key={index}
+            style={[
+              styles.scheduleItem,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
             <View style={styles.scheduleLeft}>
-              <Text style={styles.scheduleTime}>
+              <Text style={[styles.scheduleTime, { color: colors.text }]}>
                 {new Date(`2000-01-01T${schedule.time}:00`).toLocaleTimeString(
                   "en-US",
-                  { hour: "numeric", minute: "2-digit" },
+                  {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  },
                 )}
               </Text>
-              <Text style={styles.scheduleDuration}>{schedule.duration}s</Text>
+              <Text
+                style={[
+                  styles.scheduleDuration,
+                  { color: colors.textSecondary },
+                ]}
+              >
+                {schedule.duration}s
+              </Text>
             </View>
             <View style={styles.scheduleRight}>
-              <Text style={styles.scheduleLabel}>{schedule.label}</Text>
+              <Text style={[styles.scheduleLabel, { color: colors.textMuted }]}>
+                {schedule.label}
+              </Text>
               <View
                 style={[
                   styles.scheduleStatus,
                   schedule.enabled
-                    ? styles.statusActive
-                    : styles.statusInactive,
+                    ? [
+                        styles.statusActive,
+                        { backgroundColor: colors.successLight },
+                      ]
+                    : [
+                        styles.statusInactive,
+                        { backgroundColor: colors.dangerLight },
+                      ],
                 ]}
               >
                 <Text style={styles.scheduleStatusText}>
@@ -238,18 +299,38 @@ function WaterPumpScreen() {
         ))}
       </View>
 
-      {/* Recent Logs */}
       <View style={[styles.section, styles.lastSection]}>
-        <Text style={styles.sectionTitle}>📋 Recent Activity</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          📋 Recent Activity
+        </Text>
         {data?.logs?.slice(0, 5).map((log: any, index: number) => (
-          <View key={index} style={styles.logItem}>
-            <Text style={styles.logTime}>
+          <View
+            key={index}
+            style={[
+              styles.logItem,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.logTime, { color: colors.textMuted }]}>
               {new Date(log.timestamp).toLocaleTimeString()}
             </Text>
-            <Text style={styles.logAction}>
+            <Text style={[styles.logAction, { color: colors.text }]}>
               💧 Released {log.water_amount} L
             </Text>
-            <Text style={styles.logTrigger}>{log.trigger}</Text>
+            <Text
+              style={[
+                styles.logTrigger,
+                {
+                  color: colors.textMuted,
+                  backgroundColor: colors.backgroundSecondary,
+                },
+              ]}
+            >
+              {log.trigger}
+            </Text>
           </View>
         ))}
       </View>
@@ -260,7 +341,6 @@ function WaterPumpScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFCF2",
   },
   centered: {
     flex: 1,
@@ -270,23 +350,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#3E2C1C",
     paddingHorizontal: 20,
     paddingTop: 20,
   },
   subtitle: {
     fontSize: 14,
-    color: "#8B7355",
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
   statusCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 24,
     margin: 16,
     alignItems: "center",
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -296,7 +372,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#F0E8D8",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
@@ -310,44 +385,33 @@ const styles = StyleSheet.create({
   },
   pumpStatusLabel: {
     fontSize: 14,
-    color: "#8B7355",
   },
   pumpStatusText: {
     fontSize: 28,
     fontWeight: "800",
     marginVertical: 4,
   },
-  statusOn: {
-    color: "#27AE60",
-  },
-  statusOff: {
-    color: "#E74C3C",
-  },
+  statusOn: {},
+  statusOff: {},
   toggleBtn: {
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 30,
     marginTop: 12,
   },
-  toggleOn: {
-    backgroundColor: "#E74C3C",
-  },
-  toggleOff: {
-    backgroundColor: "#27AE60",
-  },
+  toggleOn: {},
+  toggleOff: {},
   toggleBtnText: {
     fontSize: 16,
     fontWeight: "700",
     color: "#FFFFFF",
   },
   levelCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 20,
     marginHorizontal: 16,
     marginBottom: 16,
     alignItems: "center",
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -356,7 +420,6 @@ const styles = StyleSheet.create({
   levelTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#5C4A1E",
     marginBottom: 12,
   },
   tankContainer: {
@@ -369,17 +432,15 @@ const styles = StyleSheet.create({
     width: 100,
     height: 140,
     borderWidth: 4,
-    borderColor: "#8B7355",
     borderRadius: 10,
     overflow: "hidden",
-    backgroundColor: "#F0E8D8",
     position: "relative",
+    backgroundColor: "#F0E8D8",
   },
   tankFill: {
     position: "absolute",
     bottom: 0,
     width: "100%",
-    backgroundColor: "#2980B9",
   },
   tankLabel: {
     position: "absolute",
@@ -396,16 +457,13 @@ const styles = StyleSheet.create({
   levelText: {
     marginTop: 8,
     fontSize: 14,
-    color: "#8B7355",
   },
   autoCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.1)",
   },
   autoRow: {
     flexDirection: "row",
@@ -415,11 +473,9 @@ const styles = StyleSheet.create({
   autoLabel: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#3E2C1C",
   },
   autoDesc: {
     fontSize: 12,
-    color: "#8B7355",
     marginTop: 2,
   },
   section: {
@@ -429,7 +485,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#5C4A1E",
     marginBottom: 12,
   },
   releaseButtons: {
@@ -439,7 +494,6 @@ const styles = StyleSheet.create({
   },
   releaseBtn: {
     flex: 1,
-    backgroundColor: "#2980B9",
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
@@ -461,16 +515,13 @@ const styles = StyleSheet.create({
   },
   customInput: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: "rgba(41, 128, 185, 0.3)",
     fontSize: 16,
   },
   customBtn: {
-    backgroundColor: "#2980B9",
     borderRadius: 12,
     paddingHorizontal: 20,
     justifyContent: "center",
@@ -484,12 +535,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 14,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.1)",
   },
   scheduleLeft: {
     flexDirection: "row",
@@ -499,12 +548,10 @@ const styles = StyleSheet.create({
   scheduleTime: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#3E2C1C",
     width: 70,
   },
   scheduleDuration: {
     fontSize: 14,
-    color: "#5C4A1E",
   },
   scheduleRight: {
     flexDirection: "row",
@@ -513,19 +560,14 @@ const styles = StyleSheet.create({
   },
   scheduleLabel: {
     fontSize: 12,
-    color: "#8B7355",
   },
   scheduleStatus: {
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  statusActive: {
-    backgroundColor: "#E8F5E9",
-  },
-  statusInactive: {
-    backgroundColor: "#FDEDEC",
-  },
+  statusActive: {},
+  statusInactive: {},
   scheduleStatusText: {
     fontSize: 11,
     fontWeight: "600",
@@ -537,30 +579,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
     borderRadius: 10,
     padding: 12,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.05)",
   },
   logTime: {
     fontSize: 12,
-    color: "#8B7355",
     width: 70,
   },
   logAction: {
     flex: 1,
     fontSize: 13,
-    color: "#3E2C1C",
   },
   logTrigger: {
     fontSize: 11,
-    color: "#8B7355",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
-    backgroundColor: "#F0E8D8",
   },
 });
 

@@ -1,28 +1,29 @@
 // src/screens/Automation/FeedDispenserScreen.tsx
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { api } from "../../api/client";
+import { useTheme } from "../../hooks/useTheme";
 
 const FeedDispenserScreen = () => {
+  const { colors } = useTheme();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [autoMode, setAutoMode] = useState(true);
   const [customAmount, setCustomAmount] = useState("0.5");
 
-  // Refill Modal
   const [refillModalVisible, setRefillModalVisible] = useState(false);
   const [refillAmount, setRefillAmount] = useState("");
 
@@ -103,8 +104,8 @@ const FeedDispenserScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FFD62E" />
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -115,19 +116,31 @@ const FeedDispenserScreen = () => {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <Text style={styles.title}>🍗 Feed Dispenser</Text>
-      <Text style={styles.subtitle}>Automated feeding system</Text>
+      <Text style={[styles.title, { color: colors.text }]}>
+        🍗 Feed Dispenser
+      </Text>
+      <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+        Automated feeding system
+      </Text>
 
-      {/* Feed Level */}
-      <View style={styles.levelCard}>
+      <View style={[styles.levelCard, { backgroundColor: colors.card }]}>
         <View style={styles.levelHeader}>
-          <Text style={styles.levelTitle}>📦 Feed Level</Text>
-          <Text style={[styles.levelStatus, isLow && styles.levelStatusLow]}>
+          <Text style={[styles.levelTitle, { color: colors.text }]}>
+            📦 Feed Level
+          </Text>
+          <Text
+            style={[
+              styles.levelStatus,
+              isLow
+                ? [styles.levelStatusLow, { color: colors.danger }]
+                : { color: colors.success },
+            ]}
+          >
             {isLow ? "⚠️ LOW" : "✅ OK"}
           </Text>
         </View>
@@ -137,95 +150,141 @@ const FeedDispenserScreen = () => {
               styles.progressFill,
               {
                 width: `${Math.min(percentage, 100)}%`,
-                backgroundColor: isLow ? "#E74C3C" : "#FFD62E",
+                backgroundColor: isLow ? colors.danger : colors.primary,
               },
             ]}
           />
         </View>
         <View style={styles.levelDetails}>
-          <Text style={styles.levelText}>
+          <Text style={[styles.levelText, { color: colors.textMuted }]}>
             {inventory.current_level.toFixed(1)} kg / {inventory.capacity} kg
           </Text>
-          <Text style={styles.levelPercent}>{percentage.toFixed(0)}%</Text>
+          <Text style={[styles.levelPercent, { color: colors.text }]}>
+            {percentage.toFixed(0)}%
+          </Text>
         </View>
         <TouchableOpacity
-          style={styles.refillBtn}
+          style={[styles.refillBtn, { backgroundColor: colors.success }]}
           onPress={() => setRefillModalVisible(true)}
         >
           <Text style={styles.refillBtnText}>➕ Refill Feed</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Automation Status */}
-      <View style={styles.autoCard}>
+      <View
+        style={[
+          styles.autoCard,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+      >
         <View style={styles.autoRow}>
           <View>
-            <Text style={styles.autoLabel}>🤖 Auto Mode</Text>
-            <Text style={styles.autoDesc}>
+            <Text style={[styles.autoLabel, { color: colors.text }]}>
+              🤖 Auto Mode
+            </Text>
+            <Text style={[styles.autoDesc, { color: colors.textMuted }]}>
               {autoMode ? "Feed dispensed automatically" : "Manual mode only"}
             </Text>
           </View>
           <Switch
             value={autoMode}
             onValueChange={toggleAutoMode}
-            trackColor={{ false: "#E0D5C0", true: "#FFD62E" }}
+            trackColor={{ false: "#E0D5C0", true: colors.primary }}
           />
         </View>
       </View>
 
-      {/* Manual Dispense */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>✋ Manual Dispense</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          ✋ Manual Dispense
+        </Text>
         <View style={styles.dispenseButtons}>
           {[0.3, 0.5, 1.0].map((amount) => (
             <TouchableOpacity
               key={amount}
-              style={styles.dispenseBtn}
+              style={[styles.dispenseBtn, { backgroundColor: colors.primary }]}
               onPress={() => handleDispense(amount)}
             >
-              <Text style={styles.dispenseBtnText}>{amount} kg</Text>
+              <Text style={[styles.dispenseBtnText, { color: colors.text }]}>
+                {amount} kg
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
         <View style={styles.customDispense}>
           <TextInput
-            style={styles.customInput}
+            style={[
+              styles.customInput,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
             value={customAmount}
             onChangeText={setCustomAmount}
             keyboardType="numeric"
             placeholder="0.5"
+            placeholderTextColor={colors.textMuted}
           />
           <TouchableOpacity
-            style={styles.customBtn}
+            style={[styles.customBtn, { backgroundColor: colors.primary }]}
             onPress={() => handleDispense(parseFloat(customAmount) || 0.5)}
           >
-            <Text style={styles.customBtnText}>Dispense</Text>
+            <Text style={[styles.customBtnText, { color: colors.text }]}>
+              Dispense
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Schedules */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📅 Feeding Schedule</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          📅 Feeding Schedule
+        </Text>
         {data?.schedules?.map((schedule: any, index: number) => (
-          <View key={index} style={styles.scheduleItem}>
+          <View
+            key={index}
+            style={[
+              styles.scheduleItem,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
             <View style={styles.scheduleLeft}>
-              <Text style={styles.scheduleTime}>
+              <Text style={[styles.scheduleTime, { color: colors.text }]}>
                 {new Date(`2000-01-01T${schedule.time}:00`).toLocaleTimeString(
                   "en-US",
-                  { hour: "numeric", minute: "2-digit" },
+                  {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  },
                 )}
               </Text>
-              <Text style={styles.scheduleAmount}>{schedule.amount} kg</Text>
+              <Text
+                style={[styles.scheduleAmount, { color: colors.textSecondary }]}
+              >
+                {schedule.amount} kg
+              </Text>
             </View>
             <View style={styles.scheduleRight}>
-              <Text style={styles.scheduleLabel}>{schedule.label}</Text>
+              <Text style={[styles.scheduleLabel, { color: colors.textMuted }]}>
+                {schedule.label}
+              </Text>
               <View
                 style={[
                   styles.scheduleStatus,
                   schedule.enabled
-                    ? styles.statusActive
-                    : styles.statusInactive,
+                    ? [
+                        styles.statusActive,
+                        { backgroundColor: colors.successLight },
+                      ]
+                    : [
+                        styles.statusInactive,
+                        { backgroundColor: colors.dangerLight },
+                      ],
                 ]}
               >
                 <Text style={styles.scheduleStatusText}>
@@ -237,24 +296,35 @@ const FeedDispenserScreen = () => {
         ))}
       </View>
 
-      {/* Recent Logs */}
       <View style={[styles.section, styles.lastSection]}>
-        <Text style={styles.sectionTitle}>📋 Recent Activity</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          📋 Recent Activity
+        </Text>
         {data?.logs?.slice(0, 5).map((log: any, index: number) => (
-          <View key={index} style={styles.logItem}>
-            <Text style={styles.logTime}>
+          <View
+            key={index}
+            style={[
+              styles.logItem,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.logTime, { color: colors.textMuted }]}>
               {new Date(log.timestamp).toLocaleTimeString()}
             </Text>
-            <Text style={styles.logAction}>
+            <Text style={[styles.logAction, { color: colors.text }]}>
               {log.source === "refill" ? "➕ Refilled" : "🍽️ Dispensed"}{" "}
               {log.amount} kg
             </Text>
-            <Text style={styles.logRemaining}>{log.remaining} kg left</Text>
+            <Text style={[styles.logRemaining, { color: colors.textMuted }]}>
+              {log.remaining} kg left
+            </Text>
           </View>
         ))}
       </View>
 
-      {/* Refill Modal */}
       <Modal
         visible={refillModalVisible}
         transparent={true}
@@ -262,32 +332,58 @@ const FeedDispenserScreen = () => {
         onRequestClose={() => setRefillModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Refill Feed</Text>
-            <Text style={styles.modalSubtitle}>Enter amount to add (kg):</Text>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              Refill Feed
+            </Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
+              Enter amount to add (kg):
+            </Text>
             <TextInput
-              style={styles.modalInput}
+              style={[
+                styles.modalInput,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  color: colors.text,
+                },
+              ]}
               value={refillAmount}
               onChangeText={setRefillAmount}
               keyboardType="numeric"
               placeholder="Enter amount"
+              placeholderTextColor={colors.textMuted}
               autoFocus
             />
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalBtn, styles.modalCancelBtn]}
+                style={[
+                  styles.modalBtn,
+                  styles.modalCancelBtn,
+                  { backgroundColor: colors.background },
+                ]}
                 onPress={() => {
                   setRefillModalVisible(false);
                   setRefillAmount("");
                 }}
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text
+                  style={[styles.modalCancelText, { color: colors.textMuted }]}
+                >
+                  Cancel
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalBtn, styles.modalConfirmBtn]}
+                style={[
+                  styles.modalBtn,
+                  styles.modalConfirmBtn,
+                  { backgroundColor: colors.primary },
+                ]}
                 onPress={handleRefill}
               >
-                <Text style={styles.modalConfirmText}>Refill</Text>
+                <Text style={[styles.modalConfirmText, { color: colors.text }]}>
+                  Refill
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -300,7 +396,6 @@ const FeedDispenserScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFCF2",
   },
   centered: {
     flex: 1,
@@ -310,22 +405,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#3E2C1C",
     paddingHorizontal: 20,
     paddingTop: 20,
   },
   subtitle: {
     fontSize: 14,
-    color: "#8B7355",
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
   levelCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 20,
     margin: 16,
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -340,21 +431,17 @@ const styles = StyleSheet.create({
   levelTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#3E2C1C",
   },
   levelStatus: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#27AE60",
   },
-  levelStatusLow: {
-    color: "#E74C3C",
-  },
+  levelStatusLow: {},
   progressBar: {
     height: 12,
-    backgroundColor: "#F0E8D8",
     borderRadius: 6,
     overflow: "hidden",
+    backgroundColor: "#F0E8D8",
   },
   progressFill: {
     height: "100%",
@@ -367,15 +454,12 @@ const styles = StyleSheet.create({
   },
   levelText: {
     fontSize: 14,
-    color: "#8B7355",
   },
   levelPercent: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#3E2C1C",
   },
   refillBtn: {
-    backgroundColor: "#27AE60",
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
@@ -387,13 +471,11 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   autoCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.1)",
   },
   autoRow: {
     flexDirection: "row",
@@ -403,11 +485,9 @@ const styles = StyleSheet.create({
   autoLabel: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#3E2C1C",
   },
   autoDesc: {
     fontSize: 12,
-    color: "#8B7355",
     marginTop: 2,
   },
   section: {
@@ -417,7 +497,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#5C4A1E",
     marginBottom: 12,
   },
   dispenseButtons: {
@@ -427,7 +506,6 @@ const styles = StyleSheet.create({
   },
   dispenseBtn: {
     flex: 1,
-    backgroundColor: "#FFD62E",
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
@@ -436,7 +514,6 @@ const styles = StyleSheet.create({
   dispenseBtnText: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#3E2C1C",
   },
   customDispense: {
     flexDirection: "row",
@@ -444,16 +521,13 @@ const styles = StyleSheet.create({
   },
   customInput: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.3)",
     fontSize: 16,
   },
   customBtn: {
-    backgroundColor: "#FFD62E",
     borderRadius: 12,
     paddingHorizontal: 20,
     justifyContent: "center",
@@ -461,18 +535,15 @@ const styles = StyleSheet.create({
   customBtnText: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#3E2C1C",
   },
   scheduleItem: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 14,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.1)",
   },
   scheduleLeft: {
     flexDirection: "row",
@@ -482,12 +553,10 @@ const styles = StyleSheet.create({
   scheduleTime: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#3E2C1C",
     width: 70,
   },
   scheduleAmount: {
     fontSize: 14,
-    color: "#5C4A1E",
   },
   scheduleRight: {
     flexDirection: "row",
@@ -496,19 +565,14 @@ const styles = StyleSheet.create({
   },
   scheduleLabel: {
     fontSize: 12,
-    color: "#8B7355",
   },
   scheduleStatus: {
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  statusActive: {
-    backgroundColor: "#E8F5E9",
-  },
-  statusInactive: {
-    backgroundColor: "#FDEDEC",
-  },
+  statusActive: {},
+  statusInactive: {},
   scheduleStatusText: {
     fontSize: 11,
     fontWeight: "600",
@@ -520,28 +584,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
     borderRadius: 10,
     padding: 12,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.05)",
   },
   logTime: {
     fontSize: 12,
-    color: "#8B7355",
     width: 70,
   },
   logAction: {
     flex: 1,
     fontSize: 13,
-    color: "#3E2C1C",
   },
   logRemaining: {
     fontSize: 12,
-    color: "#8B7355",
   },
-  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -549,7 +607,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 24,
     width: "85%",
@@ -558,21 +615,17 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#3E2C1C",
     marginBottom: 4,
   },
   modalSubtitle: {
     fontSize: 14,
-    color: "#8B7355",
     marginBottom: 16,
   },
   modalInput: {
-    backgroundColor: "#FFFCF2",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.3)",
     fontSize: 16,
     marginBottom: 16,
   },
@@ -586,21 +639,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
   },
-  modalCancelBtn: {
-    backgroundColor: "#F0E8D8",
-  },
+  modalCancelBtn: {},
   modalCancelText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#8B7355",
   },
-  modalConfirmBtn: {
-    backgroundColor: "#FFD62E",
-  },
+  modalConfirmBtn: {},
   modalConfirmText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#3E2C1C",
   },
 });
 

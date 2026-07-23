@@ -1,19 +1,21 @@
 // src/screens/Automation/FanControlScreen.tsx
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import api from "../../api/client";
+import { useTheme } from "../../hooks/useTheme";
 
 function FanControlScreen() {
+  const { colors } = useTheme();
   const [fanStatus, setFanStatus] = useState("OFF");
   const [settings, setSettings] = useState({
     auto_mode: true,
@@ -83,38 +85,46 @@ function FanControlScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FFD62E" />
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <Text style={styles.title}>🌀 Fan Control</Text>
-      <Text style={styles.subtitle}>
+      <Text style={[styles.title, { color: colors.text }]}>🌀 Fan Control</Text>
+      <Text style={[styles.subtitle, { color: colors.textMuted }]}>
         Temperature-based automatic ventilation
       </Text>
 
-      {/* Fan Status */}
-      <View style={styles.statusCard}>
-        <View style={styles.fanIconContainer}>
+      <View style={[styles.statusCard, { backgroundColor: colors.card }]}>
+        <View
+          style={[
+            styles.fanIconContainer,
+            { backgroundColor: colors.backgroundSecondary },
+          ]}
+        >
           <Text
             style={[styles.fanIcon, fanStatus === "ON" && styles.fanIconOn]}
           >
             🌀
           </Text>
         </View>
-        <Text style={styles.fanStatusLabel}>Fan is</Text>
+        <Text style={[styles.fanStatusLabel, { color: colors.textMuted }]}>
+          Fan is
+        </Text>
         <Text
           style={[
             styles.fanStatusText,
-            fanStatus === "ON" ? styles.statusOn : styles.statusOff,
+            fanStatus === "ON"
+              ? [styles.statusOn, { color: colors.success }]
+              : [styles.statusOff, { color: colors.danger }],
           ]}
         >
           {fanStatus === "ON" ? "RUNNING" : "OFF"}
@@ -122,7 +132,9 @@ function FanControlScreen() {
         <TouchableOpacity
           style={[
             styles.toggleBtn,
-            fanStatus === "ON" ? styles.toggleOn : styles.toggleOff,
+            fanStatus === "ON"
+              ? [styles.toggleOn, { backgroundColor: colors.danger }]
+              : [styles.toggleOff, { backgroundColor: colors.success }],
           ]}
           onPress={toggleFan}
         >
@@ -132,65 +144,124 @@ function FanControlScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Settings */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>⚙️ Automation Settings</Text>
-        <View style={styles.settingCard}>
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>🤖 Auto Mode</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          ⚙️ Automation Settings
+        </Text>
+        <View
+          style={[
+            styles.settingCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
+          <View style={[styles.settingRow, { borderColor: colors.border }]}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>
+              🤖 Auto Mode
+            </Text>
             <Switch
               value={settings.auto_mode}
               onValueChange={toggleAutoMode}
-              trackColor={{ false: "#E0D5C0", true: "#FFD62E" }}
+              trackColor={{ false: "#E0D5C0", true: colors.primary }}
             />
           </View>
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>🌡️ Turn ON at</Text>
-            <Text style={styles.settingValue}>{settings.temp_on}°C</Text>
+          <View style={[styles.settingRow, { borderColor: colors.border }]}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>
+              🌡️ Turn ON at
+            </Text>
+            <Text style={[styles.settingValue, { color: colors.primary }]}>
+              {settings.temp_on}°C
+            </Text>
           </View>
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>🌡️ Turn OFF at</Text>
-            <Text style={styles.settingValue}>{settings.temp_off}°C</Text>
+          <View style={[styles.settingRow, { borderColor: colors.border }]}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>
+              🌡️ Turn OFF at
+            </Text>
+            <Text style={[styles.settingValue, { color: colors.primary }]}>
+              {settings.temp_off}°C
+            </Text>
           </View>
         </View>
       </View>
 
-      {/* Current Conditions */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📊 Current Conditions</Text>
-        <View style={styles.conditionCard}>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          📊 Current Conditions
+        </Text>
+        <View
+          style={[
+            styles.conditionCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
           <View style={styles.conditionItem}>
             <Text style={styles.conditionIcon}>🌡️</Text>
-            <Text style={styles.conditionValue}>32.5°C</Text>
-            <Text style={styles.conditionLabel}>Temperature</Text>
+            <Text style={[styles.conditionValue, { color: colors.text }]}>
+              32.5°C
+            </Text>
+            <Text style={[styles.conditionLabel, { color: colors.textMuted }]}>
+              Temperature
+            </Text>
           </View>
-          <View style={styles.conditionDivider} />
+          <View
+            style={[
+              styles.conditionDivider,
+              { backgroundColor: colors.border },
+            ]}
+          />
           <View style={styles.conditionItem}>
             <Text style={styles.conditionIcon}>💧</Text>
-            <Text style={styles.conditionValue}>65%</Text>
-            <Text style={styles.conditionLabel}>Humidity</Text>
+            <Text style={[styles.conditionValue, { color: colors.text }]}>
+              65%
+            </Text>
+            <Text style={[styles.conditionLabel, { color: colors.textMuted }]}>
+              Humidity
+            </Text>
           </View>
         </View>
       </View>
 
-      {/* Activity Log */}
       <View style={[styles.section, styles.lastSection]}>
-        <Text style={styles.sectionTitle}>📋 Recent Activity</Text>
-        <View style={styles.logCard}>
-          <View style={styles.logItem}>
-            <Text style={styles.logTime}>10:30 AM</Text>
-            <Text style={styles.logAction}>🔄 Auto ON</Text>
-            <Text style={styles.logTemp}>32.5°C</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          📋 Recent Activity
+        </Text>
+        <View
+          style={[
+            styles.logCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
+          <View style={[styles.logItem, { borderColor: colors.border }]}>
+            <Text style={[styles.logTime, { color: colors.textMuted }]}>
+              10:30 AM
+            </Text>
+            <Text style={[styles.logAction, { color: colors.text }]}>
+              🔄 Auto ON
+            </Text>
+            <Text style={[styles.logTemp, { color: colors.textMuted }]}>
+              32.5°C
+            </Text>
           </View>
-          <View style={styles.logItem}>
-            <Text style={styles.logTime}>08:15 AM</Text>
-            <Text style={styles.logAction}>🔄 Auto OFF</Text>
-            <Text style={styles.logTemp}>28.0°C</Text>
+          <View style={[styles.logItem, { borderColor: colors.border }]}>
+            <Text style={[styles.logTime, { color: colors.textMuted }]}>
+              08:15 AM
+            </Text>
+            <Text style={[styles.logAction, { color: colors.text }]}>
+              🔄 Auto OFF
+            </Text>
+            <Text style={[styles.logTemp, { color: colors.textMuted }]}>
+              28.0°C
+            </Text>
           </View>
-          <View style={styles.logItem}>
-            <Text style={styles.logTime}>06:00 AM</Text>
-            <Text style={styles.logAction}>👤 Manual ON</Text>
-            <Text style={styles.logTemp}>31.0°C</Text>
+          <View style={[styles.logItem, { borderColor: colors.border }]}>
+            <Text style={[styles.logTime, { color: colors.textMuted }]}>
+              06:00 AM
+            </Text>
+            <Text style={[styles.logAction, { color: colors.text }]}>
+              👤 Manual ON
+            </Text>
+            <Text style={[styles.logTemp, { color: colors.textMuted }]}>
+              31.0°C
+            </Text>
           </View>
         </View>
       </View>
@@ -201,7 +272,6 @@ function FanControlScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFCF2",
   },
   centered: {
     flex: 1,
@@ -211,23 +281,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#3E2C1C",
     paddingHorizontal: 20,
     paddingTop: 20,
   },
   subtitle: {
     fontSize: 14,
-    color: "#8B7355",
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
   statusCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 24,
     margin: 16,
     alignItems: "center",
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -237,7 +303,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#F0E8D8",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
@@ -251,31 +316,22 @@ const styles = StyleSheet.create({
   },
   fanStatusLabel: {
     fontSize: 14,
-    color: "#8B7355",
   },
   fanStatusText: {
     fontSize: 28,
     fontWeight: "800",
     marginVertical: 4,
   },
-  statusOn: {
-    color: "#27AE60",
-  },
-  statusOff: {
-    color: "#E74C3C",
-  },
+  statusOn: {},
+  statusOff: {},
   toggleBtn: {
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 30,
     marginTop: 12,
   },
-  toggleOn: {
-    backgroundColor: "#E74C3C",
-  },
-  toggleOff: {
-    backgroundColor: "#27AE60",
-  },
+  toggleOn: {},
+  toggleOff: {},
   toggleBtnText: {
     fontSize: 16,
     fontWeight: "700",
@@ -288,15 +344,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#5C4A1E",
     marginBottom: 12,
   },
   settingCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.1)",
   },
   settingRow: {
     flexDirection: "row",
@@ -304,24 +357,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 214, 46, 0.05)",
   },
   settingLabel: {
     fontSize: 14,
-    color: "#3E2C1C",
   },
   settingValue: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#FFD62E",
   },
   conditionCard: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.1)",
   },
   conditionItem: {
     flex: 1,
@@ -333,27 +381,22 @@ const styles = StyleSheet.create({
   conditionValue: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#3E2C1C",
     marginTop: 4,
   },
   conditionLabel: {
     fontSize: 12,
-    color: "#8B7355",
     marginTop: 2,
   },
   conditionDivider: {
     width: 1,
-    backgroundColor: "rgba(255, 214, 46, 0.2)",
   },
   lastSection: {
     paddingBottom: 20,
   },
   logCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 4,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.1)",
   },
   logItem: {
     flexDirection: "row",
@@ -361,20 +404,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 214, 46, 0.05)",
   },
   logTime: {
     fontSize: 12,
-    color: "#8B7355",
   },
   logAction: {
     fontSize: 13,
     fontWeight: "500",
-    color: "#3E2C1C",
   },
   logTemp: {
     fontSize: 12,
-    color: "#8B7355",
   },
 });
 

@@ -1,18 +1,20 @@
 // src/screens/Main/FeedScreen.tsx
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import api from "../../api/client";
+import { useTheme } from "../../hooks/useTheme";
 
 const FeedScreen = () => {
+  const { colors } = useTheme();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -57,8 +59,8 @@ const FeedScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FFD62E" />
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -70,16 +72,24 @@ const FeedScreen = () => {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      {/* Current Level */}
-      <View style={styles.levelCard}>
+      <View style={[styles.levelCard, { backgroundColor: colors.card }]}>
         <View style={styles.levelHeader}>
-          <Text style={styles.levelTitle}>🍗 Feed Level</Text>
-          <Text style={[styles.levelStatus, isLow && styles.levelStatusLow]}>
+          <Text style={[styles.levelTitle, { color: colors.text }]}>
+            🍗 Feed Level
+          </Text>
+          <Text
+            style={[
+              styles.levelStatus,
+              isLow
+                ? [styles.levelStatusLow, { color: colors.danger }]
+                : { color: colors.success },
+            ]}
+          >
             {isLow ? "⚠️ LOW" : "✅ OK"}
           </Text>
         </View>
@@ -90,52 +100,92 @@ const FeedScreen = () => {
                 styles.progressFill,
                 {
                   width: `${Math.min(percentage, 100)}%`,
-                  backgroundColor: isLow ? "#E74C3C" : "#FFD62E",
+                  backgroundColor: isLow ? colors.danger : colors.primary,
                 },
               ]}
             />
           </View>
-          <Text style={styles.levelText}>
+          <Text style={[styles.levelText, { color: colors.textMuted }]}>
             {level.toFixed(1)} kg / {capacity} kg ({percentage.toFixed(0)}%)
           </Text>
         </View>
       </View>
 
-      {/* Quick Dispense */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>⚡ Quick Dispense</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          ⚡ Quick Dispense
+        </Text>
         <View style={styles.dispenseButtons}>
           {[0.5, 1.0, 2.0].map((amount) => (
             <TouchableOpacity
               key={amount}
-              style={styles.dispenseBtn}
+              style={[styles.dispenseBtn, { backgroundColor: colors.primary }]}
               onPress={() => handleDispense(amount)}
             >
-              <Text style={styles.dispenseBtnText}>{amount} kg</Text>
+              <Text style={[styles.dispenseBtnText, { color: colors.text }]}>
+                {amount} kg
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
-        <TouchableOpacity style={styles.customDispenseBtn}>
-          <Text style={styles.customDispenseText}>Custom Amount →</Text>
+        <TouchableOpacity
+          style={[
+            styles.customDispenseBtn,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <Text
+            style={[styles.customDispenseText, { color: colors.textMuted }]}
+          >
+            Custom Amount →
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Feed Schedules */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📅 Feeding Schedule</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          📅 Feeding Schedule
+        </Text>
         {data?.schedules?.map((schedule: any, index: number) => (
-          <View key={index} style={styles.scheduleItem}>
-            <Text style={styles.scheduleTime}>
+          <View
+            key={index}
+            style={[
+              styles.scheduleItem,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.scheduleTime, { color: colors.text }]}>
               {new Date(`2000-01-01T${schedule.time}:00`).toLocaleTimeString(
                 "en-US",
-                { hour: "numeric", minute: "2-digit" },
+                {
+                  hour: "numeric",
+                  minute: "2-digit",
+                },
               )}
             </Text>
-            <Text style={styles.scheduleAmount}>{schedule.amount} kg</Text>
+            <Text
+              style={[styles.scheduleAmount, { color: colors.textSecondary }]}
+            >
+              {schedule.amount} kg
+            </Text>
             <View
               style={[
                 styles.scheduleStatus,
-                schedule.enabled ? styles.statusActive : styles.statusInactive,
+                schedule.enabled
+                  ? [
+                      styles.statusActive,
+                      { backgroundColor: colors.successLight },
+                    ]
+                  : [
+                      styles.statusInactive,
+                      { backgroundColor: colors.dangerLight },
+                    ],
               ]}
             >
               <Text style={styles.scheduleStatusText}>
@@ -146,19 +196,31 @@ const FeedScreen = () => {
         ))}
       </View>
 
-      {/* Recent Activity */}
       <View style={[styles.section, styles.lastSection]}>
-        <Text style={styles.sectionTitle}>📋 Recent Activity</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          📋 Recent Activity
+        </Text>
         {data?.logs?.slice(0, 5).map((log: any, index: number) => (
-          <View key={index} style={styles.logItem}>
-            <Text style={styles.logTime}>
+          <View
+            key={index}
+            style={[
+              styles.logItem,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.logTime, { color: colors.textMuted }]}>
               {new Date(log.timestamp).toLocaleTimeString()}
             </Text>
-            <Text style={styles.logAction}>
+            <Text style={[styles.logAction, { color: colors.text }]}>
               {log.source === "refill" ? "➕ Refilled" : "🍽️ Dispensed"}{" "}
               {log.amount} kg
             </Text>
-            <Text style={styles.logRemaining}>{log.remaining} kg left</Text>
+            <Text style={[styles.logRemaining, { color: colors.textMuted }]}>
+              {log.remaining} kg left
+            </Text>
           </View>
         ))}
       </View>
@@ -169,7 +231,6 @@ const FeedScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFCF2",
   },
   centered: {
     flex: 1,
@@ -177,11 +238,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   levelCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 20,
     margin: 16,
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -196,24 +255,20 @@ const styles = StyleSheet.create({
   levelTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#3E2C1C",
   },
   levelStatus: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#27AE60",
   },
-  levelStatusLow: {
-    color: "#E74C3C",
-  },
+  levelStatusLow: {},
   levelGauge: {
     marginTop: 4,
   },
   progressBar: {
     height: 12,
-    backgroundColor: "#F0E8D8",
     borderRadius: 6,
     overflow: "hidden",
+    backgroundColor: "#F0E8D8",
   },
   progressFill: {
     height: "100%",
@@ -222,7 +277,6 @@ const styles = StyleSheet.create({
   levelText: {
     marginTop: 8,
     fontSize: 14,
-    color: "#8B7355",
     textAlign: "center",
   },
   section: {
@@ -232,7 +286,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#5C4A1E",
     marginBottom: 12,
   },
   dispenseButtons: {
@@ -241,7 +294,6 @@ const styles = StyleSheet.create({
   },
   dispenseBtn: {
     flex: 1,
-    backgroundColor: "#FFD62E",
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
@@ -250,54 +302,42 @@ const styles = StyleSheet.create({
   dispenseBtnText: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#3E2C1C",
   },
   customDispenseBtn: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
     marginTop: 10,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.3)",
   },
   customDispenseText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#8B7355",
   },
   scheduleItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 14,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.1)",
   },
   scheduleTime: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#3E2C1C",
     width: 70,
   },
   scheduleAmount: {
     flex: 1,
     fontSize: 14,
-    color: "#5C4A1E",
   },
   scheduleStatus: {
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  statusActive: {
-    backgroundColor: "#E8F5E9",
-  },
-  statusInactive: {
-    backgroundColor: "#FDEDEC",
-  },
+  statusActive: {},
+  statusInactive: {},
   scheduleStatusText: {
     fontSize: 11,
     fontWeight: "600",
@@ -309,26 +349,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
     borderRadius: 10,
     padding: 12,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.05)",
   },
   logTime: {
     fontSize: 12,
-    color: "#8B7355",
     width: 70,
   },
   logAction: {
     flex: 1,
     fontSize: 13,
-    color: "#3E2C1C",
   },
   logRemaining: {
     fontSize: 12,
-    color: "#8B7355",
   },
 });
 

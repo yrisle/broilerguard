@@ -11,8 +11,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useTheme } from "../../hooks/useTheme";
 
 const CameraScreen = () => {
+  const { colors } = useTheme();
   const [facing, setFacing] = useState<CameraType>("back");
   const [photo, setPhoto] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -20,30 +22,34 @@ const CameraScreen = () => {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<any>(null);
 
-  // habang chine-check ang permission
   if (!permission) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FFD62E" />
-        <Text style={styles.loadingText}>Checking camera permission...</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textMuted }]}>
+          Checking camera permission...
+        </Text>
       </View>
     );
   }
 
-  // kapag walang permission
   if (!permission.granted) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.permissionText}>📷 Camera permission required</Text>
-        <Text style={styles.permissionSubtext}>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.permissionText, { color: colors.text }]}>
+          📷 Camera permission required
+        </Text>
+        <Text style={[styles.permissionSubtext, { color: colors.textMuted }]}>
           Please allow camera access to use AI detection.
         </Text>
 
         <TouchableOpacity
-          style={styles.permissionBtn}
+          style={[styles.permissionBtn, { backgroundColor: colors.primary }]}
           onPress={requestPermission}
         >
-          <Text style={styles.permissionBtnText}>Grant Permission</Text>
+          <Text style={[styles.permissionBtnText, { color: colors.text }]}>
+            Grant Permission
+          </Text>
         </TouchableOpacity>
       </View>
     );
@@ -54,16 +60,13 @@ const CameraScreen = () => {
 
     try {
       setLoading(true);
-
       const result = await cameraRef.current.takePictureAsync({
         quality: 0.8,
       });
-
       setPhoto(result.uri);
-
       Alert.alert(
         "AI Detection Complete",
-        "Found 5 chickens:\\n- 3 Healthy\\n- 1 Weak\\n- 1 Unhealthy",
+        "Found 5 chickens:\n- 3 Healthy\n- 1 Weak\n- 1 Unhealthy",
       );
     } catch (error) {
       console.log("Camera error:", error);
@@ -76,17 +79,16 @@ const CameraScreen = () => {
   const pickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images, // ✅ FIXED!
         allowsEditing: true,
         quality: 1,
       });
 
       if (!result.canceled) {
         setPhoto(result.assets[0].uri);
-
         Alert.alert(
           "AI Detection Complete",
-          "Found 5 chickens:\\n- 3 Healthy\\n- 1 Weak\\n- 1 Unhealthy",
+          "Found 5 chickens:\n- 3 Healthy\n- 1 Weak\n- 1 Unhealthy",
         );
       }
     } catch (error) {
@@ -97,26 +99,37 @@ const CameraScreen = () => {
 
   const resetCamera = () => setPhoto(null);
 
-  // preview screen
   if (photo) {
     return (
       <View style={styles.container}>
         <Image source={{ uri: photo }} style={styles.preview} />
-
-        <View style={styles.previewControls}>
-          <TouchableOpacity style={styles.previewBtn} onPress={resetCamera}>
-            <Text style={styles.previewBtnText}>📷 Retake</Text>
+        <View
+          style={[styles.previewControls, { backgroundColor: colors.card }]}
+        >
+          <TouchableOpacity
+            style={[styles.previewBtn, { backgroundColor: colors.primary }]}
+            onPress={resetCamera}
+          >
+            <Text style={[styles.previewBtnText, { color: colors.text }]}>
+              📷 Retake
+            </Text>
           </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.previewBtn, styles.previewBtnSave]}>
-            <Text style={styles.previewBtnText}>✅ Save</Text>
+          <TouchableOpacity
+            style={[
+              styles.previewBtn,
+              styles.previewBtnSave,
+              { backgroundColor: colors.success },
+            ]}
+          >
+            <Text style={[styles.previewBtnText, { color: colors.text }]}>
+              ✅ Save
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
     );
   }
 
-  // camera screen
   return (
     <View style={styles.container}>
       <CameraView ref={cameraRef} style={styles.camera} facing={facing}>
@@ -129,7 +142,13 @@ const CameraScreen = () => {
           </View>
 
           <View style={styles.cameraControls}>
-            <TouchableOpacity style={styles.galleryBtn} onPress={pickImage}>
+            <TouchableOpacity
+              style={[
+                styles.galleryBtn,
+                { backgroundColor: colors.sidebar.background },
+              ]}
+              onPress={pickImage}
+            >
               <Text style={styles.galleryBtnText}>🖼️</Text>
             </TouchableOpacity>
 
@@ -146,7 +165,10 @@ const CameraScreen = () => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.flipBtn}
+              style={[
+                styles.flipBtn,
+                { backgroundColor: colors.sidebar.background },
+              ]}
               onPress={() =>
                 setFacing((current) => (current === "back" ? "front" : "back"))
               }
@@ -169,28 +191,23 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#FFFCF2",
     padding: 20,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: "#8B7355",
   },
   permissionText: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#3E2C1C",
     marginBottom: 8,
   },
   permissionSubtext: {
     fontSize: 14,
-    color: "#8B7355",
     textAlign: "center",
     marginBottom: 24,
   },
   permissionBtn: {
-    backgroundColor: "#FFD62E",
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 12,
@@ -198,7 +215,6 @@ const styles = StyleSheet.create({
   permissionBtnText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#3E2C1C",
   },
   camera: {
     flex: 1,
@@ -248,7 +264,6 @@ const styles = StyleSheet.create({
   },
   galleryBtn: {
     padding: 14,
-    backgroundColor: "rgba(0,0,0,0.5)",
     borderRadius: 12,
   },
   galleryBtnText: {
@@ -256,7 +271,6 @@ const styles = StyleSheet.create({
   },
   flipBtn: {
     padding: 14,
-    backgroundColor: "rgba(0,0,0,0.5)",
     borderRadius: 12,
   },
   flipBtnText: {
@@ -270,11 +284,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     padding: 20,
-    backgroundColor: "rgba(0,0,0,0.85)",
     gap: 12,
   },
   previewBtn: {
-    backgroundColor: "#FFD62E",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
@@ -287,7 +299,6 @@ const styles = StyleSheet.create({
   previewBtnText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#3E2C1C",
   },
 });
 

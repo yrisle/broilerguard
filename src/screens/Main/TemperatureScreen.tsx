@@ -1,20 +1,22 @@
 // src/screens/Main/TemperatureScreen.tsx
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Dimensions,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 import api from "../../api/client";
+import { useTheme } from "../../hooks/useTheme";
 
 const { width } = Dimensions.get("window");
 
 const TemperatureScreen = () => {
+  const { colors } = useTheme();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -44,9 +46,11 @@ const TemperatureScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FFD62E" />
-        <Text style={styles.loadingText}>Loading sensor data...</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textMuted }]}>
+          Loading sensor data...
+        </Text>
       </View>
     );
   }
@@ -85,42 +89,47 @@ const TemperatureScreen = () => {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      {/* Current Readings */}
       <View style={styles.currentSection}>
-        <View style={[styles.currentCard, { borderColor: "#E67E22" }]}>
+        <View style={[styles.currentCard, { backgroundColor: colors.card }]}>
           <Text style={styles.currentIcon}>🌡️</Text>
-          <Text style={[styles.currentValue, { color: "#E67E22" }]}>
+          <Text style={[styles.currentValue, { color: colors.orange }]}>
             {currentTemp}°C
           </Text>
-          <Text style={styles.currentLabel}>Current Temperature</Text>
+          <Text style={[styles.currentLabel, { color: colors.textMuted }]}>
+            Current Temperature
+          </Text>
         </View>
-        <View style={[styles.currentCard, { borderColor: "#2980B9" }]}>
+        <View style={[styles.currentCard, { backgroundColor: colors.card }]}>
           <Text style={styles.currentIcon}>💧</Text>
-          <Text style={[styles.currentValue, { color: "#2980B9" }]}>
+          <Text style={[styles.currentValue, { color: colors.info }]}>
             {currentHumidity}%
           </Text>
-          <Text style={styles.currentLabel}>Current Humidity</Text>
+          <Text style={[styles.currentLabel, { color: colors.textMuted }]}>
+            Current Humidity
+          </Text>
         </View>
       </View>
 
-      {/* Chart */}
-      <View style={styles.chartCard}>
-        <Text style={styles.chartTitle}>Temperature & Humidity Trend</Text>
+      <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
+        <Text style={[styles.chartTitle, { color: colors.text }]}>
+          Temperature & Humidity Trend
+        </Text>
         <LineChart
           data={chartData}
           width={width - 32}
           height={220}
           chartConfig={{
-            backgroundColor: "#FFFFFF",
-            backgroundGradientFrom: "#FFFFFF",
-            backgroundGradientTo: "#FFFFFF",
+            backgroundColor: colors.card,
+            backgroundGradientFrom: colors.card,
+            backgroundGradientTo: colors.card,
             decimalPlaces: 1,
-            color: (opacity = 1) => `rgba(62, 44, 28, ${opacity})`,
+            color: (opacity = 1) =>
+              `rgba(${colors.text === "#2C3E2C" ? "44, 62, 44" : "245, 245, 245"}, ${opacity})`,
             labelColor: (opacity = 1) => `rgba(139, 115, 85, ${opacity})`,
             style: {
               borderRadius: 16,
@@ -131,24 +140,57 @@ const TemperatureScreen = () => {
         />
       </View>
 
-      {/* Statistics */}
       <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{Math.max(...tempData)}°C</Text>
-          <Text style={styles.statLabel}>Max</Text>
+        <View
+          style={[
+            styles.statCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.statValue, { color: colors.text }]}>
+            {Math.max(...tempData)}°C
+          </Text>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>
+            Max
+          </Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{Math.min(...tempData)}°C</Text>
-          <Text style={styles.statLabel}>Min</Text>
+        <View
+          style={[
+            styles.statCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.statValue, { color: colors.text }]}>
+            {Math.min(...tempData)}°C
+          </Text>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>
+            Min
+          </Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>
+        <View
+          style={[
+            styles.statCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.statValue, { color: colors.text }]}>
             {(
               tempData.reduce((a: any, b: any) => a + b, 0) / tempData.length
             ).toFixed(1)}
             °C
           </Text>
-          <Text style={styles.statLabel}>Average</Text>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>
+            Average
+          </Text>
         </View>
       </View>
     </ScrollView>
@@ -158,7 +200,6 @@ const TemperatureScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFCF2",
   },
   centered: {
     flex: 1,
@@ -167,7 +208,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
-    color: "#8B7355",
     fontSize: 14,
   },
   currentSection: {
@@ -177,12 +217,11 @@ const styles = StyleSheet.create({
   },
   currentCard: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 20,
     alignItems: "center",
     borderWidth: 1,
-    shadowColor: "#000",
+    borderColor: "rgba(77, 114, 77, 0.1)",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -198,16 +237,13 @@ const styles = StyleSheet.create({
   },
   currentLabel: {
     fontSize: 14,
-    color: "#8B7355",
     marginTop: 4,
   },
   chartCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 16,
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -216,7 +252,6 @@ const styles = StyleSheet.create({
   chartTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#3E2C1C",
     marginBottom: 12,
   },
   chart: {
@@ -231,21 +266,17 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 12,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.1)",
   },
   statValue: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#3E2C1C",
   },
   statLabel: {
     fontSize: 11,
-    color: "#8B7355",
     marginTop: 4,
   },
 });

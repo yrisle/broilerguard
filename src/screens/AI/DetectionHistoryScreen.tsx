@@ -1,18 +1,20 @@
 // src/screens/AI/DetectionHistoryScreen.tsx
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import api from "../../api/client";
+import { useTheme } from "../../hooks/useTheme";
 
 const DetectionHistoryScreen = () => {
+  const { colors } = useTheme();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,13 +47,13 @@ const DetectionHistoryScreen = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "healthy":
-        return "#27AE60";
+        return "#4D724D";
       case "weak":
-        return "#F39C12";
+        return "#C8A24A";
       case "unhealthy":
-        return "#E74C3C";
+        return "#A44A3F";
       default:
-        return "#8B7355";
+        return colors.textMuted;
     }
   };
 
@@ -77,33 +79,43 @@ const DetectionHistoryScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FFD62E" />
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <Text style={styles.title}>📋 Detection History</Text>
-      <Text style={styles.subtitle}>AI health detection records</Text>
+      <Text style={[styles.title, { color: colors.text }]}>
+        📋 Detection History
+      </Text>
+      <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+        AI health detection records
+      </Text>
 
-      {/* Search */}
       <View style={styles.searchContainer}>
         <TextInput
-          style={styles.searchInput}
+          style={[
+            styles.searchInput,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              color: colors.text,
+            },
+          ]}
           placeholder="🔍 Search by chick ID..."
+          placeholderTextColor={colors.textMuted}
           value={search}
           onChangeText={setSearch}
         />
       </View>
 
-      {/* Filters */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -112,13 +124,19 @@ const DetectionHistoryScreen = () => {
         {["all", "healthy", "weak", "unhealthy"].map((f) => (
           <TouchableOpacity
             key={f}
-            style={[styles.filterBtn, filter === f && styles.filterBtnActive]}
+            style={[
+              styles.filterBtn,
+              {
+                backgroundColor: filter === f ? colors.primary : colors.card,
+                borderColor: colors.border,
+              },
+            ]}
             onPress={() => setFilter(f)}
           >
             <Text
               style={[
                 styles.filterText,
-                filter === f && styles.filterTextActive,
+                { color: filter === f ? colors.text : colors.textMuted },
               ]}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -127,46 +145,73 @@ const DetectionHistoryScreen = () => {
         ))}
       </ScrollView>
 
-      {/* History List */}
       {filteredHistory.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>🔍</Text>
-          <Text style={styles.emptyTitle}>No records found</Text>
-          <Text style={styles.emptyDesc}>Try adjusting your filters</Text>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>
+            No records found
+          </Text>
+          <Text style={[styles.emptyDesc, { color: colors.textMuted }]}>
+            Try adjusting your filters
+          </Text>
         </View>
       ) : (
-        filteredHistory.map((item: any, index: number) => (
-          <View key={index} style={styles.historyCard}>
-            <View style={styles.historyHeader}>
-              <Text style={styles.historyId}>{item.chick_id}</Text>
-              <View
-                style={[
-                  styles.historyStatus,
-                  { backgroundColor: getStatusColor(item.status) + "20" },
-                ]}
-              >
-                <Text
+        filteredHistory.map((item: any, index: number) => {
+          const statusColor = getStatusColor(item.status);
+          return (
+            <View
+              key={index}
+              style={[
+                styles.historyCard,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  shadowColor: colors.shadow,
+                },
+              ]}
+            >
+              <View style={styles.historyHeader}>
+                <Text style={[styles.historyId, { color: colors.text }]}>
+                  {item.chick_id}
+                </Text>
+                <View
                   style={[
-                    styles.historyStatusText,
-                    { color: getStatusColor(item.status) },
+                    styles.historyStatus,
+                    { backgroundColor: statusColor + "20" },
                   ]}
                 >
-                  {getStatusIcon(item.status)} {item.status.toUpperCase()}
+                  <Text
+                    style={[styles.historyStatusText, { color: statusColor }]}
+                  >
+                    {getStatusIcon(item.status)} {item.status.toUpperCase()}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.historyDetails}>
+                <Text
+                  style={[styles.historyDetail, { color: colors.textMuted }]}
+                >
+                  🕐 {item.time}
+                </Text>
+                <Text
+                  style={[styles.historyDetail, { color: colors.textMuted }]}
+                >
+                  🎯 Confidence: {item.confidence}%
+                </Text>
+                <Text
+                  style={[styles.historyDetail, { color: colors.textMuted }]}
+                >
+                  ⚖️ Weight: {item.weight}
+                </Text>
+                <Text
+                  style={[styles.historyDetail, { color: colors.textMuted }]}
+                >
+                  🏃 Activity: {item.activity}
                 </Text>
               </View>
             </View>
-            <View style={styles.historyDetails}>
-              <Text style={styles.historyDetail}>🕐 {item.time}</Text>
-              <Text style={styles.historyDetail}>
-                🎯 Confidence: {item.confidence}%
-              </Text>
-              <Text style={styles.historyDetail}>⚖️ Weight: {item.weight}</Text>
-              <Text style={styles.historyDetail}>
-                🏃 Activity: {item.activity}
-              </Text>
-            </View>
-          </View>
-        ))
+          );
+        })
       )}
 
       <View style={styles.footer} />
@@ -177,7 +222,6 @@ const DetectionHistoryScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFCF2",
   },
   centered: {
     flex: 1,
@@ -187,13 +231,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#3E2C1C",
     paddingHorizontal: 20,
     paddingTop: 20,
   },
   subtitle: {
     fontSize: 14,
-    color: "#8B7355",
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
@@ -202,12 +244,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   searchInput: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.3)",
     fontSize: 14,
   },
   filtersContainer: {
@@ -219,31 +259,18 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     marginRight: 8,
-    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.3)",
-  },
-  filterBtnActive: {
-    backgroundColor: "#FFD62E",
-    borderColor: "#FFD62E",
   },
   filterText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#8B7355",
-  },
-  filterTextActive: {
-    color: "#3E2C1C",
   },
   historyCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "rgba(255, 214, 46, 0.1)",
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.02,
     shadowRadius: 2,
@@ -258,7 +285,6 @@ const styles = StyleSheet.create({
   historyId: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#3E2C1C",
   },
   historyStatus: {
     paddingHorizontal: 12,
@@ -276,7 +302,6 @@ const styles = StyleSheet.create({
   },
   historyDetail: {
     fontSize: 13,
-    color: "#8B7355",
     marginRight: 8,
   },
   emptyState: {
@@ -289,12 +314,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#3E2C1C",
     marginTop: 12,
   },
   emptyDesc: {
     fontSize: 14,
-    color: "#8B7355",
     marginTop: 4,
   },
   footer: {

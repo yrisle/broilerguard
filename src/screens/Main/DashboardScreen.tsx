@@ -14,8 +14,10 @@ import {
 import { dashboard, sensors } from "../../api/endpoints";
 import Card from "../../components/common/Card";
 import LevelIndicator from "../../components/sensors/LevelIndicator";
+import { useTheme } from "../../hooks/useTheme";
 
 const DashboardScreen = () => {
+  const { colors } = useTheme();
   const router = useRouter();
   const [stats, setStats] = useState({
     temperature: 0,
@@ -93,24 +95,25 @@ const DashboardScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <Text>Loading...</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={{ color: colors.text }}>Loading...</Text>
       </View>
     );
   }
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Good Morning, Admin 👋</Text>
-          <Text style={styles.date}>
+          <Text style={[styles.greeting, { color: colors.text }]}>
+            Good Morning, Admin 👋
+          </Text>
+          <Text style={[styles.date, { color: colors.textMuted }]}>
             {new Date().toLocaleDateString("en-US", {
               weekday: "long",
               year: "numeric",
@@ -123,51 +126,78 @@ const DashboardScreen = () => {
           style={styles.notificationBtn}
           onPress={() => handleNavigate("/notifications")}
         >
-          <Icon name="notifications-outline" size={24} color="#3E2C1C" />
-          <View style={styles.notificationBadge}>
+          <Icon name="notifications-outline" size={24} color={colors.text} />
+          <View
+            style={[
+              styles.notificationBadge,
+              { backgroundColor: colors.danger },
+            ]}
+          >
             <Text style={styles.badgeText}>3</Text>
           </View>
         </TouchableOpacity>
       </View>
 
       {errorMessage ? (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{errorMessage}</Text>
+        <View
+          style={[
+            styles.errorBanner,
+            {
+              backgroundColor: colors.warningLight,
+              borderColor: colors.warning,
+            },
+          ]}
+        >
+          <Text style={[styles.errorText, { color: colors.warning }]}>
+            {errorMessage}
+          </Text>
         </View>
       ) : null}
 
-      {/* Environmental Cards */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🌡️ Environmental Conditions</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          🌡️ Environmental Conditions
+        </Text>
         <View style={styles.row}>
           <Card style={styles.halfCard}>
             <View style={styles.tempContainer}>
-              <Text style={styles.tempValue}>{stats.temperature}°C</Text>
-              <Text style={styles.tempLabel}>Temperature</Text>
-              <Text style={styles.tempRange}>Ideal: 30°C - 35°C</Text>
+              <Text style={[styles.tempValue, { color: colors.orange }]}>
+                {stats.temperature}°C
+              </Text>
+              <Text style={[styles.tempLabel, { color: colors.textMuted }]}>
+                Temperature
+              </Text>
+              <Text style={[styles.tempRange, { color: colors.textMuted }]}>
+                Ideal: 30°C - 35°C
+              </Text>
             </View>
           </Card>
           <Card style={styles.halfCard}>
             <View style={styles.tempContainer}>
-              <Text style={[styles.tempValue, { color: "#2980B9" }]}>
+              <Text style={[styles.tempValue, { color: colors.info }]}>
                 {stats.humidity}%
               </Text>
-              <Text style={styles.tempLabel}>Humidity</Text>
-              <Text style={styles.tempRange}>Ideal: 55% - 80%</Text>
+              <Text style={[styles.tempLabel, { color: colors.textMuted }]}>
+                Humidity
+              </Text>
+              <Text style={[styles.tempRange, { color: colors.textMuted }]}>
+                Ideal: 55% - 80%
+              </Text>
             </View>
           </Card>
         </View>
       </View>
 
-      {/* Resource Levels */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📦 Resource Levels</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          📦 Resource Levels
+        </Text>
         <Card>
           <LevelIndicator
             label="Feed Level"
             value={stats.feedLevel}
             maxValue={100}
-            color="#FFD62E"
+            color={colors.primary}
             consumed={stats.feedConsumed}
             unit="kg"
           />
@@ -175,49 +205,90 @@ const DashboardScreen = () => {
             label="Water Level"
             value={stats.waterLevel}
             maxValue={100}
-            color="#2980B9"
+            color={colors.info}
             consumed={stats.waterConsumed}
             unit="L"
           />
         </Card>
       </View>
 
-      {/* Automation Status - LAHAT NG "name" ay lowercase na */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>⚙️ Automation Status</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          ⚙️ Automation Status
+        </Text>
         <View style={styles.row}>
           <Card style={styles.halfCard}>
             <View style={styles.automationItem}>
-              <Icon name="options-outline" size={32} color="#FFD62E" />
+              <Icon name="options-outline" size={32} color={colors.primary} />
               <View>
-                <Text style={styles.automationLabel}>Fan</Text>
+                <Text style={[styles.automationLabel, { color: colors.text }]}>
+                  Fan
+                </Text>
                 <View
                   style={[
                     styles.statusIndicator,
                     stats.fanStatus === "ON"
-                      ? styles.statusOn
-                      : styles.statusOff,
+                      ? [
+                          styles.statusOn,
+                          { backgroundColor: colors.successLight },
+                        ]
+                      : [
+                          styles.statusOff,
+                          { backgroundColor: colors.dangerLight },
+                        ],
                   ]}
                 >
-                  <Text style={styles.statusText}>{stats.fanStatus}</Text>
+                  <Text
+                    style={[
+                      styles.statusText,
+                      {
+                        color:
+                          stats.fanStatus === "ON"
+                            ? colors.success
+                            : colors.danger,
+                      },
+                    ]}
+                  >
+                    {stats.fanStatus}
+                  </Text>
                 </View>
               </View>
             </View>
           </Card>
           <Card style={styles.halfCard}>
             <View style={styles.automationItem}>
-              <Icon name="water" size={32} color="#2980B9" />
+              <Icon name="water" size={32} color={colors.info} />
               <View>
-                <Text style={styles.automationLabel}>Water Pump</Text>
+                <Text style={[styles.automationLabel, { color: colors.text }]}>
+                  Water Pump
+                </Text>
                 <View
                   style={[
                     styles.statusIndicator,
                     stats.waterPump === "ON"
-                      ? styles.statusOn
-                      : styles.statusOff,
+                      ? [
+                          styles.statusOn,
+                          { backgroundColor: colors.successLight },
+                        ]
+                      : [
+                          styles.statusOff,
+                          { backgroundColor: colors.dangerLight },
+                        ],
                   ]}
                 >
-                  <Text style={styles.statusText}>{stats.waterPump}</Text>
+                  <Text
+                    style={[
+                      styles.statusText,
+                      {
+                        color:
+                          stats.waterPump === "ON"
+                            ? colors.success
+                            : colors.danger,
+                      },
+                    ]}
+                  >
+                    {stats.waterPump}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -225,64 +296,80 @@ const DashboardScreen = () => {
         </View>
       </View>
 
-      {/* Chicken Status */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🐔 Chicken Health</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          🐔 Chicken Health
+        </Text>
         <Card>
           <View style={styles.chickenStats}>
             <View style={styles.chickenStat}>
-              <Text style={[styles.chickenValue, { color: "#27AE60" }]}>
+              <Text style={[styles.chickenValue, { color: colors.success }]}>
                 {stats.healthyChicks}
               </Text>
-              <Text style={styles.chickenLabel}>Healthy</Text>
+              <Text style={[styles.chickenLabel, { color: colors.textMuted }]}>
+                Healthy
+              </Text>
             </View>
             <View style={styles.chickenStat}>
-              <Text style={[styles.chickenValue, { color: "#F39C12" }]}>
+              <Text style={[styles.chickenValue, { color: colors.warning }]}>
                 {stats.weakChicks}
               </Text>
-              <Text style={styles.chickenLabel}>Weak</Text>
+              <Text style={[styles.chickenLabel, { color: colors.textMuted }]}>
+                Weak
+              </Text>
             </View>
             <View style={styles.chickenStat}>
-              <Text style={[styles.chickenValue, { color: "#E74C3C" }]}>
+              <Text style={[styles.chickenValue, { color: colors.danger }]}>
                 {stats.totalChicks - stats.healthyChicks - stats.weakChicks}
               </Text>
-              <Text style={styles.chickenLabel}>Unhealthy</Text>
+              <Text style={[styles.chickenLabel, { color: colors.textMuted }]}>
+                Unhealthy
+              </Text>
             </View>
           </View>
         </Card>
       </View>
 
-      {/* Quick Actions - LAHAT NG "name" ay lowercase na */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>⚡ Quick Actions</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          ⚡ Quick Actions
+        </Text>
         <View style={styles.quickActions}>
           <TouchableOpacity
-            style={styles.quickAction}
+            style={[styles.quickAction, { backgroundColor: colors.card }]}
             onPress={() => handleNavigate("/fan-control")}
           >
-            <Icon name="options-outline" size={28} color="#E67E22" />
-            <Text style={styles.quickActionText}>Fan</Text>
+            <Icon name="options-outline" size={28} color={colors.orange} />
+            <Text style={[styles.quickActionText, { color: colors.text }]}>
+              Fan
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.quickAction}
+            style={[styles.quickAction, { backgroundColor: colors.card }]}
             onPress={() => handleNavigate("/feed-dispenser")}
           >
-            <Icon name="fast-food" size={28} color="#E6B800" />
-            <Text style={styles.quickActionText}>Feed</Text>
+            <Icon name="fast-food" size={28} color={colors.primary} />
+            <Text style={[styles.quickActionText, { color: colors.text }]}>
+              Feed
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.quickAction}
+            style={[styles.quickAction, { backgroundColor: colors.card }]}
             onPress={() => handleNavigate("/water-pump")}
           >
-            <Icon name="water" size={28} color="#2980B9" />
-            <Text style={styles.quickActionText}>Water</Text>
+            <Icon name="water" size={28} color={colors.info} />
+            <Text style={[styles.quickActionText, { color: colors.text }]}>
+              Water
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.quickAction}
+            style={[styles.quickAction, { backgroundColor: colors.card }]}
             onPress={() => handleNavigate("/(tabs)/camera")}
           >
-            <Icon name="camera" size={28} color="#8E44AD" />
-            <Text style={styles.quickActionText}>Camera</Text>
+            <Icon name="camera" size={28} color={colors.purple} />
+            <Text style={[styles.quickActionText, { color: colors.text }]}>
+              Camera
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -295,7 +382,6 @@ const DashboardScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFCF2",
   },
   centered: {
     flex: 1,
@@ -313,11 +399,9 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#3E2C1C",
   },
   date: {
     fontSize: 13,
-    color: "#8B7355",
     marginTop: 2,
   },
   notificationBtn: {
@@ -328,7 +412,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 4,
     right: 4,
-    backgroundColor: "#E74C3C",
     borderRadius: 10,
     width: 18,
     height: 18,
@@ -350,19 +433,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: "#FFF4E5",
     borderWidth: 1,
-    borderColor: "#F5C27A",
   },
   errorText: {
-    color: "#8A4B00",
     fontSize: 12,
     fontWeight: "600",
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#5C4A1E",
     marginBottom: 12,
   },
   row: {
@@ -380,16 +459,13 @@ const styles = StyleSheet.create({
   tempValue: {
     fontSize: 36,
     fontWeight: "800",
-    color: "#E67E22",
   },
   tempLabel: {
     fontSize: 14,
-    color: "#8B7355",
     marginTop: 4,
   },
   tempRange: {
     fontSize: 11,
-    color: "#8B7355",
     marginTop: 4,
   },
   automationItem: {
@@ -401,7 +477,6 @@ const styles = StyleSheet.create({
   automationLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#3E2C1C",
   },
   statusIndicator: {
     paddingHorizontal: 12,
@@ -409,12 +484,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 4,
   },
-  statusOn: {
-    backgroundColor: "#E8F5E9",
-  },
-  statusOff: {
-    backgroundColor: "#FDEDEC",
-  },
+  statusOn: {},
+  statusOff: {},
   statusText: {
     fontSize: 12,
     fontWeight: "700",
@@ -433,7 +504,6 @@ const styles = StyleSheet.create({
   },
   chickenLabel: {
     fontSize: 12,
-    color: "#8B7355",
     marginTop: 4,
   },
   quickActions: {
@@ -443,11 +513,9 @@ const styles = StyleSheet.create({
   quickAction: {
     flex: 1,
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
     padding: 16,
     borderRadius: 12,
     marginHorizontal: 4,
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -456,7 +524,6 @@ const styles = StyleSheet.create({
   quickActionText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#3E2C1C",
     marginTop: 4,
   },
   footer: {
