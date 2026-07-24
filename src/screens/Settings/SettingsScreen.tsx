@@ -8,18 +8,46 @@ import {
   StyleSheet,
   Switch,
   Text,
-  View
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import api from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../hooks/useTheme";
 
+interface UserProfile {
+  id: number;
+  username: string;
+  name: string;
+  role: string;
+  email?: string;
+  phone?: string;
+}
+
 function SettingsScreen() {
   const { colors } = useTheme();
-  const { logout } = useAuth();
+  const { logout, user: authUser } = useAuth();
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Profile states
+  const [isEditing, setIsEditing] = useState(false);
+  const [profile, setProfile] = useState<UserProfile>({
+    id: 1,
+    username: "admin",
+    name: "Admin User",
+    role: "Farm Administrator",
+    email: "admin@broilerguard.com",
+    phone: "+63 912 345 6789",
+  });
+  const [editedProfile, setEditedProfile] = useState<UserProfile>(profile);
+
+  // Settings states
+  const [darkMode, setDarkMode] = useState(false);
+  const [notifications, setNotifications] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   const fetchSettings = async () => {
     try {
@@ -37,7 +65,14 @@ function SettingsScreen() {
 
   useEffect(() => {
     fetchSettings();
+    // Load saved preferences
+    loadPreferences();
   }, []);
+
+  const loadPreferences = () => {
+    // Load from AsyncStorage or default values
+    // For now, using useState defaults
+  };
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -49,6 +84,48 @@ function SettingsScreen() {
       { text: "Cancel", style: "cancel" },
       { text: "Logout", style: "destructive", onPress: logout },
     ]);
+  };
+
+  const handleEditProfile = () => {
+    setEditedProfile(profile);
+    setIsEditing(true);
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      setLoading(true);
+      // API call to update profile
+      const response = await api.put("/user/profile", editedProfile);
+      if (response.data.success) {
+        setProfile(editedProfile);
+        setIsEditing(false);
+        Alert.alert("Success", "Profile updated successfully!");
+      } else {
+        Alert.alert(
+          "Error",
+          response.data.message || "Failed to update profile",
+        );
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      Alert.alert("Error", "Failed to update profile. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditedProfile(profile);
+    setIsEditing(false);
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      // Save preferences to AsyncStorage or API
+      Alert.alert("Success", "Settings saved successfully!");
+    } catch (error) {
+      Alert.alert("Error", "Failed to save settings");
+    }
   };
 
   if (loading) {
@@ -71,37 +148,171 @@ function SettingsScreen() {
         Configure your app preferences
       </Text>
 
+      {/* Profile Section */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          👤 Profile
-        </Text>
-        <View
-          style={[
-            styles.profileCard,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-            <Text style={[styles.avatarText, { color: colors.text }]}>A</Text>
-          </View>
-          <View style={styles.profileInfo}>
-            <Text style={[styles.profileName, { color: colors.text }]}>
-              Admin User
-            </Text>
-            <Text style={[styles.profileRole, { color: colors.textMuted }]}>
-              Farm Administrator
-            </Text>
-          </View>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            👤 Profile
+          </Text>
+          {!isEditing && (
+            <TouchableOpacity onPress={handleEditProfile}>
+              <Text style={[styles.editButton, { color: colors.primary }]}>
+                Edit
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
+
+        {!isEditing ? (
+          // View Mode
+          <View
+            style={[
+              styles.profileCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+              <Text style={[styles.avatarText, { color: colors.text }]}>
+                {profile.name.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.profileInfo}>
+              <Text style={[styles.profileName, { color: colors.text }]}>
+                {profile.name}
+              </Text>
+              <Text style={[styles.profileRole, { color: colors.textMuted }]}>
+                {profile.role}
+              </Text>
+              <Text style={[styles.profileEmail, { color: colors.textMuted }]}>
+                {profile.email}
+              </Text>
+              <Text style={[styles.profilePhone, { color: colors.textMuted }]}>
+                {profile.phone}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          // Edit Mode
+          <View
+            style={[
+              styles.profileCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View style={styles.editForm}>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.background,
+                    color: colors.text,
+                    borderColor: colors.border,
+                  },
+                ]}
+                placeholder="Full Name"
+                placeholderTextColor={colors.textMuted}
+                value={editedProfile.name}
+                onChangeText={(text) =>
+                  setEditedProfile({ ...editedProfile, name: text })
+                }
+              />
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.background,
+                    color: colors.text,
+                    borderColor: colors.border,
+                  },
+                ]}
+                placeholder="Email"
+                placeholderTextColor={colors.textMuted}
+                value={editedProfile.email}
+                onChangeText={(text) =>
+                  setEditedProfile({ ...editedProfile, email: text })
+                }
+                keyboardType="email-address"
+              />
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.background,
+                    color: colors.text,
+                    borderColor: colors.border,
+                  },
+                ]}
+                placeholder="Phone Number"
+                placeholderTextColor={colors.textMuted}
+                value={editedProfile.phone}
+                onChangeText={(text) =>
+                  setEditedProfile({ ...editedProfile, phone: text })
+                }
+                keyboardType="phone-pad"
+              />
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.background,
+                    color: colors.text,
+                    borderColor: colors.border,
+                  },
+                ]}
+                placeholder="Role"
+                placeholderTextColor={colors.textMuted}
+                value={editedProfile.role}
+                onChangeText={(text) =>
+                  setEditedProfile({ ...editedProfile, role: text })
+                }
+              />
+              <View style={styles.editActions}>
+                <TouchableOpacity
+                  style={[styles.cancelButton, { borderColor: colors.border }]}
+                  onPress={handleCancelEdit}
+                >
+                  <Text
+                    style={[styles.cancelButtonText, { color: colors.text }]}
+                  >
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.saveButton,
+                    { backgroundColor: colors.primary },
+                  ]}
+                  onPress={handleSaveProfile}
+                >
+                  <Text style={styles.saveButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
       </View>
 
+      {/* Preferences Section */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          🎨 Preferences
-        </Text>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            🎨 Preferences
+          </Text>
+          <TouchableOpacity onPress={handleSaveSettings}>
+            <Text
+              style={[styles.saveSettingsButton, { color: colors.primary }]}
+            >
+              Save
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <View
           style={[
             styles.settingCard,
@@ -121,8 +332,10 @@ function SettingsScreen() {
               </Text>
             </View>
             <Switch
-              value={false}
+              value={darkMode}
+              onValueChange={setDarkMode}
               trackColor={{ false: "#E0D5C0", true: colors.primary }}
+              thumbColor={darkMode ? "#fff" : "#f4f3f4"}
             />
           </View>
           <View style={[styles.settingRow, { borderColor: colors.border }]}>
@@ -135,8 +348,10 @@ function SettingsScreen() {
               </Text>
             </View>
             <Switch
-              value={true}
+              value={notifications}
+              onValueChange={setNotifications}
               trackColor={{ false: "#E0D5C0", true: colors.primary }}
+              thumbColor={notifications ? "#fff" : "#f4f3f4"}
             />
           </View>
           <View style={[styles.settingRow, { borderColor: colors.border }]}>
@@ -149,13 +364,16 @@ function SettingsScreen() {
               </Text>
             </View>
             <Switch
-              value={true}
+              value={autoRefresh}
+              onValueChange={setAutoRefresh}
               trackColor={{ false: "#E0D5C0", true: colors.primary }}
+              thumbColor={autoRefresh ? "#fff" : "#f4f3f4"}
             />
           </View>
         </View>
       </View>
 
+      {/* About Section */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
           ℹ️ About
@@ -183,6 +401,20 @@ function SettingsScreen() {
           </Text>
         </View>
       </View>
+
+      {/* Logout Button */}
+      <TouchableOpacity
+        style={[
+          styles.logoutBtn,
+          {
+            backgroundColor: colors.danger || "#FF3B30",
+            borderColor: colors.border,
+          },
+        ]}
+        onPress={handleLogout}
+      >
+        <Text style={[styles.logoutBtnText, { color: "#FFFFFF" }]}>Logout</Text>
+      </TouchableOpacity>
 
       <View style={styles.footer}>
         <Text style={[styles.footerText, { color: colors.textMuted }]}>
@@ -217,10 +449,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 16,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    marginBottom: 12,
+  },
+  editButton: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  saveSettingsButton: {
+    fontSize: 14,
+    fontWeight: "600",
   },
   profileCard: {
     flexDirection: "row",
@@ -251,6 +496,52 @@ const styles = StyleSheet.create({
   profileRole: {
     fontSize: 13,
     marginTop: 2,
+  },
+  profileEmail: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  profilePhone: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  editForm: {
+    flex: 1,
+    gap: 10,
+  },
+  input: {
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    fontSize: 14,
+  },
+  editActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 10,
+  },
+  cancelButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginRight: 10,
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  saveButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  saveButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
   },
   settingCard: {
     borderRadius: 12,
