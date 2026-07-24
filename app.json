@@ -17,6 +17,7 @@
         "backgroundImage": "./assets/images/icon.jpg",
         "monochromeImage": "./assets/images/icon.jpg"
       },
+      "edgeToEdgeEnabled": false,
       "predictiveBackGestureEnabled": false,
       "package": "com.marklee_olino.BroilerGuardApp"
     },
