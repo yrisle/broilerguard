@@ -43,7 +43,6 @@ function SettingsScreen() {
   const [editedProfile, setEditedProfile] = useState<UserProfile>(profile);
 
   // Settings states
-  const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
@@ -180,7 +179,7 @@ function SettingsScreen() {
             ]}
           >
             <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.avatarText, { color: colors.text }]}>
+              <Text style={[styles.avatarText, { color: "#FFFFFF" }]}>
                 {profile.name.charAt(0).toUpperCase()}
               </Text>
             </View>
@@ -215,13 +214,13 @@ function SettingsScreen() {
                 style={[
                   styles.input,
                   {
-                    backgroundColor: colors.background,
-                    color: colors.text,
-                    borderColor: colors.border,
+                    backgroundColor: "#F5F5F5",
+                    color: "#333333",
+                    borderColor: "#E0E0E0",
                   },
                 ]}
                 placeholder="Full Name"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor="#999999"
                 value={editedProfile.name}
                 onChangeText={(text) =>
                   setEditedProfile({ ...editedProfile, name: text })
@@ -231,13 +230,13 @@ function SettingsScreen() {
                 style={[
                   styles.input,
                   {
-                    backgroundColor: colors.background,
-                    color: colors.text,
-                    borderColor: colors.border,
+                    backgroundColor: "#F5F5F5",
+                    color: "#333333",
+                    borderColor: "#E0E0E0",
                   },
                 ]}
                 placeholder="Email"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor="#999999"
                 value={editedProfile.email}
                 onChangeText={(text) =>
                   setEditedProfile({ ...editedProfile, email: text })
@@ -248,13 +247,13 @@ function SettingsScreen() {
                 style={[
                   styles.input,
                   {
-                    backgroundColor: colors.background,
-                    color: colors.text,
-                    borderColor: colors.border,
+                    backgroundColor: "#F5F5F5",
+                    color: "#333333",
+                    borderColor: "#E0E0E0",
                   },
                 ]}
                 placeholder="Phone Number"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor="#999999"
                 value={editedProfile.phone}
                 onChangeText={(text) =>
                   setEditedProfile({ ...editedProfile, phone: text })
@@ -265,13 +264,13 @@ function SettingsScreen() {
                 style={[
                   styles.input,
                   {
-                    backgroundColor: colors.background,
-                    color: colors.text,
-                    borderColor: colors.border,
+                    backgroundColor: "#F5F5F5",
+                    color: "#333333",
+                    borderColor: "#E0E0E0",
                   },
                 ]}
                 placeholder="Role"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor="#999999"
                 value={editedProfile.role}
                 onChangeText={(text) =>
                   setEditedProfile({ ...editedProfile, role: text })
@@ -279,12 +278,10 @@ function SettingsScreen() {
               />
               <View style={styles.editActions}>
                 <TouchableOpacity
-                  style={[styles.cancelButton, { borderColor: colors.border }]}
+                  style={[styles.cancelButton, { borderColor: "#E0E0E0" }]}
                   onPress={handleCancelEdit}
                 >
-                  <Text
-                    style={[styles.cancelButtonText, { color: colors.text }]}
-                  >
+                  <Text style={[styles.cancelButtonText, { color: "#666666" }]}>
                     Cancel
                   </Text>
                 </TouchableOpacity>
@@ -322,33 +319,17 @@ function SettingsScreen() {
           style={[
             styles.settingCard,
             {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
+              backgroundColor: "#FFFFFF",
+              borderColor: "#E0E0E0",
             },
           ]}
         >
-          <View style={[styles.settingRow, { borderColor: colors.border }]}>
+          <View style={[styles.settingRow, { borderColor: "#F0F0F0" }]}>
             <View>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>
-                🌙 Dark Mode
-              </Text>
-              <Text style={[styles.settingDesc, { color: colors.textMuted }]}>
-                Switch to dark theme
-              </Text>
-            </View>
-            <Switch
-              value={darkMode}
-              onValueChange={setDarkMode}
-              trackColor={{ false: "#E0D5C0", true: colors.primary }}
-              thumbColor={darkMode ? "#fff" : "#f4f3f4"}
-            />
-          </View>
-          <View style={[styles.settingRow, { borderColor: colors.border }]}>
-            <View>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>
+              <Text style={[styles.settingLabel, { color: "#333333" }]}>
                 🔔 Notifications
               </Text>
-              <Text style={[styles.settingDesc, { color: colors.textMuted }]}>
+              <Text style={[styles.settingDesc, { color: "#999999" }]}>
                 Enable push notifications
               </Text>
             </View>
@@ -356,15 +337,15 @@ function SettingsScreen() {
               value={notifications}
               onValueChange={setNotifications}
               trackColor={{ false: "#E0D5C0", true: colors.primary }}
-              thumbColor={notifications ? "#fff" : "#f4f3f4"}
+              thumbColor={notifications ? "#FFFFFF" : "#f4f3f4"}
             />
           </View>
-          <View style={[styles.settingRow, { borderColor: colors.border }]}>
+          <View style={[styles.settingRow, { borderColor: "#F0F0F0" }]}>
             <View>
-              <Text style={[styles.settingLabel, { color: colors.text }]}>
+              <Text style={[styles.settingLabel, { color: "#333333" }]}>
                 📶 Auto Refresh
               </Text>
-              <Text style={[styles.settingDesc, { color: colors.textMuted }]}>
+              <Text style={[styles.settingDesc, { color: "#999999" }]}>
                 Auto refresh dashboard data
               </Text>
             </View>
@@ -372,7 +353,7 @@ function SettingsScreen() {
               value={autoRefresh}
               onValueChange={setAutoRefresh}
               trackColor={{ false: "#E0D5C0", true: colors.primary }}
-              thumbColor={autoRefresh ? "#fff" : "#f4f3f4"}
+              thumbColor={autoRefresh ? "#FFFFFF" : "#f4f3f4"}
             />
           </View>
         </View>
@@ -387,28 +368,28 @@ function SettingsScreen() {
           style={[
             styles.aboutCard,
             {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
+              backgroundColor: "#FFFFFF",
+              borderColor: "#E0E0E0",
             },
           ]}
         >
-          <Text style={[styles.aboutTitle, { color: colors.text }]}>
+          <Text style={[styles.aboutTitle, { color: "#333333" }]}>
             BroilerGuard
           </Text>
-          <Text style={[styles.aboutVersion, { color: colors.textMuted }]}>
+          <Text style={[styles.aboutVersion, { color: "#999999" }]}>
             Version 1.0.0
           </Text>
-          <Text style={[styles.aboutDesc, { color: colors.textMuted }]}>
+          <Text style={[styles.aboutDesc, { color: "#666666" }]}>
             Smart Poultry Management System
           </Text>
-          <Text style={[styles.aboutDesc, { color: colors.textMuted }]}>
+          <Text style={[styles.aboutDesc, { color: "#666666" }]}>
             IoT-based monitoring and automation
           </Text>
         </View>
       </View>
 
       <View style={styles.footer}>
-        <Text style={[styles.footerText, { color: colors.textMuted }]}>
+        <Text style={[styles.footerText, { color: "#999999" }]}>
           © 2025 BroilerGuard. All rights reserved.
         </Text>
       </View>
