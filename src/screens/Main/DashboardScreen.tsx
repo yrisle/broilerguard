@@ -221,7 +221,12 @@ const DashboardScreen = () => {
             <View style={styles.automationItem}>
               <Icon name="options-outline" size={32} color={colors.primary} />
               <View>
-                <Text style={[styles.automationLabel, { color: colors.text }]}>
+                <Text
+                  style={[
+                    styles.automationLabel,
+                    { color: colors.primaryDark },
+                  ]}
+                >
                   Fan
                 </Text>
                 <View
@@ -259,7 +264,12 @@ const DashboardScreen = () => {
             <View style={styles.automationItem}>
               <Icon name="water" size={32} color={colors.info} />
               <View>
-                <Text style={[styles.automationLabel, { color: colors.text }]}>
+                <Text
+                  style={[
+                    styles.automationLabel,
+                    { color: colors.primaryDark },
+                  ]}
+                >
                   Water Pump
                 </Text>
                 <View
