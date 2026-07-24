@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.jpg",
     "scheme": "broilerguardapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
@@ -18,7 +17,6 @@
         "backgroundImage": "./assets/images/icon.jpg",
         "monochromeImage": "./assets/images/icon.jpg"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.marklee_olino.BroilerGuardApp"
     },
