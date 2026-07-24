@@ -19,11 +19,8 @@ function RootLayout() {
     );
   }
 
-  if (isAuthenticated) {
-    return <Redirect href="/(tabs)/home" />;
-  } else {
-    return <Redirect href="/login" />;
-  }
+  // ✅ Diretso sa home page, hindi na dumadaan sa login
+  return <Redirect href="/(tabs)/home" />;
 }
 
 export default function App() {
