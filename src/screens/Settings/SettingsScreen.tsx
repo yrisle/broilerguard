@@ -8,8 +8,7 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import api from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
@@ -184,21 +183,6 @@ function SettingsScreen() {
           </Text>
         </View>
       </View>
-
-      <TouchableOpacity
-        style={[
-          styles.logoutBtn,
-          {
-            backgroundColor: colors.dangerLight,
-            borderColor: colors.danger,
-          },
-        ]}
-        onPress={handleLogout}
-      >
-        <Text style={[styles.logoutBtnText, { color: colors.danger }]}>
-          🚪 Logout
-        </Text>
-      </TouchableOpacity>
 
       <View style={styles.footer}>
         <Text style={[styles.footerText, { color: colors.textMuted }]}>
