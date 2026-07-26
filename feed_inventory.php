@@ -1,21 +1,21 @@
 <?php
-// feed_inventory.php - Feed Inventory Management Module (No Database - Error Free)
+
 session_start();
 
-// Authentication Check
+
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
 
-// Handle Logout
+
 if (isset($_GET['logout'])) {
     session_destroy();
     header('Location: login.php');
     exit;
 }
 
-// Initialize feed inventory if not exists - ALL KEYS DEFINED
+
 if (!isset($_SESSION['feed_inventory'])) {
     $_SESSION['feed_inventory'] = [
         'current_level' => 100.0,
