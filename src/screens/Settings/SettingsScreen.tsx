@@ -473,7 +473,7 @@ function SettingsScreen() {
           ]}
         >
           <FontAwesome5
-            name="chicken"
+            name="drumstick-bite"
             size={40}
             color={colors.primary}
           />
