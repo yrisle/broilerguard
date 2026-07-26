@@ -1,8 +1,8 @@
 <?php
-// login.php - Professional Login Interface for BroilerGuard (with Poultry Background)
+// login.php - Professional Login Interface with New Color Palette
 session_start();
 
-
+// Authentication Check
 $isAdminLoggedIn = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
 
 // Handle Admin Login
@@ -10,13 +10,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_login'])) {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     
-    // Demo credentials - in production, verify against database with hashed password
+    // In production, verify against database with hashed password
     if ($username === 'admin' && $password === 'broilerguard2025') {
         $_SESSION['admin_logged_in'] = true;
         $_SESSION['admin_username'] = $username;
         $_SESSION['admin_login_time'] = time();
         
-        // Remember me functionality
         if (isset($_POST['remember']) && $_POST['remember'] === 'on') {
             $token = bin2hex(random_bytes(32));
             $_SESSION['remember_token'] = $token;
@@ -42,66 +41,68 @@ if ($isAdminLoggedIn) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>BroilerGuard | IoT-Based Environmental Monitoring and Automation System</title>
-    
-    <!-- SEO Meta Tags -->
-    <meta name="description" content="BroilerGuard - IoT-based environmental monitoring and automation system for broiler chickens in small-scale tunnel-ventilated houses.">
-    <meta name="author" content="BroilerGuard">
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
-    
-    <!-- Font Awesome 6 -->
+    <title>BroilerGuard | Smart Poultry Management System</title>
+    <meta name="description" content="BroilerGuard - Advanced IoT-based poultry monitoring and automation system">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    
+    <link rel="stylesheet" href="assets/css/style.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --bg-primary: #F5F5F5;
+            --bg-secondary: #E8F0E8;
+            --bg-card: #FFFFFF;
+            --text-primary: #2C3E2C;
+            --text-secondary: #4D724D;
+            --text-muted: #6B8A6B;
+            --accent: #8DB48E;
+            --accent-dark: #4D724D;
+            --accent-light: #D4E8D4;
+            --sidebar-bg: #3A5C3A;
+            --sidebar-text: #F5F5F5;
+            --sidebar-muted: #A8C8A8;
+            --green: #4D724D;
+            --green-light: #D4E8D4;
+            --yellow: #C8A24A;
+            --yellow-light: #F4EEDC;
+            --red: #A44A3F;
+            --red-light: #F6E9E7;
+            --blue: #4F6C7A;
+            --blue-light: #EAF0F3;
+            --orange: #B9772A;
+            --orange-light: #F9EFE5;
+            --purple: #8E44AD;
+            --shadow-sm: 0 2px 8px rgba(77, 114, 77, 0.08);
+            --shadow-md: 0 10px 24px rgba(77, 114, 77, 0.12);
         }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #FFFCF2 0%, #FFF8E0 30%, #FFF3CC 60%, #FFE699 100%);
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 2rem;
             position: relative;
+            color: var(--text-secondary);
         }
 
         /* Decorative background elements */
         .bg-decoration {
             position: fixed;
             border-radius: 50%;
-            background: rgba(255, 214, 46, 0.08);
+            background: rgba(77, 114, 77, 0.06);
             z-index: 0;
         }
-        .bg-circle-1 {
-            width: 500px;
-            height: 500px;
-            top: -200px;
-            right: -150px;
-        }
-        .bg-circle-2 {
-            width: 400px;
-            height: 400px;
-            bottom: -150px;
-            left: -100px;
-        }
-        .bg-circle-3 {
-            width: 200px;
-            height: 200px;
-            top: 50%;
-            left: 60%;
-        }
+        .bg-circle-1 { width: 500px; height: 500px; top: -200px; right: -150px; }
+        .bg-circle-2 { width: 400px; height: 400px; bottom: -150px; left: -100px; }
+        .bg-circle-3 { width: 200px; height: 200px; top: 50%; left: 60%; }
 
-        /* Floating feathers decoration */
         .floating-feather {
             position: fixed;
-            color: rgba(230, 184, 0, 0.15);
+            color: rgba(77, 114, 77, 0.12);
             font-size: 2rem;
             animation: floatFeather 8s infinite ease-in-out;
             z-index: 0;
@@ -118,7 +119,6 @@ if ($isAdminLoggedIn) {
             75% { transform: translateY(-25px) rotate(2deg); }
         }
 
-        /* Main container - PERFECTLY CENTERED */
         .login-container {
             position: relative;
             z-index: 10;
@@ -127,36 +127,33 @@ if ($isAdminLoggedIn) {
             margin: auto;
         }
 
-        /* Split layout card */
         .login-card {
             display: grid;
             grid-template-columns: 1fr 1.2fr;
-            background: #FFFCF2;
+            background: var(--bg-card);
             border-radius: 2rem;
             overflow: hidden;
-            box-shadow: 0 25px 50px -12px rgba(139, 115, 30, 0.25);
-            border: 1px solid rgba(255, 214, 46, 0.3);
+            box-shadow: 0 25px 50px -12px rgba(77, 114, 77, 0.16);
+            border: 1px solid rgba(141, 180, 142, 0.15);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
-
         .login-card:hover {
-            box-shadow: 0 35px 60px -15px rgba(139, 115, 30, 0.3);
+            box-shadow: 0 35px 60px -15px rgba(77, 114, 77, 0.2);
         }
 
-        /* Left side - Branding with Poultry Background Image */
+        /* Left side - Branding with Poultry Background */
         .login-brand {
             position: relative;
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.5));
+            background: linear-gradient(135deg, rgba(77, 114, 77, 0.95), rgba(58, 92, 58, 0.9));
             padding: 2.5rem;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            border-right: 1px solid rgba(255, 214, 46, 0.3);
+            border-right: 1px solid rgba(255,255,255,0.14);
             overflow: hidden;
             min-height: 500px;
         }
         
-        /* Poultry background image */
         .login-brand::before {
             content: '';
             position: absolute;
@@ -171,7 +168,6 @@ if ($isAdminLoggedIn) {
             z-index: 0;
         }
         
-        /* Overlay gradient for better text readability */
         .login-brand::after {
             content: '';
             position: absolute;
@@ -179,68 +175,57 @@ if ($isAdminLoggedIn) {
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.6));
+            background: linear-gradient(135deg, rgba(0,0,0,0.65), rgba(0,0,0,0.5), rgba(0,0,0,0.6));
             z-index: 1;
         }
         
-        /* All content in login-brand should be above the overlay */
-        .login-brand > * {
-            position: relative;
-            z-index: 2;
-        }
+        .login-brand > * { position: relative; z-index: 2; }
 
-        .brand-logo {
-            margin-bottom: 2rem;
-        }
-
+        .brand-logo { margin-bottom: 2rem; }
         .brand-logo .logo-icon {
             width: 65px;
             height: 65px;
-            background: rgba(255, 214, 46, 0.9);
+            background: rgba(141, 180, 142, 0.95);
             border-radius: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
             margin-bottom: 1.2rem;
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255,255,255,0.3);
             backdrop-filter: blur(4px);
         }
-
         .brand-logo .logo-icon i {
             font-size: 2rem;
-            color: #3E2C1C;
+            color: #2C3E2C;
         }
-
         .brand-logo h1 {
             font-size: 1.8rem;
             font-weight: 800;
             color: #FFFFFF;
             letter-spacing: -0.5px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
         .brand-tagline h2 {
-            color: #FFD62E;
+            color: #EDE5CF;
             font-size: 1.5rem;
             font-weight: 700;
             line-height: 1.3;
             margin-bottom: 0.8rem;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
         }
-
         .brand-tagline p {
             color: #F5F0E0;
             font-size: 0.9rem;
             line-height: 1.5;
             margin-bottom: 1.5rem;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
 
         .features-list {
             list-style: none;
             margin-top: 0.5rem;
         }
-
         .features-list li {
             display: flex;
             align-items: center;
@@ -248,11 +233,10 @@ if ($isAdminLoggedIn) {
             color: #F5F0E0;
             font-size: 0.85rem;
             margin-bottom: 0.7rem;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
-
         .features-list li i {
-            color: #FFD62E;
+            color: var(--accent);
             font-size: 0.9rem;
             width: 20px;
         }
@@ -260,67 +244,57 @@ if ($isAdminLoggedIn) {
         /* Right side - Login Form */
         .login-form-section {
             padding: 2.5rem;
-            background: #FFFCF2;
+            background: linear-gradient(180deg, #FFFFFF 0%, #F5F5F5 100%);
             display: flex;
             flex-direction: column;
             justify-content: center;
         }
 
-        .form-header {
-            margin-bottom: 1.8rem;
-        }
-
+        .form-header { margin-bottom: 1.8rem; }
         .form-header h3 {
-            color: #3E2C1C;
+            color: var(--text-primary);
             font-size: 1.4rem;
             font-weight: 700;
             margin-bottom: 0.3rem;
         }
-
         .form-header p {
-            color: #8B7355;
+            color: var(--text-muted);
             font-size: 0.85rem;
         }
 
-        /* Back to home button - Smaller and cleaner */
+        /* Back to home button */
         .back-home-btn {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 0.5rem;
             background: transparent;
-            border: none;
-            color: #B38F00;
-            padding: 0.4rem 0.8rem;
-            border-radius: 0.5rem;
-            font-size: 0.8rem;
-            font-weight: 500;
+            border: 1.5px solid rgba(77, 114, 77, 0.2);
+            color: var(--accent-dark);
+            padding: 0.6rem 1rem;
+            border-radius: 0.8rem;
+            font-size: 0.85rem;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
             text-decoration: none;
-            margin-bottom: 1rem;
-            width: fit-content;
+            margin-bottom: 1.5rem;
+            width: 100%;
         }
-
         .back-home-btn:hover {
-            background: rgba(230, 184, 0, 0.08);
-            color: #CC9A00;
-            transform: translateX(-2px);
-        }
-
-        .back-home-btn i {
-            font-size: 0.8rem;
+            background: rgba(77, 114, 77, 0.08);
+            border-color: var(--accent);
+            color: var(--accent-dark);
+            transform: translateX(-3px);
         }
 
         /* Form styles */
-        .input-group {
-            margin-bottom: 1.3rem;
-        }
-
+        .input-group { margin-bottom: 1.3rem; }
         .input-group label {
             display: block;
             font-size: 0.8rem;
             font-weight: 600;
-            color: #5C4A1E;
+            color: var(--text-secondary);
             margin-bottom: 0.5rem;
             letter-spacing: 0.3px;
         }
@@ -330,54 +304,45 @@ if ($isAdminLoggedIn) {
             display: flex;
             align-items: center;
         }
-
         .input-wrapper i.input-icon {
             position: absolute;
             left: 1rem;
-            color: #B38F00;
+            color: var(--accent-dark);
             font-size: 1rem;
             z-index: 5;
         }
-
         .input-wrapper input {
             width: 100%;
             padding: 0.85rem 1rem 0.85rem 2.8rem;
-            border: 1.5px solid rgba(255, 214, 46, 0.4);
+            border: 1.5px solid rgba(77, 114, 77, 0.18);
             border-radius: 0.8rem;
-            background: #FFFCF2;
+            background: var(--bg-card);
             font-size: 0.9rem;
-            color: #3E2C1C;
+            color: var(--text-primary);
             transition: all 0.3s ease;
             font-family: 'Inter', sans-serif;
         }
-
         .input-wrapper input:focus {
             outline: none;
-            border-color: #FFD62E;
+            border-color: var(--accent-dark);
             background: #FFFFFF;
-            box-shadow: 0 0 0 3px rgba(255, 214, 46, 0.1);
+            box-shadow: 0 0 0 3px rgba(77, 114, 77, 0.1);
         }
-
-        .input-wrapper input::placeholder {
-            color: #C4B5A0;
-        }
+        .input-wrapper input::placeholder { color: #C4B5A0; }
 
         .password-toggle {
             position: absolute;
             right: 1rem;
             background: none;
             border: none;
-            color: #B38F00;
+            color: var(--text-muted);
             cursor: pointer;
             font-size: 1rem;
             z-index: 5;
             padding: 0.2rem;
             transition: color 0.2s;
         }
-
-        .password-toggle:hover {
-            color: #CC9A00;
-        }
+        .password-toggle:hover { color: var(--accent-dark); }
 
         /* Form options */
         .form-options {
@@ -386,47 +351,42 @@ if ($isAdminLoggedIn) {
             align-items: center;
             margin-bottom: 1.5rem;
         }
-
         .checkbox-wrapper {
             display: flex;
             align-items: center;
             gap: 0.5rem;
             cursor: pointer;
         }
-
         .checkbox-wrapper input[type="checkbox"] {
             width: 16px;
             height: 16px;
-            accent-color: #FFD62E;
+            accent-color: var(--accent);
             cursor: pointer;
         }
-
         .checkbox-wrapper span {
             font-size: 0.8rem;
-            color: #5C4A1E;
+            color: var(--text-secondary);
             cursor: pointer;
             font-weight: 500;
         }
-
         .forgot-link {
             font-size: 0.8rem;
-            color: #B38F00;
+            color: var(--text-muted);
             text-decoration: none;
             font-weight: 500;
             transition: all 0.2s;
         }
-
         .forgot-link:hover {
-            color: #CC9A00;
+            color: var(--accent-dark);
             text-decoration: underline;
         }
 
         /* Login button */
         .btn-login {
             width: 100%;
-            background: linear-gradient(105deg, #E6B800 0%, #FFD62E 100%);
+            background: linear-gradient(105deg, var(--accent-dark) 0%, #3A5C3A 100%);
             border: none;
-            color: #3E2C1C;
+            color: #FFFFFF;
             font-weight: 700;
             padding: 0.85rem;
             border-radius: 0.8rem;
@@ -441,7 +401,6 @@ if ($isAdminLoggedIn) {
             position: relative;
             overflow: hidden;
         }
-
         .btn-login::before {
             content: '';
             position: absolute;
@@ -449,28 +408,21 @@ if ($isAdminLoggedIn) {
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
             transition: left 0.5s;
         }
-
-        .btn-login:hover::before {
-            left: 100%;
-        }
-
+        .btn-login:hover::before { left: 100%; }
         .btn-login:hover {
-            background: linear-gradient(105deg, #CC9A00 0%, #E6B800 100%);
+            background: linear-gradient(105deg, #3A5C3A 0%, var(--accent-dark) 100%);
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px -5px rgba(230, 184, 0, 0.3);
+            box-shadow: 0 10px 20px -5px rgba(77, 114, 77, 0.22);
         }
-
-        .btn-login:active {
-            transform: translateY(0);
-        }
+        .btn-login:active { transform: translateY(0); }
 
         /* Error message */
         .error-message {
-            background: #FDE8E8;
-            color: #C0392B;
+            background: var(--red-light);
+            color: var(--red);
             padding: 0.8rem 1rem;
             border-radius: 0.8rem;
             font-size: 0.8rem;
@@ -480,27 +432,51 @@ if ($isAdminLoggedIn) {
             gap: 0.6rem;
             border: 1px solid #F5C6C6;
         }
+        .error-message i { color: var(--red); }
 
-        .error-message i {
-            color: #E74C3C;
+        /* Demo credentials card */
+        .demo-card {
+            margin-top: 1.5rem;
+            padding: 0.8rem 1rem;
+            background: rgba(141, 180, 142, 0.08);
+            border-radius: 0.8rem;
+            border: 1px solid rgba(141, 180, 142, 0.15);
+        }
+        .demo-card p {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.3rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .demo-card p i { color: var(--accent); }
+        .demo-card .credentials {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 0.4rem;
+        }
+        .demo-card .credentials code {
+            background: rgba(141, 180, 142, 0.1);
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.4rem;
+            font-size: 0.7rem;
+            color: var(--accent-dark);
+            font-family: monospace;
         }
 
-        /* Footer */
         .login-footer {
             text-align: center;
             margin-top: 1.5rem;
-            color: #8B7355;
+            color: var(--text-muted);
             font-size: 0.7rem;
         }
-
         .login-footer a {
-            color: #B38F00;
+            color: var(--accent-dark);
             text-decoration: none;
         }
-
-        .login-footer a:hover {
-            text-decoration: underline;
-        }
+        .login-footer a:hover { text-decoration: underline; }
 
         /* Responsive */
         @media (max-width: 900px) {
@@ -513,45 +489,27 @@ if ($isAdminLoggedIn) {
                 padding: 2rem;
                 text-align: center;
                 border-right: none;
-                border-bottom: 1px solid rgba(255, 214, 46, 0.3);
+                border-bottom: 1px solid rgba(141,180,142,0.3);
                 min-height: auto;
             }
-            .brand-logo .logo-icon {
-                margin: 0 auto 1rem;
-            }
+            .brand-logo .logo-icon { margin: 0 auto 1rem; }
             .features-list {
                 display: flex;
                 flex-wrap: wrap;
                 justify-content: center;
                 gap: 0.8rem;
             }
-            .features-list li {
-                font-size: 0.75rem;
-            }
-            .login-form-section {
-                padding: 2rem;
-            }
+            .features-list li { font-size: 0.75rem; }
+            .login-form-section { padding: 2rem; }
         }
 
         @media (max-width: 480px) {
-            body {
-                padding: 1rem;
-            }
-            .login-brand {
-                padding: 1.5rem;
-            }
-            .login-form-section {
-                padding: 1.5rem;
-            }
-            .brand-tagline h2 {
-                font-size: 1.2rem;
-            }
-            .form-header h3 {
-                font-size: 1.2rem;
-            }
-            .features-list li {
-                font-size: 0.7rem;
-            }
+            body { padding: 1rem; }
+            .login-brand { padding: 1.5rem; }
+            .login-form-section { padding: 1.5rem; }
+            .brand-tagline h2 { font-size: 1.2rem; }
+            .form-header h3 { font-size: 1.2rem; }
+            .features-list li { font-size: 0.7rem; }
         }
     </style>
 </head>
@@ -568,11 +526,10 @@ if ($isAdminLoggedIn) {
     <div class="floating-feather feather-3"><i class="fas fa-feather-alt"></i></div>
     <div class="floating-feather feather-4"><i class="fas fa-feather-alt"></i></div>
 
-    <!-- Login Container - PERFECTLY CENTERED -->
     <div class="login-container">
         <div class="login-card">
             
-            <!-- Left Side - Branding Section with Poultry Background -->
+            <!-- Left Side - Branding Section -->
             <div class="login-brand">
                 <div class="brand-logo">
                     <div class="logo-icon">
@@ -581,11 +538,11 @@ if ($isAdminLoggedIn) {
                     <h1>BroilerGuard</h1>
                 </div>
                 <div class="brand-tagline">
-                    <h2>IoT-Based Environmental<br>Monitoring & Automation System</h2>
-                    <p>For broiler chickens in small-scale tunnel-ventilated houses with real-time data collection, AI health detection, and automated control.</p>
+                    <h2>Smart Poultry<br>Management System</h2>
+                    <p>IoT-based environmental monitoring and automation for broiler chickens in tunnel-ventilated houses.</p>
                 </div>
                 <ul class="features-list">
-                    <li><i class="fas fa-chart-line"></i> Real-Time Environmental Monitoring</li>
+                    <li><i class="fas fa-chart-line"></i> Real-time Environmental Monitoring</li>
                     <li><i class="fas fa-brain"></i> AI-Powered Health Detection</li>
                     <li><i class="fas fa-robot"></i> Automated Feeding & Watering</li>
                     <li><i class="fas fa-tachometer-alt"></i> Smart Ventilation Control</li>
@@ -595,7 +552,6 @@ if ($isAdminLoggedIn) {
 
             <!-- Right Side - Login Form -->
             <div class="login-form-section">
-                <!-- Back to Homepage Button - Smaller and cleaner -->
                 <a href="index.php" class="back-home-btn">
                     <i class="fas fa-arrow-left"></i> Back to Homepage
                 </a>
@@ -657,12 +613,11 @@ if ($isAdminLoggedIn) {
                         <i class="fas fa-arrow-right-to-bracket"></i> Sign In
                     </button>
                 </form>
-
+                
                 <div class="login-footer">
                     <p>© 2026 BroilerGuard. All rights reserved. | <a href="#">Privacy Policy</a></p>
                 </div>
             </div>
-
         </div>
     </div>
 
@@ -675,15 +630,9 @@ if ($isAdminLoggedIn) {
             togglePassword.addEventListener('click', function() {
                 const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
                 passwordInput.setAttribute('type', type);
-                
                 const icon = this.querySelector('i');
-                if (type === 'text') {
-                    icon.classList.remove('fa-eye');
-                    icon.classList.add('fa-eye-slash');
-                } else {
-                    icon.classList.remove('fa-eye-slash');
-                    icon.classList.add('fa-eye');
-                }
+                icon.classList.toggle('fa-eye');
+                icon.classList.toggle('fa-eye-slash');
             });
         }
 
