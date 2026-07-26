@@ -4,6 +4,7 @@ session_start();
 
 require_once 'db_connect.php';        // PDO
 require_once 'weather_functions.php'; // weather
+require_once 'api_client.php'; 
 
 $weather = getWeatherData();
 
@@ -14,6 +15,7 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 if (isset($_GET['logout'])) { session_destroy(); header('Location: login.php'); exit; }
 
 $userId = 1;
+
 
 // ===== FETCH SETTINGS FROM DATABASE =====
 global $pdo;
@@ -312,8 +314,8 @@ $unreadNotifications = 0;
             <a href="fan_control.php"><i class="fas fa-fan"></i> Fan Control</a>
             <a href="feed_dispenser.php"><i class="fas fa-drumstick-bite"></i> Feed Dispenser</a>
             <a href="water_pump.php"><i class="fas fa-hand-holding-water"></i> Water Pump</a>
-             <a href="light_control.php" class="active"><i class="fas fa-lightbulb"></i> Light Control</a>
-             <a href="automation_settings.php"><i class="fas fa-cog"></i> Automation Settings</a>
+             <a href="light_control.php" class=""><i class="fas fa-lightbulb"></i> Light Control</a>
+             <a href="automation_settings.php" class="active"><i class="fas fa-cog"></i> Automation Settings</a>
             
         </div>
         <div class="nav-section"><div class="nav-section-title">System</div>
@@ -343,7 +345,8 @@ $unreadNotifications = 0;
                 <span class="time" id="currentTime"><?php echo $currentTime; ?></span>
             </div>
         </div>
-        <div class="header-right">
+                <div class="header-right">
+            
             <div class="notification-bell" onclick="window.location.href='notifications.php'">
                 <i class="fas fa-bell"></i>
                 <?php if ($unreadNotifications > 0): ?>
@@ -354,7 +357,6 @@ $unreadNotifications = 0;
                 <i class="fas <?php echo getWeatherIcon($weather['condition']); ?>"></i>
                 <span class="weather-temp"><?php echo $weather['temp']; ?>°C</span>
             </button>
-            <a href="dashboard.php" class="back-btn"><i class="fas fa-arrow-left"></i> Dashboard</a>
         </div>
     </header>
 
