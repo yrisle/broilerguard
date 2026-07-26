@@ -1,10 +1,12 @@
 // src/screens/Settings/SettingsScreen.tsx
 import { FontAwesome5 } from "@expo/vector-icons";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -14,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from "../../api/client";
 import { useTheme } from "../../hooks/useTheme";
 
@@ -24,7 +27,15 @@ interface UserProfile {
   role: string;
   email?: string;
   phone?: string;
+  avatar?: string | null;
 }
+
+// Storage keys
+const STORAGE_KEYS = {
+  PROFILE: '@broilerguard_profile',
+  NOTIFICATIONS: '@broilerguard_notifications',
+  AUTO_REFRESH: '@broilerguard_auto_refresh',
+};
 
 function SettingsScreen() {
   const { colors } = useTheme();
@@ -41,12 +52,45 @@ function SettingsScreen() {
     role: "Farm Administrator",
     email: "admin@broilerguard.com",
     phone: "+63 912 345 6789",
+    avatar: null,
   });
   const [editedProfile, setEditedProfile] = useState<UserProfile>(profile);
+  const [tempAvatar, setTempAvatar] = useState<string | null>(null);
 
   // Settings states
   const [notifications, setNotifications] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
+
+  // Load saved data on mount
+  useEffect(() => {
+    loadSavedData();
+    fetchSettings();
+  }, []);
+
+  const loadSavedData = async () => {
+    try {
+      // Load profile from AsyncStorage
+      const savedProfile = await AsyncStorage.getItem(STORAGE_KEYS.PROFILE);
+      if (savedProfile) {
+        const parsedProfile = JSON.parse(savedProfile);
+        setProfile(parsedProfile);
+        setEditedProfile(parsedProfile);
+      }
+
+      // Load preferences
+      const savedNotifications = await AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
+      if (savedNotifications !== null) {
+        setNotifications(JSON.parse(savedNotifications));
+      }
+
+      const savedAutoRefresh = await AsyncStorage.getItem(STORAGE_KEYS.AUTO_REFRESH);
+      if (savedAutoRefresh !== null) {
+        setAutoRefresh(JSON.parse(savedAutoRefresh));
+      }
+    } catch (error) {
+      console.error("Error loading saved data:", error);
+    }
+  };
 
   const fetchSettings = async () => {
     try {
@@ -62,27 +106,49 @@ function SettingsScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchSettings();
-    loadPreferences();
-  }, []);
-
-  const loadPreferences = () => {
-    // Load from AsyncStorage or default values
-  };
-
   const onRefresh = () => {
     setRefreshing(true);
     fetchSettings();
+    loadSavedData();
   };
 
   const handleEditProfile = () => {
     setEditedProfile(profile);
+    setTempAvatar(profile.avatar || null);
     setIsEditing(true);
   };
 
+  const handlePickImage = async () => {
+    try {
+      // Request permission
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Needed', 'Please grant permission to access your photos.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const imageUri = result.assets[0].uri;
+        setTempAvatar(imageUri);
+        setEditedProfile({ ...editedProfile, avatar: imageUri });
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      Alert.alert('Error', 'Failed to select image. Please try again.');
+    }
+  };
+
   const handleSaveProfile = async () => {
-    // Check if any field is empty
+    // Validate fields
     if (!editedProfile.name.trim()) {
       Alert.alert("Error", "Name is required");
       return;
@@ -95,23 +161,26 @@ function SettingsScreen() {
     try {
       setLoading(true);
 
-      // Try to save to API
+      // Save to AsyncStorage (persistent)
+      await AsyncStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(editedProfile));
+
+      // Update state
+      setProfile(editedProfile);
+      setIsEditing(false);
+      setTempAvatar(null);
+
+      // Try to save to API if available
       try {
         const response = await api.put("/user/profile", editedProfile);
         if (response.data.success) {
-          setProfile(editedProfile);
-          setIsEditing(false);
           Alert.alert("Success", "Profile updated successfully!");
           return;
         }
       } catch (apiError) {
-        console.log("API not available, saving locally");
+        console.log("API not available, saved locally");
       }
 
-      // If API fails, save locally
-      setProfile(editedProfile);
-      setIsEditing(false);
-      Alert.alert("Success", "Profile updated locally!");
+      Alert.alert("Success", "Profile saved successfully!");
     } catch (error) {
       console.error("Error updating profile:", error);
       Alert.alert("Error", "Failed to update profile. Please try again.");
@@ -122,12 +191,16 @@ function SettingsScreen() {
 
   const handleCancelEdit = () => {
     setEditedProfile(profile);
+    setTempAvatar(null);
     setIsEditing(false);
   };
 
   const handleSaveSettings = async () => {
     try {
-      // Save preferences locally
+      // Save preferences to AsyncStorage
+      await AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
+      await AsyncStorage.setItem(STORAGE_KEYS.AUTO_REFRESH, JSON.stringify(autoRefresh));
+      
       Alert.alert("Success", "Settings saved successfully!");
     } catch (error) {
       Alert.alert("Error", "Failed to save settings");
@@ -200,11 +273,20 @@ function SettingsScreen() {
               },
             ]}
           >
-            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.avatarText, { color: "#FFFFFF" }]}>
-                {profile.name.charAt(0).toUpperCase()}
-              </Text>
-            </View>
+            <TouchableOpacity onPress={handleEditProfile} style={styles.avatarContainer}>
+              {profile.avatar ? (
+                <Image source={{ uri: profile.avatar }} style={styles.avatarImage} />
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.avatarText, { color: "#FFFFFF" }]}>
+                    {profile.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <View style={[styles.avatarBadge, { backgroundColor: colors.primary }]}>
+                <Ionicons name="camera" size={12} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
             <View style={styles.profileInfo}>
               <Text style={[styles.profileName, { color: colors.text }]}>
                 {profile.name}
@@ -260,9 +342,32 @@ function SettingsScreen() {
               {
                 backgroundColor: colors.card,
                 borderColor: colors.border,
+                flexDirection: "column",
+                alignItems: "center",
               },
             ]}
           >
+            <TouchableOpacity onPress={handlePickImage} style={styles.avatarContainer}>
+              {tempAvatar || editedProfile.avatar ? (
+                <Image 
+                  source={{ uri: tempAvatar || editedProfile.avatar || undefined }} 
+                  style={styles.avatarImage} 
+                />
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.avatarText, { color: "#FFFFFF" }]}>
+                    {editedProfile.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <View style={[styles.avatarBadge, { backgroundColor: colors.primary }]}>
+                <Ionicons name="camera" size={12} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+            <Text style={[styles.changePhotoText, { color: colors.primary }]}>
+              Tap to change photo
+            </Text>
+            
             <View style={styles.editForm}>
               <TextInput
                 style={[
@@ -553,17 +658,41 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
   },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
+  avatarContainer: {
+    position: "relative",
     marginRight: 12,
   },
+  avatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+  },
   avatarText: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "800",
+  },
+  avatarBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  changePhotoText: {
+    fontSize: 12,
+    marginBottom: 12,
   },
   profileInfo: {
     flex: 1,
