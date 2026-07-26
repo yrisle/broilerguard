@@ -1,21 +1,21 @@
 <?php
-// temperature.php - Temperature & Humidity Monitoring Module
+
 session_start();
 
-// Authentication Check
+
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
 
-// Handle Logout
+
 if (isset($_GET['logout'])) {
     session_destroy();
     header('Location: login.php');
     exit;
 }
 
-// Get filter parameters
+
 $filter = $_GET['filter'] ?? '24h';
 $search = $_GET['search'] ?? '';
 $dateFrom = $_GET['date_from'] ?? '';
