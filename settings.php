@@ -4,12 +4,13 @@ session_start();
 
 require_once 'db_connect.php';        // PDO
 require_once 'weather_functions.php'; // weather
+require_once 'api_client.php'; 
 
 // ===== FIX: Ensure we have a working connection on port 3307 =====
 if (!isset($pdo) || !($pdo instanceof PDO)) {
     try {
         $host = '127.0.0.1';
-        $port = '3307';
+        $port = '3306';
         $dbname = 'broilerguard';        // <-- change this if your DB name is different
         $user = 'root';
         $pass = '';                      // <-- set your root password here if you have one
@@ -434,7 +435,8 @@ $languages = ['en' => 'English', 'fil' => 'Filipino'];
                 <span class="time" id="currentTime"><?php echo $currentTime; ?></span>
             </div>
         </div>
-        <div class="header-right">
+                <div class="header-right">
+            
             <div class="notification-bell" onclick="window.location.href='notifications.php'">
                 <i class="fas fa-bell"></i>
                 <?php if ($unreadNotifications > 0): ?>
@@ -445,7 +447,6 @@ $languages = ['en' => 'English', 'fil' => 'Filipino'];
                 <i class="fas <?php echo getWeatherIcon($weather['condition']); ?>"></i>
                 <span class="weather-temp"><?php echo $weather['temp']; ?>°C</span>
             </button>
-            <a href="dashboard.php" class="back-btn"><i class="fas fa-arrow-left"></i> Dashboard</a>
         </div>
     </header>
 
