@@ -1,22 +1,21 @@
 <?php
-// chicken_status.php - Enhanced Chicken Health Status Module
-// Includes: Respiratory Disease Detection, Heat Stress Monitoring, Sick vs Healthy Detection
+
 session_start();
 
-// Authentication Check
+
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
 
-// Handle Logout
+
 if (isset($_GET['logout'])) {
     session_destroy();
     header('Location: login.php');
     exit;
 }
 
-// Get filter parameters
+
 $filter = $_GET['filter'] ?? 'all';
 $search = $_GET['search'] ?? '';
 $sortBy = $_GET['sort_by'] ?? 'newest';
