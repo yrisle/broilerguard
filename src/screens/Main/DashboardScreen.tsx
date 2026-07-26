@@ -1,4 +1,5 @@
 // src/screens/Main/DashboardScreen.tsx
+import { FontAwesome5 } from "@expo/vector-icons"; // 👈 Import ito
 import Icon from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
@@ -154,10 +155,25 @@ const DashboardScreen = () => {
         </View>
       ) : null}
 
+      {/* 👇 ENVIRONMENTAL CONDITIONS - PINALITAN NA */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          🌡️ Environmental Conditions
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <FontAwesome5
+            name="thermometer-half"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Environmental Conditions
+          </Text>
+        </View>
         <View style={styles.row}>
           <Card style={styles.halfCard}>
             <View style={styles.tempContainer}>
@@ -188,10 +204,25 @@ const DashboardScreen = () => {
         </View>
       </View>
 
+      {/* 👇 RESOURCE LEVELS - PINALITAN NA */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          📦 Resource Levels
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <FontAwesome5
+            name="box"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Resource Levels
+          </Text>
+        </View>
         <Card>
           <LevelIndicator
             label="Feed Level"
@@ -212,10 +243,25 @@ const DashboardScreen = () => {
         </Card>
       </View>
 
+      {/* 👇 AUTOMATION STATUS - PINALITAN NA */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          ⚙️ Automation Status
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Icon
+            name="settings-outline"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Automation Status
+          </Text>
+        </View>
         <View style={styles.row}>
           <Card style={styles.halfCard}>
             <View style={styles.automationItem}>
@@ -306,10 +352,25 @@ const DashboardScreen = () => {
         </View>
       </View>
 
+      {/* 👇 CHICKEN HEALTH - PINALITAN NA */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          🐔 Chicken Health
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <FontAwesome5
+            name="drumstick-bite"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Chicken Health
+          </Text>
+        </View>
         <Card>
           <View style={styles.chickenStats}>
             <View style={styles.chickenStat}>
@@ -340,10 +401,25 @@ const DashboardScreen = () => {
         </Card>
       </View>
 
+      {/* 👇 QUICK ACTIONS - PINALITAN NA */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          ⚡ Quick Actions
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Icon
+            name="flash-outline"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Quick Actions
+          </Text>
+        </View>
         <View style={styles.quickActions}>
           <TouchableOpacity
             style={[styles.quickAction, { backgroundColor: colors.card }]}
@@ -452,7 +528,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    marginBottom: 12,
+    marginBottom: 0,
   },
   row: {
     flexDirection: "row",
