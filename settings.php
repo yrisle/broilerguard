@@ -1,21 +1,21 @@
 <?php
-// settings.php - System Settings Module
+
 session_start();
 
-// Authentication Check
+
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
 
-// Handle Logout
+
 if (isset($_GET['logout'])) {
     session_destroy();
     header('Location: login.php');
     exit;
 }
 
-// Initialize settings if not exists
+
 if (!isset($_SESSION['system_settings'])) {
     $_SESSION['system_settings'] = [
         'timezone' => 'Asia/Manila',
