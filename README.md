@@ -1,7 +1,7 @@
 # BROILER GUARD
 # 🐔 Development of an IoT-Based Environmental Monitoring and Automation System for Broiler Chickens in a Small-Scale Tunnel-Ventilated House
 
-## 👥 Team Members
+## Team Members
 
 - **Gayos, Princess Iris A.**
 - **Perey, Alessandra Mae A.**
@@ -9,7 +9,7 @@
 
 ---
 
-# 📖 Introduction
+# Introduction
 
 ## Purpose
 
@@ -27,16 +27,16 @@ The proposed system is designed specifically for a **small-scale tunnel-ventilat
 
 ### The system provides:
 
-- 🌡️ Real-time temperature monitoring
-- 💧 Real-time humidity monitoring
-- 🌬️ Automated ventilation control
-- 🍗 Automated feeding
-- 🚰 Automated water dispensing
-- 📷 AI-assisted chicken condition monitoring using ESP32-CAM
-- 📊 Historical environmental data logging
-- 💻 Web-based monitoring dashboard
-- 🔔 Notification and alert system
-- 📦 Feed inventory monitoring
+-  Real-time temperature monitoring
+-  Real-time humidity monitoring
+-  Automated ventilation control
+-  Automated feeding
+-  Automated water dispensing
+-  AI-assisted chicken condition monitoring using ESP32-CAM
+-  Historical environmental data logging
+-  Web-based monitoring dashboard
+-  Notification and alert system
+-  Feed inventory monitoring
 
 ### Technologies Used
 
@@ -84,7 +84,7 @@ The system can be accessed through desktop and mobile web browsers connected to 
 
 ---
 
-# 🏗️ Overall Description
+#  Overall Description
 
 ## System Overview
 
@@ -98,9 +98,9 @@ Meanwhile, the **ESP32-CAM** captures images of the chickens, which are processe
 
 Based on predefined environmental thresholds, the system automatically activates different hardware components, including:
 
-- 🌬️ Ventilation Fan
-- 🍗 Automatic Feeder
-- 🚰 Water Pump
+-  Ventilation Fan
+-  Automatic Feeder
+-  Water Pump
 
 Users can access the web dashboard to:
 
@@ -142,9 +142,9 @@ Users can access the web dashboard to:
                               |
                               |
                               v
-                 +--------------------------+
-                 |   Web Dashboard (Users)  |
-                 +--------------------------+
+                 +-----------------------------+
+                 |   Web Dashboard/App(Users)  |
+                 +-----------------------------+
 
 ESP32-CAM
      |
@@ -157,13 +157,13 @@ Web Dashboard
 
 ---
 
-# ⚙️ Specific Requirements
+#  Specific Requirements
 
 The following features are currently functional and available for the project defense.
 
 ---
 
-## ✅ Functional Features
+##  Functional Features
 
 - ESP32 successfully integrated and programmed.
 - DHT11 sensor integrated with real-time temperature and humidity monitoring.
@@ -179,37 +179,37 @@ The following features are currently functional and available for the project de
 
 ---
 
-## 🔗 Connected APIs and Services
+##  Connected APIs and Services
 
 | Service | Status |
 |----------|--------|
-| PHP Backend | ✅ Connected |
-| MySQL Database | ✅ Connected |
-| ESP32 Data Transmission | ✅ Functional |
-| Web Dashboard | ✅ Functional |
+| PHP Backend | Connected |
+| MySQL Database |  Connected |
+| ESP32 Data Transmission |  Functional |
+| Web Dashboard |  Functional |
 
 ---
 
-## 🔧 Hardware Components Status
+##  Hardware Components Status
 
 | Component | Status |
 |-----------|--------|
-| ESP32 | ✅ Functional |
-| DHT11 Sensor | ✅ Functional |
-| Ventilation Fan | ✅ Functional |
-| Water Pump | ✅ Functional |
-| AC-to-DC Power Supply | ✅ Functional |
-| Web Dashboard | ✅ Functional |
-| MySQL Database | ✅ Functional |
-| ESP32-CAM | 🟡 Initial Programming Completed |
-| Automatic Feeder Mechanism | 🟡 Under Mechanical Refinement |
-| Servo-Controlled Feed Gate | 🟡 Under Development |
-| 16V Feeder Motor | 🟡 Pending Integration |
-| 25W Bulb | ✅ Functional |
+| ESP32 |  Functional |
+| DHT11 Sensor |  Functional |
+| Ventilation Fan |  Functional |
+| Water Pump |  Functional |
+| AC-to-DC Power Supply |  Functional |
+| Web Dashboard |  Functional |
+| MySQL Database |  Functional |
+| ESP32-CAM |  Initial Programming |
+| Automatic Feeder Mechanism |  Under Mechanical Refinement |
+| Servo-Controlled Feed Gate |  Under Development |
+| 16V Feeder Motor |  Pending Integration |
+| 25W Bulb |  Functional |
 
 ---
 
-## 🚧 Features Under Development
+##  Features Under Development
 
 The following modules are currently under development and planned for future integration:
 
@@ -222,7 +222,7 @@ The following modules are currently under development and planned for future int
 
 ---
 
-# 📌 Current Project Progress
+#  Current Project Progress
 
 ### Completed
 
@@ -244,7 +244,7 @@ The following modules are currently under development and planned for future int
 ---
 
 
-# 📄 License
+#  License
 
 This project was developed as a Capstone Project for the Bachelor of Science in Information Technology Major in Network Technology.
 
