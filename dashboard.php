@@ -4,6 +4,7 @@ session_start();
 
 require_once 'db_connect.php';        // PDO connection
 require_once 'weather_functions.php'; // Weather API
+require_once 'api_client.php';        // Python API client (NO duplicate functions)
 
 // Authentication Check
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
@@ -49,7 +50,6 @@ function getLatestSensorData() {
         ];
     }
     
-    // Fallback if no data
     return [
         'temperature' => 29.5,
         'humidity' => 65.0
@@ -108,17 +108,14 @@ function getWaterInventory() {
 function getAutomationStatus() {
     global $pdo, $userId;
     
-    // Fan status - use backticks for reserved keywords
     $fanStmt = $pdo->prepare("SELECT action, `trigger`, temperature FROM fan_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1");
     $fanStmt->execute([$userId]);
     $fanRow = $fanStmt->fetch(PDO::FETCH_ASSOC);
     
-    // Water pump status
     $pumpStmt = $pdo->prepare("SELECT source, amount FROM water_transactions WHERE user_id = ? AND type = 'consumption' ORDER BY timestamp DESC LIMIT 1");
     $pumpStmt->execute([$userId]);
     $pumpRow = $pumpStmt->fetch(PDO::FETCH_ASSOC);
     
-    // Feed dispenser status (from feed_transactions)
     $feedStmt = $pdo->prepare("SELECT source, amount FROM feed_transactions WHERE user_id = ? AND type = 'consumption' ORDER BY timestamp DESC LIMIT 1");
     $feedStmt->execute([$userId]);
     $feedRow = $feedStmt->fetch(PDO::FETCH_ASSOC);
@@ -146,7 +143,6 @@ function getChartData($period) {
     $waterData = [];
     
     if ($period === 'day') {
-        // Get last 24 hours data grouped by hour
         $stmt = $pdo->prepare("SELECT 
                                 DATE_FORMAT(timestamp, '%H:00') as hour,
                                 AVG(temperature) as avg_temp,
@@ -164,7 +160,6 @@ function getChartData($period) {
             $humidityData[] = round((float)$row['avg_humidity']);
         }
         
-        // Get feed and water consumption for last 24 hours
         $feedStmt = $pdo->prepare("SELECT DATE_FORMAT(timestamp, '%H:00') as hour, SUM(amount) as total 
                                    FROM feed_transactions 
                                    WHERE user_id = ? AND type = 'consumption' AND timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
@@ -193,7 +188,6 @@ function getChartData($period) {
         }
         
     } else {
-        // Week - get last 7 days
         $stmt = $pdo->prepare("SELECT 
                                 DATE(timestamp) as day,
                                 AVG(temperature) as avg_temp,
@@ -211,7 +205,6 @@ function getChartData($period) {
             $humidityData[] = round((float)$row['avg_humidity']);
         }
         
-        // Get feed and water consumption for last 7 days
         $feedStmt = $pdo->prepare("SELECT DATE(timestamp) as day, SUM(amount) as total 
                                    FROM feed_transactions 
                                    WHERE user_id = ? AND type = 'consumption' AND timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)
@@ -240,7 +233,6 @@ function getChartData($period) {
         }
     }
     
-    // If no data, return default
     if (empty($labels)) {
         return [
             'labels' => ['No Data'],
@@ -312,7 +304,6 @@ function getActivityRecords($filter = 'all', $dateFrom = '', $dateTo = '', $sort
     
     $records = $allRecords;
     
-    // Apply search filter
     if ($search) {
         $searchLower = strtolower($search);
         $records = array_filter($records, function($record) use ($searchLower) {
@@ -322,14 +313,12 @@ function getActivityRecords($filter = 'all', $dateFrom = '', $dateTo = '', $sort
         });
     }
     
-    // Apply category filter
     if ($filter !== 'all') {
         $records = array_filter($records, function($record) use ($filter) {
             return $record['category'] === $filter;
         });
     }
     
-    // Apply date filter
     if ($dateFrom || $dateTo) {
         $records = array_filter($records, function($record) use ($dateFrom, $dateTo) {
             $recordDate = strtotime($record['timestamp']);
@@ -339,7 +328,6 @@ function getActivityRecords($filter = 'all', $dateFrom = '', $dateTo = '', $sort
         });
     }
     
-    // Apply sorting
     if ($sortBy === 'oldest') {
         $records = array_reverse($records);
     }
@@ -353,7 +341,6 @@ function getActivityRecords($filter = 'all', $dateFrom = '', $dateTo = '', $sort
 function getChickenStatus() {
     global $pdo, $userId;
     
-    // Get latest detection per chick
     $stmt = $pdo->prepare("SELECT chick_id, status, confidence, timestamp 
                            FROM detection_logs 
                            WHERE user_id = ? 
@@ -411,6 +398,9 @@ $records = getActivityRecords($filter, $dateFrom, $dateTo, $sortBy, $search);
 $chickenStatus = getChickenStatus();
 $unreadNotifications = getUnreadNotificationCount();
 
+// Use the function from api_client.php (no redeclaration)
+$detectionSummary = getDetectionSummary($userId);
+
 // Compute stats
 $feedPercentage = $feedInventory['percentage'];
 $waterPercentage = $waterInventory['percentage'];
@@ -443,6 +433,11 @@ $alertCount += $unreadNotifications;
 
 $currentDate = date('F d, Y');
 $currentTime = date('h:i:s A');
+
+// Check API health
+$api = new DiseaseDetectionAPI('http://localhost:5000');
+$apiHealth = $api->health();
+$apiAvailable = isset($apiHealth['status']) && $apiHealth['status'] === 'ok';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -454,6 +449,7 @@ $currentTime = date('h:i:s A');
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        /* ===== CSS VARIABLES ===== */
         :root {
             --bg-primary: #F5F5F5;
             --bg-secondary: #E8F0E8;
@@ -477,6 +473,7 @@ $currentTime = date('h:i:s A');
             --blue-light: #EAF0F3;
             --orange: #B9772A;
             --orange-light: #F9EFE5;
+            --purple: #8E44AD;
             --sidebar-width: 280px;
             --header-height: 70px;
             --border-radius: 16px;
@@ -487,7 +484,7 @@ $currentTime = date('h:i:s A');
         body { font-family: 'Inter', sans-serif; background: var(--bg-primary); color: var(--text-primary); display: flex; min-height: 100vh; }
         
         /* ============================================ */
-        /* SIDEBAR / NAVBAR - UPDATED COLORS */
+        /* SIDEBAR / NAVBAR */
         /* ============================================ */
         .sidebar { 
             width: var(--sidebar-width); 
@@ -645,7 +642,16 @@ $currentTime = date('h:i:s A');
         .date-time-container .time { font-weight: 700; font-size: 1.1rem; color: var(--text-primary); }
         .header-right { display: flex; align-items: center; gap: 1rem; }
         
-        /* Weather Widget - Updated with new green */
+        .api-status {
+            display: inline-block;
+            padding: 0.25rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .api-status.online { background: var(--green-light); color: var(--green); }
+        .api-status.offline { background: var(--red-light); color: var(--red); }
+        
         .weather-widget { 
             display: flex; 
             align-items: center; 
@@ -691,7 +697,6 @@ $currentTime = date('h:i:s A');
             text-align: center; 
         }
         
-        /* Modal */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 2000; justify-content: center; align-items: center; }
         .modal-overlay.active { display: flex; }
         .weather-modal { background: white; border-radius: 20px; padding: 2rem; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.25); position: relative; }
@@ -719,7 +724,6 @@ $currentTime = date('h:i:s A');
             gap: 1rem; 
         }
         
-        /* Search & Filter Bar */
         .search-filter-bar { background: var(--bg-card); border-radius: 10px; padding: 0.6rem 0.9rem; border: 1px solid rgba(77, 114, 77, 0.12); display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem; margin-bottom: 1.5rem; box-shadow: var(--shadow-sm); }
         .search-input-group { flex: 2; min-width: 200px; display: flex; align-items: center; gap: 0.5rem; background: var(--bg-secondary); padding: 0.5rem 0.8rem; border-radius: 8px; }
         .search-input-group i { color: var(--text-muted); font-size: 0.9rem; }
@@ -743,9 +747,9 @@ $currentTime = date('h:i:s A');
         .reset-filters-btn { background: var(--red-light); border: none; padding: 0.5rem 0.9rem; border-radius: 8px; font-weight: 600; font-size: 0.8rem; cursor: pointer; color: var(--red); transition: all 0.2s; font-family: 'Inter', sans-serif; }
         .reset-filters-btn:hover { background: var(--red); color: white; }
         
-        /* Cards */
         .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 1.5rem; }
-        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem; }
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 1.5rem; }
         .card { 
             background: var(--bg-card); 
             border-radius: var(--border-radius); 
@@ -761,13 +765,13 @@ $currentTime = date('h:i:s A');
         .card:hover { box-shadow: var(--shadow-md); transform: translateY(-4px); border-color: var(--accent); }
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
         .card-title { font-weight: 700; font-size: 1rem; }
-        .card-badge { padding: 0.25rem 0.8rem; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+        .card-badge { padding: 0.25rem 0.8rem; border-radius: 20px; font-size: 0.7rem; font-weight: 600; display: inline-block; }
         .badge-success { background: var(--green-light); color: var(--green); }
         .badge-warning { background: var(--yellow-light); color: var(--yellow); }
         .badge-danger { background: var(--red-light); color: var(--red); }
         .badge-info { background: var(--blue-light); color: var(--blue); }
+        .badge-primary { background: var(--accent-light); color: var(--accent-dark); }
         
-        /* Resource Levels */
         .resource-card { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
         .progress-container { flex: 1; }
         .progress-bar-bg { background: #E8E8E8; border-radius: 20px; height: 12px; overflow: hidden; margin: 0.5rem 0; }
@@ -777,14 +781,53 @@ $currentTime = date('h:i:s A');
         .resource-stats { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); }
         .resource-value { font-size: 1.8rem; font-weight: 800; line-height: 1; }
         
-        /* Automation */
         .automation-card { display: flex; align-items: center; gap: 1rem; padding: 0.8rem; background: var(--bg-secondary); border-radius: 12px; }
         .status-indicator { width: 12px; height: 12px; border-radius: 50%; }
         .status-on { background: var(--green); box-shadow: 0 0 8px rgba(77, 114, 77, 0.5); animation: pulse 1.5s infinite; }
         .status-off { background: #95A5A6; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         
-        /* Charts */
+        .detection-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .detection-stat {
+            text-align: center;
+            padding: 0.5rem;
+        }
+        .detection-stat .stat-number {
+            font-size: 2rem;
+            font-weight: 800;
+            display: block;
+        }
+        .detection-stat .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            background: var(--accent-dark);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            background: var(--accent);
+        }
+        
         .chart-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; justify-content: space-between; align-items: center; }
         .period-buttons { display: flex; gap: 0.5rem; }
         .period-btn, .chart-type-btn { 
@@ -808,7 +851,6 @@ $currentTime = date('h:i:s A');
         .chart-wrapper { position: relative; width: 100%; height: 280px; }
         .chart-wrapper canvas { width: 100% !important; height: 100% !important; }
         
-        /* Table */
         .table-container { overflow-x: auto; border-radius: var(--border-radius); }
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         th { background: var(--bg-secondary); padding: 1rem; text-align: left; font-weight: 600; border-bottom: 2px solid rgba(77, 114, 77, 0.08); color: var(--text-secondary); }
@@ -828,42 +870,29 @@ $currentTime = date('h:i:s A');
         body::-webkit-scrollbar-track { background: var(--bg-secondary); }
         body::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
         
-        button, .btn, .btn-save, .btn-login, .filter-btn, .period-btn, .chart-type-btn, .back-btn, .action-btn, .apply-btn, .reset-filters-btn, input, select, textarea {
-            border-radius: 8px;
-            transition: all 0.2s ease;
-        }
-        .card, .settings-card, .reading-card, .chart-card, .stat-card, .inventory-card, .table-card {
-            border-radius: 10px;
-            box-shadow: var(--shadow-sm);
-        }
-        .card:hover, .settings-card:hover, .reading-card:hover, .chart-card:hover, .stat-card:hover, .inventory-card:hover, .table-card:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-md);
-        }
-
         @media (max-width: 1024px) {
             .sidebar { transform: translateX(-100%); }
             .sidebar.open { transform: translateX(0); }
             .main-content { margin-left: 0; }
             .menu-toggle { display: block; }
-            .grid-2 { grid-template-columns: 1fr; }
+            .grid-2, .grid-4 { grid-template-columns: 1fr 1fr; }
+            .detection-stats-grid { grid-template-columns: repeat(2, 1fr); }
             .search-filter-bar { flex-direction: column; border-radius: 20px; }
             .search-input-group { width: 100%; }
             .filter-group { width: 100%; justify-content: center; }
             .chart-wrapper { height: 220px; }
         }
         @media (max-width: 640px) {
-            .grid-3 { grid-template-columns: 1fr; }
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            .detection-stats-grid { grid-template-columns: 1fr 1fr; }
             .chart-filters { flex-direction: column; align-items: stretch; }
             .period-buttons { justify-content: center; }
+            .page-content { padding: 1rem; }
         }
     </style>
 </head>
 <body>
 
-<!-- ============================================ -->
-<!-- SIDEBAR / NAVBAR -->
-<!-- ============================================ -->
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
         <div class="logo-icon"><i class="fas fa-feather-alt"></i></div>
@@ -895,7 +924,7 @@ $currentTime = date('h:i:s A');
             <a href="settings.php"><i class="fas fa-sliders-h"></i> Settings</a>
         </div>
     </nav>
-    <a href="profile.php" class="sidebar-user" id="sidebarUserBtn">
+    <a href="profile.php" class="sidebar-user">
         <div class="avatar">
             <?php echo strtoupper(substr($_SESSION['admin_full_name'] ?? $_SESSION['admin_username'] ?? 'A', 0, 1)); ?>
         </div>
@@ -920,6 +949,7 @@ $currentTime = date('h:i:s A');
             </div>
         </div>
         <div class="header-right">
+            
             <div class="notification-bell" onclick="window.location.href='notifications.php'">
                 <i class="fas fa-bell"></i>
                 <?php if ($unreadNotifications > 0): ?>
@@ -933,7 +963,6 @@ $currentTime = date('h:i:s A');
         </div>
     </header>
 
-    <!-- Weather Modal -->
     <div class="modal-overlay" id="weatherModal">
         <div class="weather-modal">
             <button class="close-btn" onclick="closeWeatherModal()">&times;</button>
@@ -956,7 +985,6 @@ $currentTime = date('h:i:s A');
         <h1 class="page-title">Farm Overview Dashboard</h1>
         <p class="page-subtitle">Real-time monitoring of your broiler chicks farm operations</p>
 
-        <!-- Active Filters Display -->
         <?php if ($filter !== 'all' || $search || $dateFrom || $dateTo): ?>
         <div class="active-filters">
             <span style="font-size:0.7rem;color:var(--text-muted);font-weight:600;">Active Filters:</span>
@@ -967,6 +995,41 @@ $currentTime = date('h:i:s A');
             <button class="active-filter-tag clear-all-tag" onclick="clearAllFilters()">Clear All <i class="fas fa-times"></i></button>
         </div>
         <?php endif; ?>
+
+        <!-- ============================================================ -->
+        <!-- AI DISEASE DETECTION SECTION -->
+        <!-- ============================================================ -->
+        <div class="section-label">
+            <span><i class="fas fa-brain" style="color:var(--purple);"></i> AI Disease Detection</span>
+            <span style="font-size:0.7rem;color:var(--text-muted);">
+                <span class="api-status <?php echo $apiAvailable ? 'online' : 'offline'; ?>" style="font-size:0.6rem;padding:0.15rem 0.5rem;">
+                    <i class="fas <?php echo $apiAvailable ? 'fa-check-circle' : 'fa-exclamation-triangle'; ?>"></i>
+                    <?php echo $apiAvailable ? 'AI Active' : 'AI Offline'; ?>
+                </span>
+            </span>
+        </div>
+        <div class="detection-stats-grid" style="background:var(--bg-card);border-radius:var(--border-radius);padding:1rem;border:1px solid rgba(141,180,142,0.15);margin-bottom:1.5rem;">
+            <div class="detection-stat">
+                <span class="stat-number" style="color:var(--blue);"><?php echo $detectionSummary['total'] ?? 0; ?></span>
+                <span class="stat-label">Total Today</span>
+            </div>
+            <div class="detection-stat">
+                <span class="stat-number" style="color:var(--green);"><?php echo $detectionSummary['healthy'] ?? 0; ?></span>
+                <span class="stat-label"><i class="fas fa-check-circle" style="color:var(--green);"></i> Healthy</span>
+            </div>
+            <div class="detection-stat">
+                <span class="stat-number" style="color:var(--yellow);"><?php echo $detectionSummary['weak'] ?? 0; ?></span>
+                <span class="stat-label"><i class="fas fa-exclamation-circle" style="color:var(--yellow);"></i> Weak</span>
+            </div>
+            <div class="detection-stat">
+                <span class="stat-number" style="color:var(--red);"><?php echo $detectionSummary['unhealthy'] ?? 0; ?></span>
+                <span class="stat-label"><i class="fas fa-times-circle" style="color:var(--red);"></i> Unhealthy</span>
+            </div>
+        </div>
+        <div style="display:flex;gap:0.8rem;flex-wrap:wrap;margin-bottom:1.5rem;">
+            <a href="live_camera.php" class="btn-primary"><i class="fas fa-camera"></i> Start Detection</a>
+            <a href="detection_results.php" class="btn-primary" style="background:var(--blue);"><i class="fas fa-list"></i> View All Results</a>
+        </div>
 
         <!-- Environmental Conditions -->
         <div class="section-label">
