@@ -8,12 +8,12 @@ function getWeatherData() {
     $cacheFile = 'weather_cache.json';
     $cacheTime = 1800; // 30 minuto
 
-    // Subukan munang basahin ang cache
+ 
     if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < $cacheTime)) {
         return json_decode(file_get_contents($cacheFile), true);
     }
 
-    // 1. Kunin ang kasalukuyang panahon (current.json)
+ 
     $currentUrl = "https://api.weatherapi.com/v1/current.json?key=" . WEATHER_API_KEY . "&q=" . WEATHER_CITY . "&aqi=no";
     
     $ch = curl_init();
@@ -25,7 +25,7 @@ function getWeatherData() {
     curl_close($ch);
 
     if ($httpCode !== 200 || !$currentResponse) {
-        // Kapag may error, gamitin ang lumang cache (kung mayroon)
+
         if (file_exists($cacheFile)) {
             return json_decode(file_get_contents($cacheFile), true);
         }
@@ -42,7 +42,7 @@ function getWeatherData() {
 
     $currentData = json_decode($currentResponse, true);
 
-    // 2. Kunin ang forecast para sa min/max at sunrise/sunset
+  
     $forecastUrl = "https://api.weatherapi.com/v1/forecast.json?key=" . WEATHER_API_KEY . "&q=" . WEATHER_CITY . "&days=1&aqi=no&alerts=no";
     
     $ch2 = curl_init();
@@ -55,7 +55,7 @@ function getWeatherData() {
 
     $forecastData = ($forecastHttpCode === 200 && $forecastResponse) ? json_decode($forecastResponse, true) : null;
 
-    // Buuin ang array
+
     $weatherData = [
         'temp'        => round($currentData['current']['temp_c']),
         'feels_like'  => round($currentData['current']['feelslike_c']),
@@ -75,13 +75,13 @@ function getWeatherData() {
         'sunset'      => $forecastData ? $forecastData['forecast']['forecastday'][0]['astro']['sunset'] : '--',
     ];
 
-    // I-cache ang resulta
+  
     file_put_contents($cacheFile, json_encode($weatherData));
     return $weatherData;
 }
 
 function getWeatherIcon($conditionText) {
-    // Simple mapping batay sa text ng kondisyon
+
     $map = [
         'Sunny' => 'fa-sun', 'Clear' => 'fa-sun',
         'Partly cloudy' => 'fa-cloud-sun', 'Cloudy' => 'fa-cloud',
