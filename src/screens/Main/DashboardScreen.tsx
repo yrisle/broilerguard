@@ -4,7 +4,6 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -190,21 +189,9 @@ const DashboardScreen = () => {
       </View>
 
       <View style={styles.section}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            marginBottom: 8,
-          }}
-        >
-          <Image
-            source={require("./assets/images/pic.avif")}
-            style={{ width: 24, height: 24, marginRight: 8 }}
-          />
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-            Resource Levels
-          </Text>
-        </View>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+          📦 Resource Levels
+        </Text>
         <Card>
           <LevelIndicator
             label="Feed Level"
