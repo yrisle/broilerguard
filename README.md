@@ -59,8 +59,12 @@ The proposed system is designed specifically for a **small-scale tunnel-ventilat
 - HTML
 - CSS
 - JavaScript
-- Bootstrap
-- Chart.js
+- Python
+- Yolo
+- Git
+- Git Bash
+- Github
+- Weather API
 
 #### Communication
 
@@ -152,7 +156,7 @@ ESP32-CAM
 AI Chicken Detection
      |
      v
-Web Dashboard
+Web Dashboard / Application
 ```
 
 ---
@@ -206,6 +210,8 @@ The following features are currently functional and available for the project de
 | Servo-Controlled Feed Gate |  Under Development |
 | 16V Feeder Motor |  Pending Integration |
 | 25W Bulb |  Functional |
+| Load Cell Sensor | Not Functional |
+| Water Float Sensor | Not Functional |
 
 ---
 
