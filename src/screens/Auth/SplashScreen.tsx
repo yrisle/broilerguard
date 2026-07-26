@@ -1,4 +1,5 @@
 // src/screens/Auth/SplashScreen.tsx
+import { FontAwesome5 } from "@expo/vector-icons";
 import React, { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../../context/AuthContext";
@@ -20,8 +21,13 @@ const SplashScreen = ({ navigation }: any) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={styles.logo}>🐔</Text>
+      <View style={styles.logoContainer}>
+        <FontAwesome5 name="drumstick-bite" size={80} color={colors.primary} />
+      </View>
       <Text style={[styles.title, { color: colors.text }]}>BroilerGuard</Text>
+      <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+        Smart Poultry Management
+      </Text>
       <ActivityIndicator
         size="large"
         color={colors.primary}
@@ -36,14 +42,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    padding: 20,
   },
-  logo: {
-    fontSize: 80,
+  logoContainer: {
+    marginBottom: 8,
   },
   title: {
     fontSize: 32,
     fontWeight: "800",
     marginTop: 16,
+  },
+  subtitle: {
+    fontSize: 14,
+    marginTop: 4,
+    fontWeight: "500",
   },
   loader: {
     marginTop: 40,

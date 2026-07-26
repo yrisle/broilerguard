@@ -1,4 +1,6 @@
 // src/screens/AI/DetectionHistoryScreen.tsx
+import { FontAwesome5 } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -60,13 +62,15 @@ const DetectionHistoryScreen = () => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "healthy":
-        return "✅";
+        return <Ionicons name="checkmark-circle" size={14} color="#4D724D" />;
       case "weak":
-        return "⚠️";
+        return <Ionicons name="warning" size={14} color="#C8A24A" />;
       case "unhealthy":
-        return "❌";
+        return <Ionicons name="close-circle" size={14} color="#A44A3F" />;
       default:
-        return "❓";
+        return (
+          <Ionicons name="help-circle" size={14} color={colors.textMuted} />
+        );
     }
   };
 
@@ -92,28 +96,52 @@ const DetectionHistoryScreen = () => {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <Text style={[styles.title, { color: colors.text }]}>
-        📋 Detection History
-      </Text>
-      <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-        AI health detection records
-      </Text>
+      <View style={styles.header}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <FontAwesome5
+            name="history"
+            size={24}
+            color={colors.text}
+            style={{ marginRight: 12 }}
+          />
+          <Text style={[styles.title, { color: colors.text }]}>
+            Detection History
+          </Text>
+        </View>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+          AI health detection records
+        </Text>
+      </View>
 
       <View style={styles.searchContainer}>
-        <TextInput
+        <View
           style={[
-            styles.searchInput,
+            styles.searchInputWrapper,
             {
               backgroundColor: colors.card,
               borderColor: colors.border,
-              color: colors.text,
             },
           ]}
-          placeholder="🔍 Search by chick ID..."
-          placeholderTextColor={colors.textMuted}
-          value={search}
-          onChangeText={setSearch}
-        />
+        >
+          <Ionicons
+            name="search-outline"
+            size={20}
+            color={colors.textMuted}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={[
+              styles.searchInput,
+              {
+                color: colors.text,
+              },
+            ]}
+            placeholder="Search by chick ID..."
+            placeholderTextColor={colors.textMuted}
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
       </View>
 
       <ScrollView
@@ -136,7 +164,7 @@ const DetectionHistoryScreen = () => {
             <Text
               style={[
                 styles.filterText,
-                { color: filter === f ? colors.text : colors.textMuted },
+                { color: filter === f ? "#FFFFFF" : colors.textMuted },
               ]}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -147,7 +175,7 @@ const DetectionHistoryScreen = () => {
 
       {filteredHistory.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>🔍</Text>
+          <Ionicons name="search-outline" size={64} color={colors.textMuted} />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>
             No records found
           </Text>
@@ -180,34 +208,65 @@ const DetectionHistoryScreen = () => {
                     { backgroundColor: statusColor + "20" },
                   ]}
                 >
-                  <Text
-                    style={[styles.historyStatusText, { color: statusColor }]}
-                  >
-                    {getStatusIcon(item.status)} {item.status.toUpperCase()}
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    {getStatusIcon(item.status)}
+                    <Text
+                      style={[styles.historyStatusText, { color: statusColor }]}
+                    >
+                      {" " + item.status.toUpperCase()}
+                    </Text>
+                  </View>
                 </View>
               </View>
               <View style={styles.historyDetails}>
-                <Text
-                  style={[styles.historyDetail, { color: colors.textMuted }]}
-                >
-                  🕐 {item.time}
-                </Text>
-                <Text
-                  style={[styles.historyDetail, { color: colors.textMuted }]}
-                >
-                  🎯 Confidence: {item.confidence}%
-                </Text>
-                <Text
-                  style={[styles.historyDetail, { color: colors.textMuted }]}
-                >
-                  ⚖️ Weight: {item.weight}
-                </Text>
-                <Text
-                  style={[styles.historyDetail, { color: colors.textMuted }]}
-                >
-                  🏃 Activity: {item.activity}
-                </Text>
+                <View style={styles.detailItem}>
+                  <Ionicons
+                    name="time-outline"
+                    size={14}
+                    color={colors.textMuted}
+                  />
+                  <Text
+                    style={[styles.historyDetail, { color: colors.textMuted }]}
+                  >
+                    {item.time}
+                  </Text>
+                </View>
+                <View style={styles.detailItem}>
+                  <Ionicons
+                    name="bulb-outline"
+                    size={14}
+                    color={colors.textMuted}
+                  />
+                  <Text
+                    style={[styles.historyDetail, { color: colors.textMuted }]}
+                  >
+                    Confidence: {item.confidence}%
+                  </Text>
+                </View>
+                <View style={styles.detailItem}>
+                  <Ionicons
+                    name="scale-outline"
+                    size={14}
+                    color={colors.textMuted}
+                  />
+                  <Text
+                    style={[styles.historyDetail, { color: colors.textMuted }]}
+                  >
+                    Weight: {item.weight}
+                  </Text>
+                </View>
+                <View style={styles.detailItem}>
+                  <Ionicons
+                    name="walk-outline"
+                    size={14}
+                    color={colors.textMuted}
+                  />
+                  <Text
+                    style={[styles.historyDetail, { color: colors.textMuted }]}
+                  >
+                    Activity: {item.activity}
+                  </Text>
+                </View>
               </View>
             </View>
           );
@@ -228,26 +287,37 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
   title: {
     fontSize: 24,
     fontWeight: "800",
-    paddingHorizontal: 20,
-    paddingTop: 20,
   },
   subtitle: {
     fontSize: 14,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    marginTop: 4,
+    marginLeft: 36,
   },
   searchContainer: {
     paddingHorizontal: 16,
     marginBottom: 12,
   },
-  searchInput: {
+  searchInputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     borderWidth: 1,
+    paddingHorizontal: 12,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 12,
     fontSize: 14,
   },
   filtersContainer: {
@@ -298,18 +368,21 @@ const styles = StyleSheet.create({
   historyDetails: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 4,
+  },
+  detailItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 12,
+    marginTop: 4,
   },
   historyDetail: {
     fontSize: 13,
-    marginRight: 8,
+    marginLeft: 4,
   },
   emptyState: {
     alignItems: "center",
     paddingVertical: 60,
-  },
-  emptyIcon: {
-    fontSize: 48,
   },
   emptyTitle: {
     fontSize: 18,

@@ -1,4 +1,6 @@
 // src/screens/Main/TemperatureScreen.tsx
+import { FontAwesome5 } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -94,9 +96,30 @@ const TemperatureScreen = () => {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
+      <View style={styles.header}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <FontAwesome5
+            name="thermometer-half"
+            size={24}
+            color={colors.text}
+            style={{ marginRight: 12 }}
+          />
+          <Text style={[styles.title, { color: colors.text }]}>
+            Temperature & Humidity
+          </Text>
+        </View>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+          Real-time environmental monitoring
+        </Text>
+      </View>
+
       <View style={styles.currentSection}>
         <View style={[styles.currentCard, { backgroundColor: colors.card }]}>
-          <Text style={styles.currentIcon}>🌡️</Text>
+          <FontAwesome5
+            name="thermometer-half"
+            size={28}
+            color={colors.orange}
+          />
           <Text style={[styles.currentValue, { color: colors.orange }]}>
             {currentTemp}°C
           </Text>
@@ -105,7 +128,7 @@ const TemperatureScreen = () => {
           </Text>
         </View>
         <View style={[styles.currentCard, { backgroundColor: colors.card }]}>
-          <Text style={styles.currentIcon}>💧</Text>
+          <FontAwesome5 name="tint" size={28} color={colors.info} />
           <Text style={[styles.currentValue, { color: colors.info }]}>
             {currentHumidity}%
           </Text>
@@ -116,9 +139,23 @@ const TemperatureScreen = () => {
       </View>
 
       <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
-        <Text style={[styles.chartTitle, { color: colors.text }]}>
-          Temperature & Humidity Trend
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons
+            name="stats-chart-outline"
+            size={20}
+            color={colors.text}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.chartTitle, { color: colors.text }]}>
+            Temperature & Humidity Trend
+          </Text>
+        </View>
         <LineChart
           data={chartData}
           width={width - 32}
@@ -150,6 +187,7 @@ const TemperatureScreen = () => {
             },
           ]}
         >
+          <FontAwesome5 name="arrow-up" size={16} color={colors.danger} />
           <Text style={[styles.statValue, { color: colors.text }]}>
             {Math.max(...tempData)}°C
           </Text>
@@ -166,6 +204,7 @@ const TemperatureScreen = () => {
             },
           ]}
         >
+          <FontAwesome5 name="arrow-down" size={16} color={colors.info} />
           <Text style={[styles.statValue, { color: colors.text }]}>
             {Math.min(...tempData)}°C
           </Text>
@@ -182,6 +221,11 @@ const TemperatureScreen = () => {
             },
           ]}
         >
+          <Ionicons
+            name="calculator-outline"
+            size={16}
+            color={colors.primary}
+          />
           <Text style={[styles.statValue, { color: colors.text }]}>
             {(
               tempData.reduce((a: any, b: any) => a + b, 0) / tempData.length
@@ -206,6 +250,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "800",
+  },
+  subtitle: {
+    fontSize: 14,
+    marginTop: 4,
+    marginLeft: 36,
+  },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
@@ -226,9 +284,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
-  },
-  currentIcon: {
-    fontSize: 28,
   },
   currentValue: {
     fontSize: 32,
@@ -252,7 +307,7 @@ const styles = StyleSheet.create({
   chartTitle: {
     fontSize: 16,
     fontWeight: "600",
-    marginBottom: 12,
+    marginBottom: 0,
   },
   chart: {
     marginLeft: -20,
@@ -274,10 +329,11 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: "700",
+    marginTop: 2,
   },
   statLabel: {
     fontSize: 11,
-    marginTop: 4,
+    marginTop: 2,
   },
 });
 

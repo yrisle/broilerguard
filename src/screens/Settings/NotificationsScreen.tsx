@@ -1,4 +1,5 @@
 // src/screens/Settings/NotificationsScreen.tsx
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -83,13 +84,19 @@ function NotificationsScreen() {
   const getTypeIcon = (type: string) => {
     switch (type) {
       case "success":
-        return "✅";
+        return <Ionicons name="checkmark-circle" size={20} color="#4D724D" />;
       case "warning":
-        return "⚠️";
+        return <Ionicons name="warning" size={20} color="#C8A24A" />;
       case "danger":
-        return "❌";
+        return <Ionicons name="close-circle" size={20} color="#A44A3F" />;
       default:
-        return "ℹ️";
+        return (
+          <Ionicons
+            name="information-circle"
+            size={20}
+            color={colors.textMuted}
+          />
+        );
     }
   };
 
@@ -109,9 +116,17 @@ function NotificationsScreen() {
       }
     >
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>
-          🔔 Notifications
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Ionicons
+            name="notifications"
+            size={24}
+            color={colors.text}
+            style={{ marginRight: 12 }}
+          />
+          <Text style={[styles.title, { color: colors.text }]}>
+            Notifications
+          </Text>
+        </View>
         {unreadCount > 0 && (
           <TouchableOpacity
             style={[
@@ -135,7 +150,11 @@ function NotificationsScreen() {
 
       {notifications.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>🔕</Text>
+          <Ionicons
+            name="notifications-off-outline"
+            size={64}
+            color={colors.textMuted}
+          />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>
             No notifications
           </Text>
@@ -166,7 +185,7 @@ function NotificationsScreen() {
                 { backgroundColor: colors.backgroundSecondary },
               ]}
             >
-              <Text style={styles.notifIconText}>{getTypeIcon(item.type)}</Text>
+              {getTypeIcon(item.type)}
             </View>
             <View style={styles.notifContent}>
               <Text style={[styles.notifTitle, { color: colors.text }]}>
@@ -183,11 +202,11 @@ function NotificationsScreen() {
               style={styles.notifDelete}
               onPress={() => deleteNotification(item.id)}
             >
-              <Text
-                style={[styles.notifDeleteText, { color: colors.textMuted }]}
-              >
-                ✕
-              </Text>
+              <Ionicons
+                name="close-outline"
+                size={20}
+                color={colors.textMuted}
+              />
             </TouchableOpacity>
           </TouchableOpacity>
         ))
@@ -255,9 +274,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 12,
   },
-  notifIconText: {
-    fontSize: 20,
-  },
   notifContent: {
     flex: 1,
   },
@@ -277,15 +293,9 @@ const styles = StyleSheet.create({
     padding: 8,
     marginLeft: 4,
   },
-  notifDeleteText: {
-    fontSize: 16,
-  },
   emptyState: {
     alignItems: "center",
     paddingVertical: 60,
-  },
-  emptyIcon: {
-    fontSize: 48,
   },
   emptyTitle: {
     fontSize: 18,

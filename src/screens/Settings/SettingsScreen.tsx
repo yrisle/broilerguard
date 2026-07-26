@@ -1,4 +1,6 @@
 // src/screens/Settings/SettingsScreen.tsx
+import { FontAwesome5 } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -147,17 +149,37 @@ function SettingsScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <Text style={[styles.title, { color: colors.text }]}>⚙️ Settings</Text>
-      <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-        Configure your app preferences
-      </Text>
+      <View style={styles.header}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Ionicons
+            name="settings-outline"
+            size={24}
+            color={colors.text}
+            style={{ marginRight: 12 }}
+          />
+          <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
+        </View>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+          Configure your app preferences
+        </Text>
+      </View>
 
       {/* Profile Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-            👤 Profile
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <FontAwesome5
+              name="user-circle"
+              size={18}
+              color={colors.textSecondary}
+              style={{ marginRight: 8 }}
+            />
+            <Text
+              style={[styles.sectionTitle, { color: colors.textSecondary }]}
+            >
+              Profile
+            </Text>
+          </View>
           {!isEditing && (
             <TouchableOpacity onPress={handleEditProfile}>
               <Text style={[styles.editButton, { color: colors.primary }]}>
@@ -190,12 +212,44 @@ function SettingsScreen() {
               <Text style={[styles.profileRole, { color: colors.textMuted }]}>
                 {profile.role}
               </Text>
-              <Text style={[styles.profileEmail, { color: colors.textMuted }]}>
-                {profile.email}
-              </Text>
-              <Text style={[styles.profilePhone, { color: colors.textMuted }]}>
-                {profile.phone}
-              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginTop: 2,
+                }}
+              >
+                <Ionicons
+                  name="mail-outline"
+                  size={14}
+                  color={colors.textMuted}
+                  style={{ marginRight: 4 }}
+                />
+                <Text
+                  style={[styles.profileEmail, { color: colors.textMuted }]}
+                >
+                  {profile.email}
+                </Text>
+              </View>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginTop: 2,
+                }}
+              >
+                <Ionicons
+                  name="call-outline"
+                  size={14}
+                  color={colors.textMuted}
+                  style={{ marginRight: 4 }}
+                />
+                <Text
+                  style={[styles.profilePhone, { color: colors.textMuted }]}
+                >
+                  {profile.phone}
+                </Text>
+              </View>
             </View>
           </View>
         ) : (
@@ -214,13 +268,13 @@ function SettingsScreen() {
                 style={[
                   styles.input,
                   {
-                    backgroundColor: "#F5F5F5",
-                    color: "#333333",
-                    borderColor: "#E0E0E0",
+                    backgroundColor: colors.background,
+                    color: colors.text,
+                    borderColor: colors.border,
                   },
                 ]}
                 placeholder="Full Name"
-                placeholderTextColor="#999999"
+                placeholderTextColor={colors.textMuted}
                 value={editedProfile.name}
                 onChangeText={(text) =>
                   setEditedProfile({ ...editedProfile, name: text })
@@ -230,13 +284,13 @@ function SettingsScreen() {
                 style={[
                   styles.input,
                   {
-                    backgroundColor: "#F5F5F5",
-                    color: "#333333",
-                    borderColor: "#E0E0E0",
+                    backgroundColor: colors.background,
+                    color: colors.text,
+                    borderColor: colors.border,
                   },
                 ]}
                 placeholder="Email"
-                placeholderTextColor="#999999"
+                placeholderTextColor={colors.textMuted}
                 value={editedProfile.email}
                 onChangeText={(text) =>
                   setEditedProfile({ ...editedProfile, email: text })
@@ -247,13 +301,13 @@ function SettingsScreen() {
                 style={[
                   styles.input,
                   {
-                    backgroundColor: "#F5F5F5",
-                    color: "#333333",
-                    borderColor: "#E0E0E0",
+                    backgroundColor: colors.background,
+                    color: colors.text,
+                    borderColor: colors.border,
                   },
                 ]}
                 placeholder="Phone Number"
-                placeholderTextColor="#999999"
+                placeholderTextColor={colors.textMuted}
                 value={editedProfile.phone}
                 onChangeText={(text) =>
                   setEditedProfile({ ...editedProfile, phone: text })
@@ -264,13 +318,13 @@ function SettingsScreen() {
                 style={[
                   styles.input,
                   {
-                    backgroundColor: "#F5F5F5",
-                    color: "#333333",
-                    borderColor: "#E0E0E0",
+                    backgroundColor: colors.background,
+                    color: colors.text,
+                    borderColor: colors.border,
                   },
                 ]}
                 placeholder="Role"
-                placeholderTextColor="#999999"
+                placeholderTextColor={colors.textMuted}
                 value={editedProfile.role}
                 onChangeText={(text) =>
                   setEditedProfile({ ...editedProfile, role: text })
@@ -278,10 +332,15 @@ function SettingsScreen() {
               />
               <View style={styles.editActions}>
                 <TouchableOpacity
-                  style={[styles.cancelButton, { borderColor: "#E0E0E0" }]}
+                  style={[styles.cancelButton, { borderColor: colors.border }]}
                   onPress={handleCancelEdit}
                 >
-                  <Text style={[styles.cancelButtonText, { color: "#666666" }]}>
+                  <Text
+                    style={[
+                      styles.cancelButtonText,
+                      { color: colors.textMuted },
+                    ]}
+                  >
                     Cancel
                   </Text>
                 </TouchableOpacity>
@@ -303,9 +362,19 @@ function SettingsScreen() {
       {/* Preferences Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-            🎨 Preferences
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Ionicons
+              name="color-palette-outline"
+              size={18}
+              color={colors.textSecondary}
+              style={{ marginRight: 8 }}
+            />
+            <Text
+              style={[styles.sectionTitle, { color: colors.textSecondary }]}
+            >
+              Preferences
+            </Text>
+          </View>
           <TouchableOpacity onPress={handleSaveSettings}>
             <Text
               style={[styles.saveSettingsButton, { color: colors.primary }]}
@@ -319,17 +388,25 @@ function SettingsScreen() {
           style={[
             styles.settingCard,
             {
-              backgroundColor: "#FFFFFF",
-              borderColor: "#E0E0E0",
+              backgroundColor: colors.card,
+              borderColor: colors.border,
             },
           ]}
         >
-          <View style={[styles.settingRow, { borderColor: "#F0F0F0" }]}>
+          <View style={[styles.settingRow, { borderColor: colors.border }]}>
             <View>
-              <Text style={[styles.settingLabel, { color: "#333333" }]}>
-                🔔 Notifications
-              </Text>
-              <Text style={[styles.settingDesc, { color: "#999999" }]}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Ionicons
+                  name="notifications-outline"
+                  size={18}
+                  color={colors.text}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={[styles.settingLabel, { color: colors.text }]}>
+                  Notifications
+                </Text>
+              </View>
+              <Text style={[styles.settingDesc, { color: colors.textMuted }]}>
                 Enable push notifications
               </Text>
             </View>
@@ -340,12 +417,20 @@ function SettingsScreen() {
               thumbColor={notifications ? "#FFFFFF" : "#f4f3f4"}
             />
           </View>
-          <View style={[styles.settingRow, { borderColor: "#F0F0F0" }]}>
+          <View style={[styles.settingRow, { borderColor: colors.border }]}>
             <View>
-              <Text style={[styles.settingLabel, { color: "#333333" }]}>
-                📶 Auto Refresh
-              </Text>
-              <Text style={[styles.settingDesc, { color: "#999999" }]}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Ionicons
+                  name="refresh-outline"
+                  size={18}
+                  color={colors.text}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={[styles.settingLabel, { color: colors.text }]}>
+                  Auto Refresh
+                </Text>
+              </View>
+              <Text style={[styles.settingDesc, { color: colors.textMuted }]}>
                 Auto refresh dashboard data
               </Text>
             </View>
@@ -361,35 +446,54 @@ function SettingsScreen() {
 
       {/* About Section */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          ℹ️ About
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons
+            name="information-circle-outline"
+            size={18}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            About
+          </Text>
+        </View>
         <View
           style={[
             styles.aboutCard,
             {
-              backgroundColor: "#FFFFFF",
-              borderColor: "#E0E0E0",
+              backgroundColor: colors.card,
+              borderColor: colors.border,
             },
           ]}
         >
-          <Text style={[styles.aboutTitle, { color: "#333333" }]}>
+          <FontAwesome5
+            name="drumstick-bite"
+            size={40}
+            color={colors.primary}
+          />
+          <Text style={[styles.aboutTitle, { color: colors.text }]}>
             BroilerGuard
           </Text>
-          <Text style={[styles.aboutVersion, { color: "#999999" }]}>
+          <Text style={[styles.aboutVersion, { color: colors.textMuted }]}>
             Version 1.0.0
           </Text>
-          <Text style={[styles.aboutDesc, { color: "#666666" }]}>
+          <Text style={[styles.aboutDesc, { color: colors.textMuted }]}>
             Smart Poultry Management System
           </Text>
-          <Text style={[styles.aboutDesc, { color: "#666666" }]}>
+          <Text style={[styles.aboutDesc, { color: colors.textMuted }]}>
             IoT-based monitoring and automation
           </Text>
         </View>
       </View>
 
       <View style={styles.footer}>
-        <Text style={[styles.footerText, { color: "#999999" }]}>
+        <Text style={[styles.footerText, { color: colors.textMuted }]}>
           © 2025 BroilerGuard. All rights reserved.
         </Text>
       </View>
@@ -406,16 +510,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
   title: {
     fontSize: 24,
     fontWeight: "800",
-    paddingHorizontal: 20,
-    paddingTop: 20,
   },
   subtitle: {
     fontSize: 14,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    marginTop: 4,
+    marginLeft: 36,
   },
   section: {
     paddingHorizontal: 16,
@@ -471,11 +578,11 @@ const styles = StyleSheet.create({
   },
   profileEmail: {
     fontSize: 13,
-    marginTop: 2,
+    marginLeft: 2,
   },
   profilePhone: {
     fontSize: 13,
-    marginTop: 2,
+    marginLeft: 2,
   },
   editForm: {
     flex: 1,
@@ -546,6 +653,7 @@ const styles = StyleSheet.create({
   aboutTitle: {
     fontSize: 20,
     fontWeight: "800",
+    marginTop: 8,
   },
   aboutVersion: {
     fontSize: 14,

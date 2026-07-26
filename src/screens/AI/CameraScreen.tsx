@@ -1,4 +1,6 @@
 // src/screens/AI/CameraScreen.tsx
+import { FontAwesome5 } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { CameraType, CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import React, { useRef, useState } from "react";
@@ -36,8 +38,11 @@ const CameraScreen = () => {
   if (!permission.granted) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <View style={{ alignItems: "center", marginBottom: 16 }}>
+          <Ionicons name="camera-outline" size={64} color={colors.text} />
+        </View>
         <Text style={[styles.permissionText, { color: colors.text }]}>
-          📷 Camera permission required
+          Camera permission required
         </Text>
         <Text style={[styles.permissionSubtext, { color: colors.textMuted }]}>
           Please allow camera access to use AI detection.
@@ -79,7 +84,7 @@ const CameraScreen = () => {
   const pickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images, // ✅ FIXED!
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 1,
       });
@@ -110,8 +115,9 @@ const CameraScreen = () => {
             style={[styles.previewBtn, { backgroundColor: colors.primary }]}
             onPress={resetCamera}
           >
+            <Ionicons name="camera-outline" size={20} color={colors.text} />
             <Text style={[styles.previewBtnText, { color: colors.text }]}>
-              📷 Retake
+              Retake
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -121,8 +127,9 @@ const CameraScreen = () => {
               { backgroundColor: colors.success },
             ]}
           >
-            <Text style={[styles.previewBtnText, { color: colors.text }]}>
-              ✅ Save
+            <Ionicons name="checkmark-outline" size={20} color="#FFFFFF" />
+            <Text style={[styles.previewBtnText, { color: "#FFFFFF" }]}>
+              Save
             </Text>
           </TouchableOpacity>
         </View>
@@ -135,7 +142,15 @@ const CameraScreen = () => {
       <CameraView ref={cameraRef} style={styles.camera} facing={facing}>
         <View style={styles.cameraOverlay}>
           <View style={styles.cameraHeader}>
-            <Text style={styles.cameraTitle}>📷 AI Camera</Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <FontAwesome5
+                name="camera"
+                size={28}
+                color="#FFFFFF"
+                style={{ marginRight: 10 }}
+              />
+              <Text style={styles.cameraTitle}>AI Camera</Text>
+            </View>
             <Text style={styles.cameraSubtitle}>
               Point at chickens for detection
             </Text>
@@ -145,11 +160,11 @@ const CameraScreen = () => {
             <TouchableOpacity
               style={[
                 styles.galleryBtn,
-                { backgroundColor: colors.sidebar.background },
+                { backgroundColor: "rgba(0,0,0,0.5)" },
               ]}
               onPress={pickImage}
             >
-              <Text style={styles.galleryBtnText}>🖼️</Text>
+              <Ionicons name="images-outline" size={28} color="#FFFFFF" />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -165,15 +180,16 @@ const CameraScreen = () => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[
-                styles.flipBtn,
-                { backgroundColor: colors.sidebar.background },
-              ]}
+              style={[styles.flipBtn, { backgroundColor: "rgba(0,0,0,0.5)" }]}
               onPress={() =>
                 setFacing((current) => (current === "back" ? "front" : "back"))
               }
             >
-              <Text style={styles.flipBtnText}>🔄</Text>
+              <Ionicons
+                name="camera-reverse-outline"
+                size={28}
+                color="#FFFFFF"
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -227,6 +243,7 @@ const styles = StyleSheet.create({
   },
   cameraHeader: {
     alignItems: "center",
+    marginTop: 20,
   },
   cameraTitle: {
     fontSize: 24,
@@ -266,15 +283,9 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 12,
   },
-  galleryBtnText: {
-    fontSize: 24,
-  },
   flipBtn: {
     padding: 14,
     borderRadius: 12,
-  },
-  flipBtnText: {
-    fontSize: 24,
   },
   preview: {
     flex: 1,
@@ -287,11 +298,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   previewBtn: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
     minWidth: 100,
-    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
   previewBtnSave: {
     backgroundColor: "#27AE60",

@@ -1,4 +1,6 @@
 // src/screens/Main/ChickenStatusScreen.tsx
+import { FontAwesome5 } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -61,12 +63,22 @@ const ChickenStatusScreen = () => {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <Text style={[styles.title, { color: colors.text }]}>
-        🐔 Chicken Health Status
-      </Text>
-      <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-        AI-powered health monitoring
-      </Text>
+      <View style={styles.header}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <FontAwesome5
+            name="drumstick-bite"
+            size={24}
+            color={colors.text}
+            style={{ marginRight: 12 }}
+          />
+          <Text style={[styles.title, { color: colors.text }]}>
+            Chicken Health Status
+          </Text>
+        </View>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+          AI-powered health monitoring
+        </Text>
+      </View>
 
       <View style={styles.statusCards}>
         <View
@@ -76,7 +88,7 @@ const ChickenStatusScreen = () => {
             { backgroundColor: colors.card },
           ]}
         >
-          <Text style={styles.statusIcon}>✅</Text>
+          <Ionicons name="checkmark-circle" size={32} color={colors.success} />
           <Text style={[styles.statusValue, { color: colors.success }]}>
             {healthy}
           </Text>
@@ -91,7 +103,7 @@ const ChickenStatusScreen = () => {
             { backgroundColor: colors.card },
           ]}
         >
-          <Text style={styles.statusIcon}>⚠️</Text>
+          <Ionicons name="warning" size={32} color={colors.warning} />
           <Text style={[styles.statusValue, { color: colors.warning }]}>
             {weak}
           </Text>
@@ -106,7 +118,7 @@ const ChickenStatusScreen = () => {
             { backgroundColor: colors.card },
           ]}
         >
-          <Text style={styles.statusIcon}>❌</Text>
+          <Ionicons name="close-circle" size={32} color={colors.danger} />
           <Text style={[styles.statusValue, { color: colors.danger }]}>
             {unhealthy}
           </Text>
@@ -117,9 +129,23 @@ const ChickenStatusScreen = () => {
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          👥 Individual Chick Status
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons
+            name="people-outline"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Individual Chick Status
+          </Text>
+        </View>
         {data?.chickDetails?.map((chick: any, index: number) => {
           const statusColors: Record<string, string> = {
             healthy: colors.success,
@@ -158,15 +184,42 @@ const ChickenStatusScreen = () => {
                 </View>
               </View>
               <View style={styles.chickDetails}>
-                <Text style={[styles.chickDetail, { color: colors.textMuted }]}>
-                  ⚖️ Weight: {chick.weight}
-                </Text>
-                <Text style={[styles.chickDetail, { color: colors.textMuted }]}>
-                  📅 Age: {chick.age}
-                </Text>
-                <Text style={[styles.chickDetail, { color: colors.textMuted }]}>
-                  🕐 Last: {chick.last_detection}
-                </Text>
+                <View style={styles.chickDetailItem}>
+                  <Ionicons
+                    name="scale-outline"
+                    size={14}
+                    color={colors.textMuted}
+                  />
+                  <Text
+                    style={[styles.chickDetail, { color: colors.textMuted }]}
+                  >
+                    Weight: {chick.weight}
+                  </Text>
+                </View>
+                <View style={styles.chickDetailItem}>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={14}
+                    color={colors.textMuted}
+                  />
+                  <Text
+                    style={[styles.chickDetail, { color: colors.textMuted }]}
+                  >
+                    Age: {chick.age}
+                  </Text>
+                </View>
+                <View style={styles.chickDetailItem}>
+                  <Ionicons
+                    name="time-outline"
+                    size={14}
+                    color={colors.textMuted}
+                  />
+                  <Text
+                    style={[styles.chickDetail, { color: colors.textMuted }]}
+                  >
+                    Last: {chick.last_detection}
+                  </Text>
+                </View>
               </View>
             </View>
           );
@@ -176,7 +229,7 @@ const ChickenStatusScreen = () => {
       <TouchableOpacity
         style={[styles.viewAllBtn, { backgroundColor: colors.primary }]}
       >
-        <Text style={[styles.viewAllText, { color: colors.text }]}>
+        <Text style={[styles.viewAllText, { color: "#FFFFFF" }]}>
           View Full Detection History →
         </Text>
       </TouchableOpacity>
@@ -193,16 +246,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
   title: {
     fontSize: 24,
     fontWeight: "800",
-    paddingHorizontal: 20,
-    paddingTop: 20,
   },
   subtitle: {
     fontSize: 14,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    marginTop: 4,
+    marginLeft: 36,
   },
   statusCards: {
     flexDirection: "row",
@@ -231,9 +287,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 4,
     borderTopColor: "#A44A3F",
   },
-  statusIcon: {
-    fontSize: 24,
-  },
   statusValue: {
     fontSize: 32,
     fontWeight: "800",
@@ -250,7 +303,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    marginBottom: 12,
+    marginBottom: 0,
   },
   chickCard: {
     borderRadius: 12,
@@ -279,11 +332,17 @@ const styles = StyleSheet.create({
   },
   chickDetails: {
     flexDirection: "row",
-    justifyContent: "space-between",
     flexWrap: "wrap",
+  },
+  chickDetailItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 16,
+    marginTop: 4,
   },
   chickDetail: {
     fontSize: 13,
+    marginLeft: 4,
   },
   viewAllBtn: {
     borderRadius: 12,

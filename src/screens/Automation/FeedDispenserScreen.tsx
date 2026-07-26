@@ -1,4 +1,6 @@
 // src/screens/Automation/FeedDispenserScreen.tsx
+import { FontAwesome5 } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -121,28 +123,57 @@ const FeedDispenserScreen = () => {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <Text style={[styles.title, { color: colors.text }]}>
-        🍗 Feed Dispenser
-      </Text>
-      <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-        Automated feeding system
-      </Text>
+      <View style={styles.header}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <FontAwesome5
+            name="utensils"
+            size={24}
+            color={colors.text}
+            style={{ marginRight: 12 }}
+          />
+          <Text style={[styles.title, { color: colors.text }]}>
+            Feed Dispenser
+          </Text>
+        </View>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+          Automated feeding system
+        </Text>
+      </View>
 
       <View style={[styles.levelCard, { backgroundColor: colors.card }]}>
         <View style={styles.levelHeader}>
-          <Text style={[styles.levelTitle, { color: colors.text }]}>
-            📦 Feed Level
-          </Text>
-          <Text
-            style={[
-              styles.levelStatus,
-              isLow
-                ? [styles.levelStatusLow, { color: colors.danger }]
-                : { color: colors.success },
-            ]}
-          >
-            {isLow ? "⚠️ LOW" : "✅ OK"}
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <FontAwesome5
+              name="box"
+              size={20}
+              color={colors.text}
+              style={{ marginRight: 8 }}
+            />
+            <Text style={[styles.levelTitle, { color: colors.text }]}>
+              Feed Level
+            </Text>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {isLow ? (
+              <Ionicons name="warning" size={18} color={colors.danger} />
+            ) : (
+              <Ionicons
+                name="checkmark-circle"
+                size={18}
+                color={colors.success}
+              />
+            )}
+            <Text
+              style={[
+                styles.levelStatus,
+                isLow
+                  ? [styles.levelStatusLow, { color: colors.danger }]
+                  : { color: colors.success },
+              ]}
+            >
+              {isLow ? " LOW" : " OK"}
+            </Text>
+          </View>
         </View>
         <View style={styles.progressBar}>
           <View
@@ -167,7 +198,8 @@ const FeedDispenserScreen = () => {
           style={[styles.refillBtn, { backgroundColor: colors.success }]}
           onPress={() => setRefillModalVisible(true)}
         >
-          <Text style={styles.refillBtnText}>➕ Refill Feed</Text>
+          <Ionicons name="add-outline" size={20} color="#FFFFFF" />
+          <Text style={styles.refillBtnText}> Refill Feed</Text>
         </TouchableOpacity>
       </View>
 
@@ -179,9 +211,17 @@ const FeedDispenserScreen = () => {
       >
         <View style={styles.autoRow}>
           <View>
-            <Text style={[styles.autoLabel, { color: colors.text }]}>
-              🤖 Auto Mode
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons
+                name="rocket-outline"
+                size={20}
+                color={colors.text}
+                style={{ marginRight: 8 }}
+              />
+              <Text style={[styles.autoLabel, { color: colors.text }]}>
+                Auto Mode
+              </Text>
+            </View>
             <Text style={[styles.autoDesc, { color: colors.textMuted }]}>
               {autoMode ? "Feed dispensed automatically" : "Manual mode only"}
             </Text>
@@ -195,9 +235,23 @@ const FeedDispenserScreen = () => {
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          ✋ Manual Dispense
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons
+            name="hand-left-outline"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Manual Dispense
+          </Text>
+        </View>
         <View style={styles.dispenseButtons}>
           {[0.3, 0.5, 1.0].map((amount) => (
             <TouchableOpacity
@@ -205,7 +259,7 @@ const FeedDispenserScreen = () => {
               style={[styles.dispenseBtn, { backgroundColor: colors.primary }]}
               onPress={() => handleDispense(amount)}
             >
-              <Text style={[styles.dispenseBtnText, { color: colors.text }]}>
+              <Text style={[styles.dispenseBtnText, { color: "#FFFFFF" }]}>
                 {amount} kg
               </Text>
             </TouchableOpacity>
@@ -231,7 +285,7 @@ const FeedDispenserScreen = () => {
             style={[styles.customBtn, { backgroundColor: colors.primary }]}
             onPress={() => handleDispense(parseFloat(customAmount) || 0.5)}
           >
-            <Text style={[styles.customBtnText, { color: colors.text }]}>
+            <Text style={[styles.customBtnText, { color: "#FFFFFF" }]}>
               Dispense
             </Text>
           </TouchableOpacity>
@@ -239,9 +293,23 @@ const FeedDispenserScreen = () => {
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          📅 Feeding Schedule
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons
+            name="calendar"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Feeding Schedule
+          </Text>
+        </View>
         {data?.schedules?.map((schedule: any, index: number) => (
           <View
             key={index}
@@ -297,9 +365,23 @@ const FeedDispenserScreen = () => {
       </View>
 
       <View style={[styles.section, styles.lastSection]}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          📋 Recent Activity
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons
+            name="time-outline"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Recent Activity
+          </Text>
+        </View>
         {data?.logs?.slice(0, 5).map((log: any, index: number) => (
           <View
             key={index}
@@ -314,10 +396,29 @@ const FeedDispenserScreen = () => {
             <Text style={[styles.logTime, { color: colors.textMuted }]}>
               {new Date(log.timestamp).toLocaleTimeString()}
             </Text>
-            <Text style={[styles.logAction, { color: colors.text }]}>
-              {log.source === "refill" ? "➕ Refilled" : "🍽️ Dispensed"}{" "}
-              {log.amount} kg
-            </Text>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
+            >
+              {log.source === "refill" ? (
+                <Ionicons
+                  name="add-circle-outline"
+                  size={14}
+                  color={colors.success}
+                  style={{ marginRight: 6 }}
+                />
+              ) : (
+                <FontAwesome5
+                  name="utensils"
+                  size={12}
+                  color={colors.primary}
+                  style={{ marginRight: 6 }}
+                />
+              )}
+              <Text style={[styles.logAction, { color: colors.text }]}>
+                {log.source === "refill" ? "Refilled" : "Dispensed"}{" "}
+                {log.amount} kg
+              </Text>
+            </View>
             <Text style={[styles.logRemaining, { color: colors.textMuted }]}>
               {log.remaining} kg left
             </Text>
@@ -333,9 +434,23 @@ const FeedDispenserScreen = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Refill Feed
-            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 8,
+              }}
+            >
+              <FontAwesome5
+                name="box"
+                size={24}
+                color={colors.text}
+                style={{ marginRight: 12 }}
+              />
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Refill Feed
+              </Text>
+            </View>
             <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
               Enter amount to add (kg):
             </Text>
@@ -381,7 +496,7 @@ const FeedDispenserScreen = () => {
                 ]}
                 onPress={handleRefill}
               >
-                <Text style={[styles.modalConfirmText, { color: colors.text }]}>
+                <Text style={[styles.modalConfirmText, { color: "#FFFFFF" }]}>
                   Refill
                 </Text>
               </TouchableOpacity>
@@ -402,16 +517,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
   title: {
     fontSize: 24,
     fontWeight: "800",
-    paddingHorizontal: 20,
-    paddingTop: 20,
   },
   subtitle: {
     fontSize: 14,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    marginTop: 4,
+    marginLeft: 36,
   },
   levelCard: {
     borderRadius: 16,
@@ -460,9 +578,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   refillBtn: {
+    flexDirection: "row",
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
+    justifyContent: "center",
     marginTop: 12,
   },
   refillBtnText: {
@@ -497,7 +617,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    marginBottom: 12,
+    marginBottom: 0,
   },
   dispenseButtons: {
     flexDirection: "row",
@@ -615,11 +735,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
-    marginBottom: 4,
+    marginBottom: 0,
   },
   modalSubtitle: {
     fontSize: 14,
     marginBottom: 16,
+    marginLeft: 36,
   },
   modalInput: {
     borderRadius: 12,

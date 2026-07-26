@@ -1,4 +1,6 @@
 // src/screens/Main/FeedScreen.tsx
+import { FontAwesome5 } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -77,21 +79,57 @@ const FeedScreen = () => {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
+      <View style={styles.header}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <FontAwesome5
+            name="utensils"
+            size={24}
+            color={colors.text}
+            style={{ marginRight: 12 }}
+          />
+          <Text style={[styles.title, { color: colors.text }]}>
+            Feed Management
+          </Text>
+        </View>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+          Monitor and manage feed levels
+        </Text>
+      </View>
+
       <View style={[styles.levelCard, { backgroundColor: colors.card }]}>
         <View style={styles.levelHeader}>
-          <Text style={[styles.levelTitle, { color: colors.text }]}>
-            🍗 Feed Level
-          </Text>
-          <Text
-            style={[
-              styles.levelStatus,
-              isLow
-                ? [styles.levelStatusLow, { color: colors.danger }]
-                : { color: colors.success },
-            ]}
-          >
-            {isLow ? "⚠️ LOW" : "✅ OK"}
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <FontAwesome5
+              name="box"
+              size={20}
+              color={colors.text}
+              style={{ marginRight: 8 }}
+            />
+            <Text style={[styles.levelTitle, { color: colors.text }]}>
+              Feed Level
+            </Text>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {isLow ? (
+              <Ionicons name="warning" size={18} color={colors.danger} />
+            ) : (
+              <Ionicons
+                name="checkmark-circle"
+                size={18}
+                color={colors.success}
+              />
+            )}
+            <Text
+              style={[
+                styles.levelStatus,
+                isLow
+                  ? [styles.levelStatusLow, { color: colors.danger }]
+                  : { color: colors.success },
+              ]}
+            >
+              {isLow ? " LOW" : " OK"}
+            </Text>
+          </View>
         </View>
         <View style={styles.levelGauge}>
           <View style={styles.progressBar}>
@@ -112,9 +150,23 @@ const FeedScreen = () => {
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          ⚡ Quick Dispense
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons
+            name="flash-outline"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Quick Dispense
+          </Text>
+        </View>
         <View style={styles.dispenseButtons}>
           {[0.5, 1.0, 2.0].map((amount) => (
             <TouchableOpacity
@@ -122,7 +174,7 @@ const FeedScreen = () => {
               style={[styles.dispenseBtn, { backgroundColor: colors.primary }]}
               onPress={() => handleDispense(amount)}
             >
-              <Text style={[styles.dispenseBtnText, { color: colors.text }]}>
+              <Text style={[styles.dispenseBtnText, { color: "#FFFFFF" }]}>
                 {amount} kg
               </Text>
             </TouchableOpacity>
@@ -137,18 +189,46 @@ const FeedScreen = () => {
             },
           ]}
         >
-          <Text
-            style={[styles.customDispenseText, { color: colors.textMuted }]}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
           >
-            Custom Amount →
-          </Text>
+            <Text
+              style={[styles.customDispenseText, { color: colors.textMuted }]}
+            >
+              Custom Amount
+            </Text>
+            <Ionicons
+              name="arrow-forward-outline"
+              size={16}
+              color={colors.textMuted}
+              style={{ marginLeft: 6 }}
+            />
+          </View>
         </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          📅 Feeding Schedule
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons
+            name="calendar"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Feeding Schedule
+          </Text>
+        </View>
         {data?.schedules?.map((schedule: any, index: number) => (
           <View
             key={index}
@@ -197,9 +277,23 @@ const FeedScreen = () => {
       </View>
 
       <View style={[styles.section, styles.lastSection]}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          📋 Recent Activity
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons
+            name="time-outline"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Recent Activity
+          </Text>
+        </View>
         {data?.logs?.slice(0, 5).map((log: any, index: number) => (
           <View
             key={index}
@@ -214,10 +308,29 @@ const FeedScreen = () => {
             <Text style={[styles.logTime, { color: colors.textMuted }]}>
               {new Date(log.timestamp).toLocaleTimeString()}
             </Text>
-            <Text style={[styles.logAction, { color: colors.text }]}>
-              {log.source === "refill" ? "➕ Refilled" : "🍽️ Dispensed"}{" "}
-              {log.amount} kg
-            </Text>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
+            >
+              {log.source === "refill" ? (
+                <Ionicons
+                  name="add-circle-outline"
+                  size={14}
+                  color={colors.success}
+                  style={{ marginRight: 6 }}
+                />
+              ) : (
+                <FontAwesome5
+                  name="utensils"
+                  size={12}
+                  color={colors.primary}
+                  style={{ marginRight: 6 }}
+                />
+              )}
+              <Text style={[styles.logAction, { color: colors.text }]}>
+                {log.source === "refill" ? "Refilled" : "Dispensed"}{" "}
+                {log.amount} kg
+              </Text>
+            </View>
             <Text style={[styles.logRemaining, { color: colors.textMuted }]}>
               {log.remaining} kg left
             </Text>
@@ -236,6 +349,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "800",
+  },
+  subtitle: {
+    fontSize: 14,
+    marginTop: 4,
+    marginLeft: 36,
   },
   levelCard: {
     borderRadius: 16,
@@ -286,7 +413,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    marginBottom: 12,
+    marginBottom: 0,
   },
   dispenseButtons: {
     flexDirection: "row",

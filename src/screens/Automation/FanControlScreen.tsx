@@ -1,4 +1,6 @@
 // src/screens/Automation/FanControlScreen.tsx
+import { FontAwesome5 } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -98,23 +100,37 @@ function FanControlScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <Text style={[styles.title, { color: colors.text }]}>🌀 Fan Control</Text>
-      <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-        Temperature-based automatic ventilation
-      </Text>
+      <View style={styles.header}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <FontAwesome5
+            name="fan"
+            size={24}
+            color={colors.text}
+            style={{ marginRight: 12 }}
+          />
+          <Text style={[styles.title, { color: colors.text }]}>
+            Fan Control
+          </Text>
+        </View>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+          Temperature-based automatic ventilation
+        </Text>
+      </View>
 
       <View style={[styles.statusCard, { backgroundColor: colors.card }]}>
         <View
           style={[
             styles.fanIconContainer,
-            { backgroundColor: colors.backgroundSecondary },
+            {
+              backgroundColor: colors.backgroundSecondary || colors.card + "80",
+            },
           ]}
         >
-          <Text
-            style={[styles.fanIcon, fanStatus === "ON" && styles.fanIconOn]}
-          >
-            🌀
-          </Text>
+          <FontAwesome5
+            name="fan"
+            size={40}
+            color={fanStatus === "ON" ? colors.primary : colors.textMuted}
+          />
         </View>
         <Text style={[styles.fanStatusLabel, { color: colors.textMuted }]}>
           Fan is
@@ -145,9 +161,23 @@ function FanControlScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          ⚙️ Automation Settings
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons
+            name="settings-outline"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Automation Settings
+          </Text>
+        </View>
         <View
           style={[
             styles.settingCard,
@@ -155,9 +185,17 @@ function FanControlScreen() {
           ]}
         >
           <View style={[styles.settingRow, { borderColor: colors.border }]}>
-            <Text style={[styles.settingLabel, { color: colors.text }]}>
-              🤖 Auto Mode
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons
+                name="rocket-outline"
+                size={18}
+                color={colors.text}
+                style={{ marginRight: 8 }}
+              />
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                Auto Mode
+              </Text>
+            </View>
             <Switch
               value={settings.auto_mode}
               onValueChange={toggleAutoMode}
@@ -165,17 +203,33 @@ function FanControlScreen() {
             />
           </View>
           <View style={[styles.settingRow, { borderColor: colors.border }]}>
-            <Text style={[styles.settingLabel, { color: colors.text }]}>
-              🌡️ Turn ON at
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <FontAwesome5
+                name="temperature-high"
+                size={16}
+                color={colors.text}
+                style={{ marginRight: 8 }}
+              />
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                Turn ON at
+              </Text>
+            </View>
             <Text style={[styles.settingValue, { color: colors.primary }]}>
               {settings.temp_on}°C
             </Text>
           </View>
           <View style={[styles.settingRow, { borderColor: colors.border }]}>
-            <Text style={[styles.settingLabel, { color: colors.text }]}>
-              🌡️ Turn OFF at
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <FontAwesome5
+                name="temperature-low"
+                size={16}
+                color={colors.text}
+                style={{ marginRight: 8 }}
+              />
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                Turn OFF at
+              </Text>
+            </View>
             <Text style={[styles.settingValue, { color: colors.primary }]}>
               {settings.temp_off}°C
             </Text>
@@ -184,9 +238,23 @@ function FanControlScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          📊 Current Conditions
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons
+            name="stats-chart-outline"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Current Conditions
+          </Text>
+        </View>
         <View
           style={[
             styles.conditionCard,
@@ -194,7 +262,11 @@ function FanControlScreen() {
           ]}
         >
           <View style={styles.conditionItem}>
-            <Text style={styles.conditionIcon}>🌡️</Text>
+            <FontAwesome5
+              name="thermometer-half"
+              size={28}
+              color={colors.orange}
+            />
             <Text style={[styles.conditionValue, { color: colors.text }]}>
               32.5°C
             </Text>
@@ -209,7 +281,7 @@ function FanControlScreen() {
             ]}
           />
           <View style={styles.conditionItem}>
-            <Text style={styles.conditionIcon}>💧</Text>
+            <FontAwesome5 name="tint" size={28} color={colors.info} />
             <Text style={[styles.conditionValue, { color: colors.text }]}>
               65%
             </Text>
@@ -221,9 +293,23 @@ function FanControlScreen() {
       </View>
 
       <View style={[styles.section, styles.lastSection]}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          📋 Recent Activity
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons
+            name="time-outline"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Recent Activity
+          </Text>
+        </View>
         <View
           style={[
             styles.logCard,
@@ -234,9 +320,17 @@ function FanControlScreen() {
             <Text style={[styles.logTime, { color: colors.textMuted }]}>
               10:30 AM
             </Text>
-            <Text style={[styles.logAction, { color: colors.text }]}>
-              🔄 Auto ON
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons
+                name="sync-outline"
+                size={14}
+                color={colors.primary}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.logAction, { color: colors.text }]}>
+                Auto ON
+              </Text>
+            </View>
             <Text style={[styles.logTemp, { color: colors.textMuted }]}>
               32.5°C
             </Text>
@@ -245,9 +339,17 @@ function FanControlScreen() {
             <Text style={[styles.logTime, { color: colors.textMuted }]}>
               08:15 AM
             </Text>
-            <Text style={[styles.logAction, { color: colors.text }]}>
-              🔄 Auto OFF
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons
+                name="sync-outline"
+                size={14}
+                color={colors.danger}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.logAction, { color: colors.text }]}>
+                Auto OFF
+              </Text>
+            </View>
             <Text style={[styles.logTemp, { color: colors.textMuted }]}>
               28.0°C
             </Text>
@@ -256,9 +358,17 @@ function FanControlScreen() {
             <Text style={[styles.logTime, { color: colors.textMuted }]}>
               06:00 AM
             </Text>
-            <Text style={[styles.logAction, { color: colors.text }]}>
-              👤 Manual ON
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons
+                name="person-outline"
+                size={14}
+                color={colors.warning}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.logAction, { color: colors.text }]}>
+                Manual ON
+              </Text>
+            </View>
             <Text style={[styles.logTemp, { color: colors.textMuted }]}>
               31.0°C
             </Text>
@@ -278,16 +388,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
   title: {
     fontSize: 24,
     fontWeight: "800",
-    paddingHorizontal: 20,
-    paddingTop: 20,
   },
   subtitle: {
     fontSize: 14,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    marginTop: 4,
+    marginLeft: 36,
   },
   statusCard: {
     borderRadius: 16,
@@ -306,13 +419,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
-  },
-  fanIcon: {
-    fontSize: 40,
-    opacity: 0.5,
-  },
-  fanIconOn: {
-    opacity: 1,
   },
   fanStatusLabel: {
     fontSize: 14,
@@ -344,7 +450,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    marginBottom: 12,
+    marginBottom: 0,
   },
   settingCard: {
     borderRadius: 12,
@@ -374,9 +480,6 @@ const styles = StyleSheet.create({
   conditionItem: {
     flex: 1,
     alignItems: "center",
-  },
-  conditionIcon: {
-    fontSize: 28,
   },
   conditionValue: {
     fontSize: 20,

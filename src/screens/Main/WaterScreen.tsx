@@ -1,4 +1,6 @@
 // src/screens/Main/WaterScreen.tsx
+import { FontAwesome5 } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -77,21 +79,57 @@ const WaterScreen = () => {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
+      <View style={styles.header}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <FontAwesome5
+            name="water"
+            size={24}
+            color={colors.text}
+            style={{ marginRight: 12 }}
+          />
+          <Text style={[styles.title, { color: colors.text }]}>
+            Water Management
+          </Text>
+        </View>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+          Monitor and manage water levels
+        </Text>
+      </View>
+
       <View style={[styles.levelCard, { backgroundColor: colors.card }]}>
         <View style={styles.levelHeader}>
-          <Text style={[styles.levelTitle, { color: colors.text }]}>
-            💧 Water Level
-          </Text>
-          <Text
-            style={[
-              styles.levelStatus,
-              percentage < 20
-                ? [styles.levelStatusLow, { color: colors.danger }]
-                : { color: colors.success },
-            ]}
-          >
-            {percentage < 20 ? "⚠️ LOW" : "✅ OK"}
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <FontAwesome5
+              name="tint"
+              size={20}
+              color={colors.text}
+              style={{ marginRight: 8 }}
+            />
+            <Text style={[styles.levelTitle, { color: colors.text }]}>
+              Water Level
+            </Text>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {percentage < 20 ? (
+              <Ionicons name="warning" size={18} color={colors.danger} />
+            ) : (
+              <Ionicons
+                name="checkmark-circle"
+                size={18}
+                color={colors.success}
+              />
+            )}
+            <Text
+              style={[
+                styles.levelStatus,
+                percentage < 20
+                  ? [styles.levelStatusLow, { color: colors.danger }]
+                  : { color: colors.success },
+              ]}
+            >
+              {percentage < 20 ? " LOW" : " OK"}
+            </Text>
+          </View>
         </View>
         <View style={styles.tankContainer}>
           <View style={[styles.tank, { borderColor: colors.textMuted }]}>
@@ -113,9 +151,23 @@ const WaterScreen = () => {
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          ⚡ Quick Release
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons
+            name="flash-outline"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Quick Release
+          </Text>
+        </View>
         <View style={styles.releaseButtons}>
           {[15, 30, 60].map((seconds) => {
             const amount = (seconds * 0.5).toFixed(1);
@@ -140,16 +192,44 @@ const WaterScreen = () => {
             },
           ]}
         >
-          <Text style={[styles.customReleaseText, { color: colors.info }]}>
-            Custom Duration →
-          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={[styles.customReleaseText, { color: colors.info }]}>
+              Custom Duration
+            </Text>
+            <Ionicons
+              name="arrow-forward-outline"
+              size={16}
+              color={colors.info}
+              style={{ marginLeft: 6 }}
+            />
+          </View>
         </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          🔄 Water Pump
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons
+            name="sync-outline"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Water Pump
+          </Text>
+        </View>
         <View
           style={[
             styles.pumpCard,
@@ -159,7 +239,12 @@ const WaterScreen = () => {
             },
           ]}
         >
-          <Text style={styles.pumpIcon}>🔧</Text>
+          <FontAwesome5
+            name="water-pump"
+            size={32}
+            color={colors.text}
+            style={{ marginRight: 16 }}
+          />
           <View style={styles.pumpInfo}>
             <Text style={[styles.pumpLabel, { color: colors.text }]}>
               Main Water Pump
@@ -178,28 +263,57 @@ const WaterScreen = () => {
                     ],
               ]}
             >
-              <Text
-                style={[
-                  styles.pumpStatusText,
-                  {
-                    color:
-                      data?.pump?.status === "ON"
-                        ? colors.success
-                        : colors.danger,
-                  },
-                ]}
-              >
-                {data?.pump?.status === "ON" ? "▶️ RUNNING" : "⏹️ STOPPED"}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                {data?.pump?.status === "ON" ? (
+                  <Ionicons
+                    name="play-circle"
+                    size={14}
+                    color={colors.success}
+                  />
+                ) : (
+                  <Ionicons
+                    name="stop-circle"
+                    size={14}
+                    color={colors.danger}
+                  />
+                )}
+                <Text
+                  style={[
+                    styles.pumpStatusText,
+                    {
+                      color:
+                        data?.pump?.status === "ON"
+                          ? colors.success
+                          : colors.danger,
+                    },
+                  ]}
+                >
+                  {data?.pump?.status === "ON" ? " RUNNING" : " STOPPED"}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
       </View>
 
       <View style={[styles.section, styles.lastSection]}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          📋 Recent Activity
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons
+            name="time-outline"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Recent Activity
+          </Text>
+        </View>
         {data?.logs?.slice(0, 5).map((log: any, index: number) => (
           <View
             key={index}
@@ -214,9 +328,19 @@ const WaterScreen = () => {
             <Text style={[styles.logTime, { color: colors.textMuted }]}>
               {new Date(log.timestamp).toLocaleTimeString()}
             </Text>
-            <Text style={[styles.logAction, { color: colors.text }]}>
-              💧 Released {log.water_amount} L
-            </Text>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
+            >
+              <FontAwesome5
+                name="water"
+                size={12}
+                color={colors.info}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.logAction, { color: colors.text }]}>
+                Released {log.water_amount} L
+              </Text>
+            </View>
             <Text
               style={[
                 styles.logTrigger,
@@ -243,6 +367,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "800",
+  },
+  subtitle: {
+    fontSize: 14,
+    marginTop: 4,
+    marginLeft: 36,
   },
   levelCard: {
     borderRadius: 16,
@@ -313,7 +451,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    marginBottom: 12,
+    marginBottom: 0,
   },
   releaseButtons: {
     flexDirection: "row",
@@ -353,10 +491,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-  },
-  pumpIcon: {
-    fontSize: 32,
-    marginRight: 16,
   },
   pumpInfo: {
     flex: 1,
