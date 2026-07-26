@@ -189,9 +189,21 @@ const DashboardScreen = () => {
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          📦 Resource Levels
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 8,
+          }}
+        >
+          <Image
+            source={require("./assets/images/pic.avif")}
+            style={{ width: 24, height: 24, marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Resource Levels
+          </Text>
+        </View>
         <Card>
           <LevelIndicator
             label="Feed Level"
