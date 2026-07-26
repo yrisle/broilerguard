@@ -69,7 +69,7 @@ export const Colors = {
     primaryLight: "#2C3E2C",
 
     // BACKGROUNDS
-    background: "#555555",
+    background: "#519c59",
     backgroundSecondary: "#2C3E2C",
     card: "#2C3E2C",
 
