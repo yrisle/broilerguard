@@ -193,6 +193,7 @@ The following features are currently functional and available for the project de
 | MySQL Database |  Connected |
 | ESP32 Data Transmission |  Functional |
 | Web Dashboard |  Functional |
+| Weather API |  Functional |
 
 ---
 
