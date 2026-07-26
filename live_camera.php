@@ -1,22 +1,21 @@
 <?php
-// live_camera.php - Live Camera Feed Module with Health Detection
-// Includes: Respiratory Disease Detection, Heat Stress Monitoring, Sick vs Healthy Detection
+
 session_start();
 
-// Authentication Check
+
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
 
-// Handle Logout
+
 if (isset($_GET['logout'])) {
     session_destroy();
     header('Location: login.php');
     exit;
 }
 
-// Shared sensor data cache
+
 function getSharedSensorData() {
     $cacheFile = 'sensor_data_cache.json';
     $cacheTime = 30;
