@@ -443,12 +443,18 @@ $currentTime = date('h:i:s A');
                 <span class="time" id="currentTime"><?php echo $currentTime; ?></span>
             </div>
         </div>
-        <div class="header-right">
+                <div class="header-right">
+            
+            <div class="notification-bell" onclick="window.location.href='notifications.php'">
+                <i class="fas fa-bell"></i>
+                <?php if ($unreadNotifications > 0): ?>
+                <span class="notification-badge"><?php echo $unreadNotifications; ?></span>
+                <?php endif; ?>
+            </div>
             <button class="weather-widget" onclick="openWeatherModal()" title="Click for detailed weather">
                 <i class="fas <?php echo getWeatherIcon($weather['condition']); ?>"></i>
                 <span class="weather-temp"><?php echo $weather['temp']; ?>°C</span>
             </button>
-            <a href="dashboard.php" class="back-btn"><i class="fas fa-arrow-left"></i> Dashboard</a>
         </div>
     </header>
 
