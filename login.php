@@ -2,7 +2,7 @@
 // login.php - Professional Login Interface for BroilerGuard (with Poultry Background)
 session_start();
 
-// Authentication Check
+
 $isAdminLoggedIn = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
 
 // Handle Admin Login
