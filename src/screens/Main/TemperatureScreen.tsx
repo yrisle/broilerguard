@@ -69,17 +69,29 @@ const TemperatureScreen = () => {
   const tempData = data?.temperature || [30, 31, 32, 33, 32, 31, 30];
   const humidityData = data?.humidity || [65, 68, 70, 72, 71, 69, 67];
 
+  // Check if dark mode by checking background color or text color
+  // Since pinalight natin ang dark mode, we can check if background is light or dark
+  const isLightMode = colors.background === "#F5F5F5" || colors.background === "#E8EDE8";
+
   const chartData = {
     labels: chartLabels,
     datasets: [
       {
         data: tempData,
-        color: (opacity = 1) => `rgba(230, 126, 34, ${opacity})`,
+        color: (opacity = 1) => {
+          return isLightMode 
+            ? `rgba(185, 119, 42, ${opacity})` // Orange for light mode
+            : `rgba(200, 154, 58, ${opacity})`; // Lighter orange for dark mode
+        },
         strokeWidth: 2,
       },
       {
         data: humidityData,
-        color: (opacity = 1) => `rgba(41, 128, 185, ${opacity})`,
+        color: (opacity = 1) => {
+          return isLightMode
+            ? `rgba(79, 108, 122, ${opacity})` // Info color for light mode
+            : `rgba(90, 122, 138, ${opacity})`; // Lighter info for dark mode
+        },
         strokeWidth: 2,
       },
     ],
@@ -89,12 +101,31 @@ const TemperatureScreen = () => {
   const currentTemp = tempData[tempData.length - 1] || 0;
   const currentHumidity = humidityData[humidityData.length - 1] || 0;
 
+  const getChartTextColor = () => {
+    if (isLightMode) {
+      return "44, 62, 44"; // Dark green for light mode
+    } else {
+      return "26, 42, 26"; // Darker for dark mode
+    }
+  };
+
+  const getLabelColor = () => {
+    if (isLightMode) {
+      return "77, 114, 77"; // Primary dark for light mode
+    } else {
+      return "58, 92, 58"; // Medium green for dark mode
+    }
+  };
+
+  const chartWidth = width - 48;
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
+      contentContainerStyle={styles.scrollContent}
     >
       <View style={styles.header}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -114,22 +145,49 @@ const TemperatureScreen = () => {
       </View>
 
       <View style={styles.currentSection}>
-        <View style={[styles.currentCard, { backgroundColor: colors.card }]}>
+        <View
+          style={[
+            styles.currentCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}
+        >
           <FontAwesome5
             name="thermometer-half"
             size={28}
-            color={colors.orange}
+            color={colors.orange || "#B9772A"}
           />
-          <Text style={[styles.currentValue, { color: colors.orange }]}>
+          <Text
+            style={[
+              styles.currentValue,
+              { color: colors.orange || "#B9772A" },
+            ]}
+          >
             {currentTemp}°C
           </Text>
           <Text style={[styles.currentLabel, { color: colors.textMuted }]}>
             Current Temperature
           </Text>
         </View>
-        <View style={[styles.currentCard, { backgroundColor: colors.card }]}>
-          <FontAwesome5 name="tint" size={28} color={colors.info} />
-          <Text style={[styles.currentValue, { color: colors.info }]}>
+        <View
+          style={[
+            styles.currentCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <FontAwesome5
+            name="tint"
+            size={28}
+            color={colors.info || "#4F6C7A"}
+          />
+          <Text
+            style={[styles.currentValue, { color: colors.info || "#4F6C7A" }]}
+          >
             {currentHumidity}%
           </Text>
           <Text style={[styles.currentLabel, { color: colors.textMuted }]}>
@@ -138,7 +196,15 @@ const TemperatureScreen = () => {
         </View>
       </View>
 
-      <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
+      <View
+        style={[
+          styles.chartCard,
+          {
+            backgroundColor: colors.card,
+            shadowColor: colors.shadowDark,
+          },
+        ]}
+      >
         <View
           style={{
             flexDirection: "row",
@@ -158,22 +224,37 @@ const TemperatureScreen = () => {
         </View>
         <LineChart
           data={chartData}
-          width={width - 32}
-          height={220}
+          width={chartWidth}
+          height={200}
           chartConfig={{
             backgroundColor: colors.card,
             backgroundGradientFrom: colors.card,
             backgroundGradientTo: colors.card,
             decimalPlaces: 1,
             color: (opacity = 1) =>
-              `rgba(${colors.text === "#2C3E2C" ? "44, 62, 44" : "245, 245, 245"}, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(139, 115, 85, ${opacity})`,
+              `rgba(${getChartTextColor()}, ${opacity})`,
+            labelColor: (opacity = 1) =>
+              `rgba(${getLabelColor()}, ${opacity})`,
             style: {
               borderRadius: 16,
+            },
+            propsForDots: {
+              r: "4",
+              strokeWidth: "2",
+              stroke: isLightMode ? "#4D724D" : "#5A8A5A",
+            },
+            propsForBackgroundLines: {
+              strokeDasharray: "5, 5",
+              stroke: isLightMode ? "rgba(77, 114, 77, 0.15)" : "rgba(90, 138, 90, 0.15)",
             },
           }}
           bezier
           style={styles.chart}
+          withDots={true}
+          withInnerLines={true}
+          withOuterLines={true}
+          withVerticalLines={false}
+          withHorizontalLines={true}
         />
       </View>
 
@@ -245,6 +326,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 20,
+  },
   centered: {
     flex: 1,
     justifyContent: "center",
@@ -270,29 +354,29 @@ const styles = StyleSheet.create({
   },
   currentSection: {
     flexDirection: "row",
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     gap: 12,
   },
   currentCard: {
     flex: 1,
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(77, 114, 77, 0.1)",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
   },
   currentValue: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "800",
-    marginTop: 8,
+    marginTop: 6,
   },
   currentLabel: {
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 12,
+    marginTop: 2,
   },
   chartCard: {
     borderRadius: 16,
@@ -305,12 +389,13 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   chartTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
     marginBottom: 0,
   },
   chart: {
     marginLeft: -20,
+    marginRight: -8,
     borderRadius: 16,
   },
   statsContainer: {
@@ -327,7 +412,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   statValue: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "700",
     marginTop: 2,
   },
