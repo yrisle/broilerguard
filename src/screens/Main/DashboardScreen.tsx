@@ -112,7 +112,7 @@ const DashboardScreen = () => {
       <View style={styles.header}>
         <View>
           <Text style={[styles.greeting, { color: colors.text }]}>
-            Good Morning, Admin 👋
+            Good Morning, Admin!
           </Text>
           <Text style={[styles.date, { color: colors.textMuted }]}>
             {new Date().toLocaleDateString("en-US", {
