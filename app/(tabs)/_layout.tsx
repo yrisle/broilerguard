@@ -1,7 +1,7 @@
 // app/(tabs)/_layout.tsx
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs } from "expo-router";
 import React from "react";
-import { Text } from "react-native";
 import { useTheme } from "../../src/hooks/useTheme";
 
 export default function TabLayout() {
@@ -32,28 +32,36 @@ export default function TabLayout() {
         name="home"
         options={{
           title: "Home",
-          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>🏠</Text>,
+          tabBarIcon: ({ size, color }) => (
+            <Ionicons name="home-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="sensors"
         options={{
           title: "Sensors",
-          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>🌡️</Text>,
+          tabBarIcon: ({ size, color }) => (
+            <Ionicons name="thermometer-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="camera"
         options={{
           title: "Camera",
-          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>📷</Text>,
+          tabBarIcon: ({ size, color }) => (
+            <Ionicons name="camera-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: "Settings",
-          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>⚙️</Text>,
+          tabBarIcon: ({ size, color }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
+          ),
         }}
       />
     </Tabs>
