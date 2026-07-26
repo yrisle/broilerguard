@@ -1,21 +1,21 @@
 <?php
-// water_pump.php - Water Pump Control Module (Time-Based Scheduling)
+
 session_start();
 
-// Authentication Check
+
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
 
-// Handle Logout
+
 if (isset($_GET['logout'])) {
     session_destroy();
     header('Location: login.php');
     exit;
 }
 
-// Handle AJAX requests
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WITH'])) {
     header('Content-Type: application/json');
     
