@@ -50,6 +50,8 @@ The proposed system is designed specifically for a **small-scale tunnel-ventilat
 - Water Pump
 - Ventilation Fan
 - 25W Bulb
+- Load Cell Sensor
+- Water Float Sensor
 
 #### Software
 
