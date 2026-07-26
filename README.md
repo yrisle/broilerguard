@@ -229,17 +229,20 @@ The following modules are currently under development and planned for future int
 - Environmental monitoring
 - Database integration
 - Web dashboard
+- Mobile application development
 - Temperature and humidity automation
 - Water pump automation
 - Ventilation automation
 - ESP32 communication
+- Servo gate mechanism
 
 ### Ongoing
 
 - AI model training
 - ESP32-CAM integration
 - Automatic feeder refinement
-- Servo gate mechanism
+- Application refinement and optimization
+- System testing and performance validation
 
 ---
 
