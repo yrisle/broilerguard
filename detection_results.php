@@ -1,9 +1,10 @@
 <?php
-// detection_results.php - AI Detection Results Module (with Database)
+// detection_results.php - AI Detection Results Module (with Database & API Integration)
 session_start();
 
 require_once 'db_connect.php';        // PDO connection
 require_once 'weather_functions.php'; // weather API
+require_once 'api_client.php';        // Python API client
 
 $weather = getWeatherData();
 
@@ -19,6 +20,9 @@ if (isset($_GET['logout'])) {
     exit;
 }
 
+$userId = 1;
+$api = new DiseaseDetectionAPI('http://localhost:5000');
+
 // Get filter parameters
 $filter = $_GET['filter'] ?? 'all';
 $search = $_GET['search'] ?? '';
@@ -26,16 +30,17 @@ $sortBy = $_GET['sort_by'] ?? 'newest';
 $dateFrom = $_GET['date_from'] ?? '';
 $dateTo = $_GET['date_to'] ?? '';
 
-// ----------------------------------------------------------------------
-// FUNCTION: Kumuha ng detection results mula sa database (PDO)
-// ----------------------------------------------------------------------
+// ============================================================
+// FUNCTION: Get detection results from database (PDO)
+// ============================================================
 function getDetectionResults($filter = 'all', $sortBy = 'newest', $search = '', $dateFrom = '', $dateTo = '') {
-    global $pdo;
+    global $pdo, $userId;
 
     $sql = "SELECT id, chick_id, status, confidence, activity, timestamp 
             FROM detection_logs 
-            WHERE 1=1";
-    $params = [];
+            WHERE user_id = ?
+            AND 1=1";
+    $params = [$userId];
 
     if ($filter !== 'all') {
         $sql .= " AND status = ?";
@@ -77,7 +82,7 @@ function getDetectionResults($filter = 'all', $sortBy = 'newest', $search = '', 
             'chick_id'   => $row['chick_id'],
             'status'     => $row['status'],
             'confidence' => round($row['confidence'], 1),
-            'weight'     => 'N/A', // wala sa table na ito
+            'weight'     => 'N/A',
             'activity'   => $row['activity'] ?? 'Unknown',
             'duration'   => 'N/A'
         ];
@@ -85,17 +90,72 @@ function getDetectionResults($filter = 'all', $sortBy = 'newest', $search = '', 
     return $records;
 }
 
-$detectionResults = getDetectionResults($filter, $sortBy, $search, $dateFrom, $dateTo);
+// ============================================================
+// FUNCTION: Get detection stats summary
+// ============================================================
+function getDetectionStats() {
+    global $pdo, $userId;
+    
+    $stmt = $pdo->prepare("SELECT 
+                           COUNT(*) as total,
+                           SUM(CASE WHEN status = 'healthy' THEN 1 ELSE 0 END) as healthy,
+                           SUM(CASE WHEN status = 'weak' THEN 1 ELSE 0 END) as weak,
+                           SUM(CASE WHEN status = 'unhealthy' THEN 1 ELSE 0 END) as unhealthy
+                           FROM detection_logs 
+                           WHERE user_id = ?");
+    $stmt->execute([$userId]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
 
-// Compute statistics
-$totalDetections = count($detectionResults);
-$healthyCount = count(array_filter($detectionResults, function($r) { return $r['status'] === 'healthy'; }));
-$weakCount = count(array_filter($detectionResults, function($r) { return $r['status'] === 'weak'; }));
-$unhealthyCount = count(array_filter($detectionResults, function($r) { return $r['status'] === 'unhealthy'; }));
+// ============================================================
+// FUNCTION: Get status distribution (instead of disease)
+// ============================================================
+function getStatusDistribution() {
+    global $pdo, $userId;
+    
+    $stmt = $pdo->prepare("SELECT 
+                           status, 
+                           COUNT(*) as count 
+                           FROM detection_logs 
+                           WHERE user_id = ? 
+                           GROUP BY status 
+                           ORDER BY count DESC");
+    $stmt->execute([$userId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// ============================================================
+// GET ALL DATA
+// ============================================================
+$detectionResults = getDetectionResults($filter, $sortBy, $search, $dateFrom, $dateTo);
+$stats = getDetectionStats();
+$statusDist = getStatusDistribution();  // Changed from disease distribution
+
+$totalDetections = $stats['total'] ?? 0;
+$healthyCount = $stats['healthy'] ?? 0;
+$weakCount = $stats['weak'] ?? 0;
+$unhealthyCount = $stats['unhealthy'] ?? 0;
+
+// Get unread notifications
+try {
+    $notifStmt = $pdo->prepare("SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND `read` = 0");
+    $notifStmt->execute([$userId]);
+    $unreadNotifications = $notifStmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
+} catch (PDOException $e) {
+    $unreadNotifications = 0;
+}
+
+// Get snapshots for display
+$snapStmt = $pdo->prepare("SELECT * FROM camera_snapshots WHERE user_id = ? ORDER BY timestamp DESC LIMIT 6");
+$snapStmt->execute([$userId]);
+$snapshots = $snapStmt->fetchAll(PDO::FETCH_ASSOC);
 
 $currentDate = date('F d, Y');
 $currentTime = date('h:i:s A');
-$unreadNotifications = 0;
+
+// Check API health
+$apiHealth = $api->health();
+$apiAvailable = isset($apiHealth['status']) && $apiHealth['status'] === 'ok';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -106,10 +166,8 @@ $unreadNotifications = 0;
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Shared CSS -->
     <link rel="stylesheet" href="assets/css/style.css">
     <style>
-        /* ===== DIRECT CSS VARIABLES (FALLBACK) ===== */
         :root {
             --bg-primary: #F5F5F5; --bg-secondary: #E8F0E8; --bg-card: #FFFFFF;
             --text-primary: #2C3E2C; --text-secondary: #4D724D; --text-muted: #6B8A6B;
@@ -119,7 +177,7 @@ $unreadNotifications = 0;
             --yellow: #C8A24A; --yellow-light: #F4EEDC;
             --red: #A44A3F; --red-light: #F6E9E7;
             --blue: #4F6C7A; --blue-light: #EAF0F3;
-            --purple: #8E44AD;
+            --purple: #8E44AD; --orange: #B9772A;
             --sidebar-width: 280px; --header-height: 70px;
             --border-radius: 16px;
             --shadow-sm: 0 2px 8px rgba(77, 114, 77, 0.08);
@@ -128,7 +186,7 @@ $unreadNotifications = 0;
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: var(--bg-primary); color: var(--text-primary); display: flex; min-height: 100vh; }
 
-        /* ===== SIDEBAR (gaya ng detection_history) ===== */
+        /* ===== SIDEBAR ===== */
         .sidebar {
             width: var(--sidebar-width);
             height: 100vh;
@@ -211,7 +269,16 @@ $unreadNotifications = 0;
         .date-time-container .time { font-weight: 700; font-size: 1.1rem; color: var(--text-primary); }
         .header-right { display: flex; align-items: center; gap: 1rem; }
 
-        /* Weather Widget */
+        .api-status {
+            display: inline-block;
+            padding: 0.25rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .api-status.online { background: var(--green-light); color: var(--green); }
+        .api-status.offline { background: var(--red-light); color: var(--red); }
+
         .weather-widget {
             display: flex;
             align-items: center;
@@ -228,7 +295,6 @@ $unreadNotifications = 0;
         .weather-widget i { font-size: 1.1rem; }
         .weather-widget .weather-temp { font-weight: 700; font-size: 1rem; }
 
-        /* Notification Bell */
         .notification-bell {
             position: relative;
             background: var(--bg-secondary);
@@ -258,7 +324,6 @@ $unreadNotifications = 0;
             text-align: center;
         }
 
-        /* Back button */
         .back-btn {
             display: flex;
             align-items: center;
@@ -363,6 +428,17 @@ $unreadNotifications = 0;
         .chart-wrapper { position: relative; width: 100%; height: 280px; max-height: 280px; }
         canvas { width: 100% !important; height: 100% !important; }
 
+        /* Snapshot Grid */
+        .snapshot-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.8rem; margin-bottom: 1.5rem; }
+        .snapshot-card { background: var(--bg-card); border-radius: 10px; padding: 0.8rem; text-align: center; border: 1px solid rgba(141,180,142,0.10); }
+        .snapshot-card .snapshot-img { width: 100%; height: 70px; background: #1a1a1a; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #666; font-size: 0.6rem; margin-bottom: 0.3rem; overflow: hidden; }
+        .snapshot-card .snapshot-img img { width: 100%; height: 100%; object-fit: cover; }
+        .snapshot-card .snapshot-time { font-size: 0.65rem; color: var(--text-muted); }
+
+        /* Status Distribution */
+        .status-dist { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
+        .status-dist .item { background: var(--bg-secondary); padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem; }
+
         /* Table */
         .table-container { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
@@ -388,6 +464,7 @@ $unreadNotifications = 0;
             .menu-toggle { display: block; }
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
             .charts-grid { grid-template-columns: 1fr; }
+            .snapshot-grid { grid-template-columns: repeat(3, 1fr); }
             .filter-bar { flex-direction: column; align-items: stretch; }
             .filter-separator { display: none; }
             .search-bar-inline { min-width: auto; }
@@ -396,11 +473,11 @@ $unreadNotifications = 0;
         @media (max-width: 640px) {
             .stats-grid { grid-template-columns: 1fr 1fr; }
             .page-content { padding: 1rem; }
+            .snapshot-grid { grid-template-columns: repeat(2, 1fr); }
             .top-header { padding: 0 1rem; }
             .date-time-container .time { font-size: 0.85rem; }
             .back-btn { font-size: 0.75rem; padding: 0.3rem 0.7rem; }
         }
-        /* Hide scrollbar */
         ::-webkit-scrollbar { width: 0; height: 0; background: transparent; }
         * { scrollbar-width: none; -ms-overflow-style: none; }
     </style>
@@ -429,7 +506,7 @@ $unreadNotifications = 0;
             <a href="fan_control.php"><i class="fas fa-fan"></i> Fan Control</a>
             <a href="feed_dispenser.php"><i class="fas fa-drumstick-bite"></i> Feed Dispenser</a>
             <a href="water_pump.php"><i class="fas fa-hand-holding-water"></i> Water Pump</a>
-            <a href="light_control.php" class="active"><i class="fas fa-lightbulb"></i> Light Control</a>
+            <a href="light_control.php"><i class="fas fa-lightbulb"></i> Light Control</a>
             <a href="automation_settings.php"><i class="fas fa-cog"></i> Automation Settings</a>
         </div>
         <div class="nav-section"><div class="nav-section-title">System</div>
@@ -459,7 +536,8 @@ $unreadNotifications = 0;
                 <span class="time" id="currentTime"><?php echo $currentTime; ?></span>
             </div>
         </div>
-        <div class="header-right">
+                <div class="header-right">
+            
             <div class="notification-bell" onclick="window.location.href='notifications.php'">
                 <i class="fas fa-bell"></i>
                 <?php if ($unreadNotifications > 0): ?>
@@ -470,11 +548,10 @@ $unreadNotifications = 0;
                 <i class="fas <?php echo getWeatherIcon($weather['condition']); ?>"></i>
                 <span class="weather-temp"><?php echo $weather['temp']; ?>°C</span>
             </button>
-            <a href="dashboard.php" class="back-btn"><i class="fas fa-arrow-left"></i> Dashboard</a>
         </div>
     </header>
 
-    <!-- Weather Modal (same as detection_history) -->
+    <!-- Weather Modal -->
     <div class="modal-overlay" id="weatherModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:2000; justify-content:center; align-items:center;">
         <div class="weather-modal" style="background:white; border-radius:20px; padding:2rem; max-width:500px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.25); position:relative;">
             <button class="close-btn" onclick="closeWeatherModal()" style="position:absolute; top:1rem; right:1rem; background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);">&times;</button>
@@ -519,7 +596,7 @@ $unreadNotifications = 0;
 
     <div class="page-content">
         <h1 class="page-title"><i class="fas fa-brain" style="color:var(--purple);"></i> AI Detection Results</h1>
-        <p class="page-subtitle">Real-time AI-powered detection results from Camera 1</p>
+        <p class="page-subtitle">Real-time AI-powered disease detection results and statistics</p>
 
         <!-- Summary Stats -->
         <div class="stats-grid">
@@ -528,26 +605,76 @@ $unreadNotifications = 0;
                 <div class="stat-value" style="color:var(--blue);"><?php echo $totalDetections; ?></div>
                 <div class="stat-label">Total Detections</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" style="border-left: 4px solid var(--green);">
                 <div class="stat-icon" style="color:var(--green);"><i class="fas fa-check-circle"></i></div>
                 <div class="stat-value" style="color:var(--green);"><?php echo $healthyCount; ?></div>
                 <div class="stat-label">Healthy Detected</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" style="border-left: 4px solid var(--yellow);">
                 <div class="stat-icon" style="color:var(--yellow);"><i class="fas fa-exclamation-circle"></i></div>
                 <div class="stat-value" style="color:var(--yellow);"><?php echo $weakCount; ?></div>
                 <div class="stat-label">Weak Detected</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" style="border-left: 4px solid var(--red);">
                 <div class="stat-icon" style="color:var(--red);"><i class="fas fa-times-circle"></i></div>
                 <div class="stat-value" style="color:var(--red);"><?php echo $unhealthyCount; ?></div>
                 <div class="stat-label">Unhealthy Detected</div>
             </div>
         </div>
 
+        <!-- Status Distribution (instead of disease) -->
+        <?php if (!empty($statusDist)): ?>
+        <div style="margin-bottom:1rem;">
+            <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:1.5px; color:var(--text-muted); margin-bottom:0.5rem; font-weight:700;">
+                <i class="fas fa-chart-pie"></i> Status Distribution
+            </div>
+            <div class="status-dist">
+                <?php foreach ($statusDist as $d): ?>
+                <span class="item">
+                    <span style="font-weight:600; color:<?php echo $d['status'] === 'healthy' ? 'var(--green)' : ($d['status'] === 'weak' ? 'var(--yellow)' : 'var(--red)'); ?>;">
+                        <?php echo ucfirst($d['status']); ?>
+                    </span>
+                    <span style="background:var(--accent); color:white; padding:0.1rem 0.5rem; border-radius:10px; font-size:0.7rem;"><?php echo $d['count']; ?></span>
+                </span>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- Recent Snapshots -->
+        <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:1.5px; color:var(--text-muted); margin-bottom:0.8rem; font-weight:700;">
+            <i class="fas fa-images"></i> Recent Snapshots
+        </div>
+        <div class="snapshot-grid">
+            <?php if (empty($snapshots)): ?>
+                <?php for ($i = 0; $i < 6; $i++): ?>
+                <div class="snapshot-card">
+                    <div class="snapshot-img"><i class="fas fa-image"></i> No snapshot</div>
+                    <div class="snapshot-time">Waiting...</div>
+                </div>
+                <?php endfor; ?>
+            <?php else: ?>
+                <?php foreach (array_slice($snapshots, 0, 6) as $snap): ?>
+                <div class="snapshot-card">
+                    <div class="snapshot-img">
+                        <?php if (!empty($snap['image_url']) && file_exists($snap['image_url'])): ?>
+                            <img src="<?php echo htmlspecialchars($snap['image_url']); ?>" alt="Snapshot">
+                        <?php else: ?>
+                            <i class="fas fa-image"></i> No image
+                        <?php endif; ?>
+                    </div>
+                    <div class="snapshot-time"><?php echo date('h:i A', strtotime($snap['timestamp'])); ?></div>
+                </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+
         <!-- Filter Bar -->
+        <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:1.5px; color:var(--text-muted); margin-bottom:0.8rem; font-weight:700;">
+            <i class="fas fa-filter"></i> Filter Results
+        </div>
         <form method="GET" action="" class="filter-bar">
-            <span style="font-weight:600; font-size:0.85rem; color:var(--text-secondary);"><i class="fas fa-filter"></i> Filter:</span>
+            <span style="font-weight:600; font-size:0.85rem; color:var(--text-secondary);">Filter:</span>
             <button type="submit" name="filter" value="all" class="filter-btn <?php echo $filter === 'all' ? 'active' : ''; ?>">All</button>
             <button type="submit" name="filter" value="healthy" class="filter-btn <?php echo $filter === 'healthy' ? 'active' : ''; ?>"><i class="fas fa-check-circle" style="color:var(--green);"></i> Healthy</button>
             <button type="submit" name="filter" value="weak" class="filter-btn <?php echo $filter === 'weak' ? 'active' : ''; ?>"><i class="fas fa-exclamation-circle" style="color:var(--yellow);"></i> Weak</button>
@@ -584,14 +711,15 @@ $unreadNotifications = 0;
         </div>
 
         <!-- Results Table -->
+        <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:1.5px; color:var(--text-muted); margin-bottom:0.8rem; font-weight:700;">
+            <i class="fas fa-list"></i> Detection Results <span style="font-size:0.7rem;"><?php echo count($detectionResults); ?> results</span>
+        </div>
         <div class="chart-card" style="padding:0; overflow:hidden;">
-            <div class="chart-card-header" style="padding:1.5rem 1.5rem 0 1.5rem;">
-                <span><i class="fas fa-list"></i> Detection Results</span>
-                <span style="font-size:0.8rem; color:var(--text-muted);"><?php echo count($detectionResults); ?> results</span>
-            </div>
             <div class="table-container" style="padding:0 1.5rem 1.5rem 1.5rem;">
                 <table>
-                    <thead><tr><th>Detection ID</th><th>Time</th><th>Chick ID</th><th>Status</th><th>Confidence</th><th>Weight</th><th>Activity</th><th>Duration</th></tr></thead>
+                    <thead>
+                        <tr><th>Detection ID</th><th>Time</th><th>Chick ID</th><th>Status</th><th>Confidence</th><th>Weight</th><th>Activity</th><th>Duration</th></tr>
+                    </thead>
                     <tbody>
                         <?php if (empty($detectionResults)): ?>
                         <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">No detection results found matching your filters.</td></tr>
@@ -656,19 +784,46 @@ $unreadNotifications = 0;
                     labels: ['Healthy', 'Weak', 'Unhealthy'],
                     datasets: [{ data: [healthyCount, weakCount, unhealthyCount], backgroundColor: ['#4D724D', '#C8A24A', '#A44A3F'], borderWidth: 0 }]
                 },
-                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 10 } } } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: true, 
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 10 } } } 
+                    } 
+                }
             });
         }
 
         const confCtx = document.getElementById('confidenceChart');
         if (confCtx) {
+            // Get sample data from table
+            const chickIds = <?php echo json_encode(array_column(array_slice($detectionResults, 0, 5), 'chick_id')); ?>;
+            const confidences = <?php echo json_encode(array_column(array_slice($detectionResults, 0, 5), 'confidence')); ?>;
+            const labels = chickIds.length > 0 ? chickIds : ['CHK-001', 'CHK-002', 'CHK-003', 'CHK-004', 'CHK-005'];
+            const data = confidences.length > 0 ? confidences : [98.4, 95.8, 98.2, 86.6, 91.5];
+            const colors = data.map(val => val >= 95 ? '#4D724D' : (val >= 85 ? '#C8A24A' : '#A44A3F'));
+            
             confidenceChart = new Chart(confCtx, {
                 type: 'bar',
                 data: {
-                    labels: ['CHK-001', 'CHK-002', 'CHK-003', 'CHK-004', 'CHK-005'],
-                    datasets: [{ label: 'Avg Confidence (%)', data: [98.4, 95.8, 98.2, 86.6, 91.5], backgroundColor: ['#4D724D', '#4D724D', '#4D724D', '#C8A24A', '#A44A3F'], borderRadius: 8, maxBarThickness: 50 }]
+                    labels: labels,
+                    datasets: [{ 
+                        label: 'Confidence (%)', 
+                        data: data, 
+                        backgroundColor: colors, 
+                        borderRadius: 8, 
+                        maxBarThickness: 50 
+                    }]
                 },
-                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false, min: 80, max: 100, grid: { color: 'rgba(0,0,0,0.05)' } }, x: { grid: { display: false } } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: true, 
+                    plugins: { legend: { display: false } }, 
+                    scales: { 
+                        y: { beginAtZero: false, min: 80, max: 100, grid: { color: 'rgba(0,0,0,0.05)' } }, 
+                        x: { grid: { display: false } } 
+                    } 
+                }
             });
         }
     }
@@ -679,8 +834,10 @@ $unreadNotifications = 0;
         if (activeMenu) activeMenu.scrollIntoView({ behavior: 'auto', block: 'center' });
         updateDateTime();
     });
-    window.addEventListener('resize', function() { if (distributionChart) distributionChart.resize(); if (confidenceChart) confidenceChart.resize(); });
+    window.addEventListener('resize', function() { 
+        if (distributionChart) distributionChart.resize(); 
+        if (confidenceChart) confidenceChart.resize(); 
+    });
 </script>
-
 </body>
 </html>
