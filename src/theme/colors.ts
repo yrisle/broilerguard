@@ -63,64 +63,64 @@ export const Colors = {
   },
 
   dark: {
-    // PRIMARY COLORS - Dark Mode
-    primary: "#8DB48E",
-    primaryDark: "#4D724D",
-    primaryLight: "#2C3E2C",
+    // PRIMARY COLORS - Dark Mode (Lightened)
+    primary: "#A8C8A8",
+    primaryDark: "#6B8A6B",
+    primaryLight: "#3D5C3D",
 
-    // BACKGROUNDS
-    background: "#519c59",
-    backgroundSecondary: "#2C3E2C",
-    card: "#2C3E2C",
+    // BACKGROUNDS - Mas light na dark
+    background: "#E8EDE8",
+    backgroundSecondary: "#D4DCD4",
+    card: "#F0F4F0",
 
-    // TEXT COLORS
-    text: "#F5F5F5",
-    textSecondary: "#A8C8A8",
-    textMuted: "#6B8A6B",
+    // TEXT COLORS - Mas maliwanag
+    text: "#1A2A1A",
+    textSecondary: "#3A5C3A",
+    textMuted: "#5A7A5A",
 
-    // STATUS COLORS
-    success: "#4D724D",
-    successLight: "#2C3E2C",
+    // STATUS COLORS - Lightened
+    success: "#5A8A5A",
+    successLight: "#D4E8D4",
 
-    warning: "#C8A24A",
-    warningLight: "#3D3520",
+    warning: "#D4B05A",
+    warningLight: "#F4EEDC",
 
-    danger: "#A44A3F",
-    dangerLight: "#3D201A",
+    danger: "#B85A4A",
+    dangerLight: "#F6E9E7",
 
-    info: "#4F6C7A",
-    infoLight: "#1A2D3D",
+    info: "#5A7A8A",
+    infoLight: "#EAF0F3",
 
-    orange: "#B9772A",
-    orangeLight: "#3D2A1A",
+    orange: "#C89A3A",
+    orangeLight: "#F9EFE5",
 
-    purple: "#8E44AD",
-    purpleLight: "#2D1A3D",
+    purple: "#9A5AAA",
+    purpleLight: "#EDE5F0",
 
-    // BORDER & SHADOW
-    border: "rgba(141, 180, 142, 0.15)",
-    shadow: "rgba(0, 0, 0, 0.3)",
-    shadowDark: "rgba(0, 0, 0, 0.5)",
+    // BORDER & SHADOW - Mas visible
+    border: "rgba(77, 114, 77, 0.25)",
+    shadow: "rgba(77, 114, 77, 0.15)",
+    shadowDark: "rgba(77, 114, 77, 0.2)",
 
-    // SIDEBAR
+    // SIDEBAR - Mas light
     sidebar: {
-      background: "#2C3E2C",
-      text: "#E8F0E8",
-      muted: "#6B8A6B",
-      hover: "rgba(141, 180, 142, 0.15)",
+      background: "#4A6A4A",
+      text: "#F5F8F5",
+      muted: "#B8D0B8",
+      hover: "rgba(168, 200, 168, 0.25)",
     },
 
-    // COMPONENT SPECIFIC
+    // COMPONENT SPECIFIC - Lightened
     input: {
-      background: "#3D3D3D",
-      border: "#4D724D",
+      background: "#F5F8F5",
+      border: "#A8C8A8",
       focus: "#8DB48E",
     },
     button: {
-      primary: "#8DB48E",
-      primaryText: "#1A1A1A",
-      secondary: "#3D3D3D",
-      secondaryText: "#F5F5F5",
+      primary: "#5A8A5A",
+      primaryText: "#FFFFFF",
+      secondary: "#D4DCD4",
+      secondaryText: "#1A2A1A",
     },
   },
 };
