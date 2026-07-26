@@ -1,21 +1,21 @@
 <?php
-// dashboard.php - Main Dashboard File
+
 session_start();
 
-// Authentication Check
+
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
 
-// Handle Logout
+
 if (isset($_GET['logout'])) {
     session_destroy();
     header('Location: login.php');
     exit;
 }
 
-// Get current tab and search query
+
 $tab = $_GET['tab'] ?? 'dashboard';
 $search = $_GET['search'] ?? '';
 $filter = $_GET['filter'] ?? 'all';
