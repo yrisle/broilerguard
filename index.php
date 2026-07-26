@@ -457,7 +457,7 @@
   </div>
 </section>
 
-<!-- DASHBOARD CAROUSEL -->
+
 <section id="dashboard" class="section-padding">
   <div class="container-custom">
     <div class="section-header scroll-reveal">
