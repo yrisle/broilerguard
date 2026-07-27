@@ -52,6 +52,8 @@ The proposed system is designed specifically for a **small-scale tunnel-ventilat
 - 25W Bulb
 - Load Cell Sensor
 - Water Float Sensor
+- Dynamo 16V
+- Centralized Power Supply (AC - DC)
 
 #### Software
 
@@ -62,7 +64,7 @@ The proposed system is designed specifically for a **small-scale tunnel-ventilat
 - CSS
 - JavaScript
 - Python
-- Yolo
+- Yolo (You Only Look Once)
 - Git
 - Git Bash
 - Github
@@ -87,6 +89,10 @@ The system can be accessed through desktop and mobile web browsers connected to 
 | **ESP32-CAM** | Microcontroller with an integrated camera used for live monitoring. |
 | **Tunnel-Ventilated Poultry House** | The controlled poultry housing environment used in this project. |
 | **Ventilation System** | Automated airflow mechanism used to regulate temperature inside the poultry house. |
+| **YOLO (You Only Look Once)** | Real-time object detection algorithm used for chicken disease detection. |
+| **API (Application Programming Interface)** | Set of protocols for building and integrating application software. |
+
+
 
 ---
 
@@ -100,7 +106,7 @@ Environmental data are continuously collected using the **DHT11 sensor** connect
 
 The backend stores the information in a **MySQL database**, where it becomes available for visualization through a web dashboard.
 
-Meanwhile, the **ESP32-CAM** captures images of the chickens, which are processed by an AI model to assist in detecting possible abnormal chicken conditions.
+Meanwhile, the **ESP32-CAM** captures images of the chickens, which are processed by an AI model to assist in detecting possible abnormal chicken conditions. he AI model utilizes YOLO (You Only Look Once) for real-time object detection and classification of chicken health conditions.
 
 Based on predefined environmental thresholds, the system automatically activates different hardware components, including:
 
@@ -155,11 +161,18 @@ Users can access the web dashboard to:
 ESP32-CAM
      |
      v
-AI Chicken Detection
++----------------------------------------+
+|    AI Chicken Detection (YOLO Model)   |
+|    - Disease Classification             |
+|    - Health Condition Monitoring        |
++----------------------------------------+
      |
      v
 Web Dashboard / Application
 ```
+# Dataset Source
+The dataset used for training the AI model was obtained from Kaggle:
+Chicken Disease Detection - Accuracy 98.27%
 
 ---
 
@@ -194,6 +207,7 @@ The following features are currently functional and available for the project de
 | ESP32 Data Transmission |  Functional |
 | Web Dashboard |  Functional |
 | Weather API |  Functional |
+| AI Inference API | Under Development |
 
 ---
 
@@ -228,6 +242,8 @@ The following modules are currently under development and planned for future int
 - Finalize servo-controlled feed gate operation.
 - Improve AI detection accuracy.
 - Enhance dashboard analytics and reporting.
+- Implement notification system for disease detection alerts
+
 
 ---
 
@@ -244,14 +260,19 @@ The following modules are currently under development and planned for future int
 - Ventilation automation
 - ESP32 communication
 - Servo gate mechanism
+- Light automation
+- Fan automation
 
 ### Ongoing
 
-- AI model training
+- AI model training using YOLO algorithm
+- Dataset acquisition from Kaggle
 - ESP32-CAM integration
 - Automatic feeder refinement
 - Application refinement and optimization
 - System testing and performance validation
+- Final wiring
+- Moel accuracy validation and optimization
 
 ---
 
@@ -261,3 +282,11 @@ The following modules are currently under development and planned for future int
 This project was developed as a Capstone Project for the Bachelor of Science in Information Technology Major in Network Technology.
 
 © 2026 Gayos, Perey, and Olino. All rights reserved.
+
+---
+
+Notice: This document is confidential and intended solely for the purpose of the project defense. Unauthorized reproduction, distribution, or disclosure of this material is strictly prohibited without prior written consent from the authors.
+
+
+
+
