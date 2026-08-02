@@ -1,5 +1,5 @@
 // src/screens/Main/DashboardScreen.tsx
-import { FontAwesome5 } from "@expo/vector-icons"; // 👈 Import ito
+import { FontAwesome5 } from "@expo/vector-icons";
 import Icon from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
@@ -27,6 +27,7 @@ const DashboardScreen = () => {
     waterLevel: 0,
     fanStatus: "OFF",
     waterPump: "OFF",
+    lightStatus: "OFF", // Added light status
     healthyChicks: 0,
     weakChicks: 0,
     totalChicks: 0,
@@ -62,6 +63,7 @@ const DashboardScreen = () => {
         waterLevel: sensorData.water_level || 0,
         fanStatus: sensorData.fan_status || "OFF",
         waterPump: sensorData.water_pump || "OFF",
+        lightStatus: sensorData.light_status || "OFF", // Added light status
         healthyChicks: statsData.healthy_chicks || 0,
         weakChicks: statsData.weak_chicks || 0,
         totalChicks: statsData.total_chicks || 0,
@@ -155,7 +157,7 @@ const DashboardScreen = () => {
         </View>
       ) : null}
 
-      {/* 👇 ENVIRONMENTAL CONDITIONS - PINALITAN NA */}
+      {/* Environmental Conditions */}
       <View style={styles.section}>
         <View
           style={{
@@ -204,7 +206,7 @@ const DashboardScreen = () => {
         </View>
       </View>
 
-      {/* 👇 RESOURCE LEVELS - PINALITAN NA */}
+      {/* Resource Levels */}
       <View style={styles.section}>
         <View
           style={{
@@ -243,7 +245,7 @@ const DashboardScreen = () => {
         </Card>
       </View>
 
-      {/* 👇 AUTOMATION STATUS - PINALITAN NA */}
+      {/* Automation Status - Updated with Light */}
       <View style={styles.section}>
         <View
           style={{
@@ -263,9 +265,9 @@ const DashboardScreen = () => {
           </Text>
         </View>
         <View style={styles.row}>
-          <Card style={styles.halfCard}>
+          <Card style={styles.thirdCard}>
             <View style={styles.automationItem}>
-              <Icon name="options-outline" size={32} color={colors.primary} />
+              <Icon name="options-outline" size={28} color={colors.primary} />
               <View>
                 <Text
                   style={[
@@ -306,9 +308,9 @@ const DashboardScreen = () => {
               </View>
             </View>
           </Card>
-          <Card style={styles.halfCard}>
+          <Card style={styles.thirdCard}>
             <View style={styles.automationItem}>
-              <Icon name="water" size={32} color={colors.info} />
+              <Icon name="water" size={28} color={colors.info} />
               <View>
                 <Text
                   style={[
@@ -349,10 +351,53 @@ const DashboardScreen = () => {
               </View>
             </View>
           </Card>
+          <Card style={styles.thirdCard}>
+            <View style={styles.automationItem}>
+              <Icon name="bulb-outline" size={28} color={colors.warning} />
+              <View>
+                <Text
+                  style={[
+                    styles.automationLabel,
+                    { color: colors.primaryDark },
+                  ]}
+                >
+                  Light
+                </Text>
+                <View
+                  style={[
+                    styles.statusIndicator,
+                    stats.lightStatus === "ON"
+                      ? [
+                          styles.statusOn,
+                          { backgroundColor: colors.successLight },
+                        ]
+                      : [
+                          styles.statusOff,
+                          { backgroundColor: colors.dangerLight },
+                        ],
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusText,
+                      {
+                        color:
+                          stats.lightStatus === "ON"
+                            ? colors.success
+                            : colors.danger,
+                      },
+                    ]}
+                  >
+                    {stats.lightStatus}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </Card>
         </View>
       </View>
 
-      {/* 👇 CHICKEN HEALTH - PINALITAN NA */}
+      {/* Chicken Health */}
       <View style={styles.section}>
         <View
           style={{
@@ -401,7 +446,7 @@ const DashboardScreen = () => {
         </Card>
       </View>
 
-      {/* 👇 QUICK ACTIONS - PINALITAN NA */}
+      {/* Quick Actions - Updated with Light */}
       <View style={styles.section}>
         <View
           style={{
@@ -446,6 +491,15 @@ const DashboardScreen = () => {
             <Icon name="water" size={28} color={colors.info} />
             <Text style={[styles.quickActionText, { color: colors.text }]}>
               Water
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.quickAction, { backgroundColor: colors.card }]}
+            onPress={() => handleNavigate("/light-control")}
+          >
+            <Icon name="bulb-outline" size={28} color={colors.warning} />
+            <Text style={[styles.quickActionText, { color: colors.text }]}>
+              Light
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -538,6 +592,10 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 4,
   },
+  thirdCard: {
+    flex: 1,
+    marginHorizontal: 3,
+  },
   tempContainer: {
     alignItems: "center",
     paddingVertical: 8,
@@ -561,19 +619,19 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   automationLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "600",
   },
   statusIndicator: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
     borderRadius: 12,
     marginTop: 4,
   },
   statusOn: {},
   statusOff: {},
   statusText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
   },
   chickenStats: {
@@ -595,20 +653,23 @@ const styles = StyleSheet.create({
   quickActions: {
     flexDirection: "row",
     justifyContent: "space-between",
+    flexWrap: "wrap",
   },
   quickAction: {
     flex: 1,
+    minWidth: "18%",
     alignItems: "center",
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
-    marginHorizontal: 4,
+    marginHorizontal: 3,
+    marginVertical: 4,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
   },
   quickActionText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     marginTop: 4,
   },

@@ -15,4 +15,21 @@ export const sensors = {
   getWater: () => api.get("/sensors/water"),
 
   getChickenStatus: () => api.get("/sensors/chicken"),
+
+  // Light Control Endpoints
+  getLightStatus: () => api.get("/sensors/light"),
+
+  controlLight: (data: { status: string }) =>
+    api.post("/sensors/control-light", data),
+
+  setLightBrightness: (data: { brightness: number }) =>
+    api.post("/sensors/set-brightness", data),
+
+  getLightSchedule: () => api.get("/sensors/light-schedule"),
+
+  updateLightSchedule: (data: { 
+    onTime: string; 
+    offTime: string; 
+    enabled: boolean 
+  }) => api.post("/sensors/update-light-schedule", data),
 };
