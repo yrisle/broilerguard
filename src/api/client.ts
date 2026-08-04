@@ -7,81 +7,51 @@ const envBaseUrl = (process.env.EXPO_PUBLIC_API_BASE_URL || "").trim();
 const shouldLogNetworkErrors =
   (process.env.EXPO_PUBLIC_API_DEBUG || "").toLowerCase() === "true";
 
+// SIMPLIFIED: Get Expo local host
 const getExpoLocalHost = (): string | undefined => {
   try {
-    // Type-safe na pag-access sa Constants
-    const manifest = Constants.manifest as
-      Record<string, any> | null | undefined;
-    const expoConfig = Constants.expoConfig as
-      Record<string, any> | null | undefined;
-
-    // Kunin ang debuggerHost mula sa manifest
-    let debuggerHost: string | undefined;
-
-    if (
-      manifest &&
-      typeof manifest === "object" &&
-      "debuggerHost" in manifest
-    ) {
-      const host = manifest.debuggerHost;
-      if (typeof host === "string") {
-        debuggerHost = host;
-      }
+    // Get debugger host from Constants
+    const debuggerHost = Constants.expoConfig?.hostUri;
+    if (debuggerHost) {
+      const host = debuggerHost.split(":")[0];
+      return host?.trim() || undefined;
     }
-
-    // Kung wala sa manifest, subukan sa expoConfig
-    if (
-      !debuggerHost &&
-      expoConfig &&
-      typeof expoConfig === "object" &&
-      "hostUri" in expoConfig
-    ) {
-      const host = expoConfig.hostUri;
-      if (typeof host === "string") {
-        debuggerHost = host;
-      }
-    }
-
-    if (!debuggerHost) {
-      return undefined;
-    }
-
-    // I-extract ang hostname
-    const host = debuggerHost.split(",")[0].split(":")[0];
-    return host?.trim() || undefined;
+    return undefined;
   } catch (error) {
-    // Safe fallback kung may error sa pag-access
     return undefined;
   }
 };
 
+// SIMPLIFIED: Get base URL
 const getFallbackBaseUrl = () => {
+  // If env URL is set, use it
   if (envBaseUrl) {
     return envBaseUrl;
   }
 
-  const expoHost = getExpoLocalHost();
+  // CHANGE THIS TO YOUR PHP SERVER URL
+  const serverUrl = "http://192.168.1.100"; // Replace with your server IP
 
-  // Para sa Android
+  // For Android Emulator
   if (Platform.OS === "android") {
-    return expoHost ? `http://${expoHost}:8000` : "http://10.0.2.2:8000";
+    // Use 10.0.2.2 for Android emulator to access host machine
+    return "http://10.0.2.2/broilerguard/api";
   }
 
-  // Para sa iOS
+  // For iOS Simulator
   if (Platform.OS === "ios") {
-    return expoHost ? `http://${expoHost}:8000` : "http://localhost:8000";
+    return "http://localhost/broilerguard/api";
   }
 
-  // Para sa Web - may safety check para sa Node.js environment
+  // For Web
   if (Platform.OS === "web") {
-    // Safe na paraan para ma-access ang window
     const isBrowser = typeof window !== "undefined";
     const hostname = isBrowser ? window.location.hostname : "localhost";
-    return `http://${hostname}:8000`;
+    return `http://${hostname}/broilerguard/api`;
   }
 
-  // Fallback para sa iba pang platforms
-  return expoHost ? `http://${expoHost}:8000` : "http://192.168.1.100:8000";
+  // Fallback for physical device - use your server IP
+  return `${serverUrl}/broilerguard/api`;
 };
 
 export const API_BASE_URL = getFallbackBaseUrl().replace(/\/+$/, "");
@@ -98,12 +68,14 @@ export const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = globalThis.localStorage?.getItem("auth_token");
+      // Use AsyncStorage for React Native
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const token = await AsyncStorage.getItem("auth_token");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch {
-      // ignore storage access issues in Expo Go
+      // ignore storage access issues
     }
     return config;
   },
@@ -116,9 +88,10 @@ api.interceptors.response.use(
   async (error) => {
     if (error.response?.status === 401) {
       try {
-        globalThis.localStorage?.removeItem("auth_token");
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        await AsyncStorage.removeItem("auth_token");
       } catch {
-        // ignore storage access issues in Expo Go
+        // ignore storage access issues
       }
     }
 
