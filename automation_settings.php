@@ -16,6 +16,10 @@ if (isset($_GET['logout'])) { session_destroy(); header('Location: login.php'); 
 
 $userId = 1;
 
+// ===== FETCH NOTIFICATIONS COUNT =====
+$notifStmt = $pdo->prepare("SELECT COUNT(*) as total FROM notifications WHERE user_id = ? AND `read` = 0");
+$notifStmt->execute([$userId]);
+$unreadNotifications = $notifStmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
 
 // ===== FETCH SETTINGS FROM DATABASE =====
 global $pdo;
@@ -91,12 +95,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
             $userId
         ]);
 
+        // Log activity
+        $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip, timestamp) VALUES (?, 'Automation Settings Updated', 'Automation settings were modified', ?, NOW())")->execute([$userId, $_SERVER['REMOTE_ADDR'] ?? 'unknown']);
+
         $response = ['success' => true, 'message' => 'All settings saved successfully!'];
     }
     elseif ($action === 'reset_defaults') {
         $pdo->prepare("UPDATE fan_settings SET auto_mode = 'auto', temp_threshold = 32.0, humidity_threshold = 75.0, schedule_start = '08:00', schedule_end = '20:00', fan_speed = 80, updated_at = NOW() WHERE user_id = ?")->execute([$userId]);
         $pdo->prepare("UPDATE feed_settings SET auto_mode = 'schedule', schedule_interval = 4, dispense_amount = 0.5, low_level_threshold = 5.0, schedule_times = '08:00,12:00,16:00,20:00', updated_at = NOW() WHERE user_id = ?")->execute([$userId]);
         $pdo->prepare("UPDATE pump_settings SET auto_mode = 'auto', low_level_threshold = 25, high_level_threshold = 95, pump_duration = 45, schedule_interval = 3, updated_at = NOW() WHERE user_id = ?")->execute([$userId]);
+        
+        $pdo->prepare("INSERT INTO activity_logs (user_id, action, details, ip, timestamp) VALUES (?, 'Automation Settings Reset', 'Automation settings were reset to defaults', ?, NOW())")->execute([$userId, $_SERVER['REMOTE_ADDR'] ?? 'unknown']);
+        
         $response = ['success' => true, 'message' => 'Settings reset to defaults!'];
     }
 
@@ -106,7 +116,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
 
 $currentDate = date('F d, Y');
 $currentTime = date('h:i:s A');
-$unreadNotifications = 0;
+
+// Parse schedule times for display
+$scheduleTimes = array_map('trim', explode(',', $feedSettings['schedule_times'] ?? '08:00,12:00,16:00,20:00'));
+$timeLabels = ['Morning', 'Noon', 'Afternoon', 'Evening'];
+$timeIcons = ['fa-sun', 'fa-cloud-sun', 'fa-cloud', 'fa-moon'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -221,26 +235,11 @@ $unreadNotifications = 0;
             cursor: pointer;
             transition: all 0.2s;
             border: 1px solid rgba(77, 114, 77, 0.15);
+            text-decoration: none;
         }
         .notification-bell:hover { background: var(--accent-light); transform: scale(1.05); }
         .notification-bell i { font-size: 1.2rem; color: var(--text-secondary); }
         .notification-badge { position: absolute; top: -5px; right: -5px; background: var(--red); color: white; font-size: 0.6rem; font-weight: 700; padding: 0.15rem 0.4rem; border-radius: 50%; min-width: 18px; text-align: center; }
-
-        .back-btn {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            background: var(--bg-secondary);
-            border: 1px solid rgba(141, 180, 142, 0.3);
-            border-radius: 10px;
-            color: var(--text-primary);
-            text-decoration: none;
-            font-size: 0.85rem;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-        .back-btn:hover { background: var(--accent-light); border-color: var(--accent); }
 
         .page-content { padding: 2rem; max-width: 1400px; margin: 0 auto; }
         .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.3rem; display: flex; align-items: center; gap: 0.8rem; color: var(--text-primary); }
@@ -254,14 +253,93 @@ $unreadNotifications = 0;
         .settings-card-header h3 { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
         .settings-card-header p { font-size: 0.65rem; color: var(--text-muted); margin-left: auto; }
 
-        .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding: 0.5rem 0; border-bottom: 1px solid rgba(141,180,142,0.06); flex-wrap: wrap; gap: 0.5rem; }
-        .setting-label { font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); }
-        .setting-label i { width: 24px; color: var(--accent-dark); margin-right: 0.3rem; }
-        .setting-control select, .setting-control input { padding: 0.5rem 0.8rem; border: 1px solid rgba(141,180,142,0.2); border-radius: 8px; font-family: 'Inter', sans-serif; background: var(--bg-secondary); font-size: 0.85rem; color: var(--text-primary); }
-        .setting-control input:focus, .setting-control select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(141,180,142,0.15); }
+        .setting-row { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 0.75rem; 
+            padding: 0.5rem 0; 
+            border-bottom: 1px solid rgba(141,180,142,0.06); 
+            gap: 1rem; 
+        }
+        .setting-row:last-child { border-bottom: none; margin-bottom: 0; }
+        .setting-label { 
+            font-size: 0.85rem; 
+            font-weight: 600; 
+            color: var(--text-secondary); 
+            min-width: 160px;
+            flex-shrink: 0;
+            text-align: left;
+        }
+        .setting-label i { 
+            width: 22px; 
+            color: var(--accent-dark); 
+            margin-right: 0.5rem; 
+            text-align: center;
+        }
+        .setting-control { 
+            flex: 1;
+            display: flex; 
+            align-items: center; 
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+        .setting-control select, 
+        .setting-control input[type="text"],
+        .setting-control input[type="number"],
+        .setting-control input[type="time"] { 
+            padding: 0.45rem 0.7rem; 
+            border: 1px solid rgba(141,180,142,0.2); 
+            border-radius: 8px; 
+            font-family: 'Inter', sans-serif; 
+            background: var(--bg-secondary); 
+            font-size: 0.85rem; 
+            color: var(--text-primary);
+            width: 180px;
+            transition: all 0.2s;
+        }
+        .setting-control input[type="text"] { width: 220px; }
+        .setting-control input[type="time"] { width: 140px; }
+        .setting-control input[type="number"] { width: 140px; }
+        .setting-control select { width: 200px; }
+        .setting-control input:focus, 
+        .setting-control select:focus { 
+            outline: none; 
+            border-color: var(--accent); 
+            box-shadow: 0 0 0 2px rgba(141,180,142,0.15); 
+        }
+        .setting-control .unit { 
+            font-size: 0.75rem; 
+            color: var(--text-muted); 
+            font-weight: 600;
+            min-width: 30px;
+            text-align: left;
+        }
+        .setting-control .time-sep {
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
 
-        .schedule-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
-        .schedule-tag { background: var(--accent-light); padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem; font-weight: 600; color: var(--text-secondary); }
+        .schedule-tags { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 0.5rem; 
+            margin-top: 0.75rem; 
+            padding-top: 0.75rem;
+            border-top: 1px dashed rgba(141,180,142,0.15);
+            justify-content: flex-end;
+        }
+        .schedule-tag { 
+            background: var(--accent-light); 
+            padding: 0.25rem 0.8rem; 
+            border-radius: 20px; 
+            font-size: 0.7rem; 
+            font-weight: 600; 
+            color: var(--text-secondary); 
+            white-space: nowrap;
+        }
+        .schedule-tag i { margin-right: 4px; }
 
         .action-buttons { display: flex; gap: 1rem; margin-top: 1.5rem; justify-content: flex-end; flex-wrap: wrap; }
         .btn-save { background: linear-gradient(105deg, var(--accent-dark), #3A5C3A); border: none; color: #FFFFFF; font-weight: 700; padding: 0.7rem 1.2rem; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; }
@@ -270,9 +348,6 @@ $unreadNotifications = 0;
         .btn-reset:hover { background: var(--accent-light); }
 
         .last-updated { text-align: right; font-size: 0.7rem; color: var(--text-muted); margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(141,180,142,0.10); }
-
-        input[type="range"] { width: 120px; vertical-align: middle; accent-color: var(--accent); }
-        input[type="range"] + output { margin-left: 8px; font-weight: 600; min-width: 35px; display: inline-block; }
 
         .toast { position: fixed; bottom: 20px; right: 20px; background: var(--green); color: white; padding: 0.8rem 1.2rem; border-radius: 12px; display: none; align-items: center; gap: 0.8rem; z-index: 2000; animation: slideIn 0.3s ease; font-size: 0.85rem; }
         .toast.error { background: var(--red); }
@@ -284,7 +359,14 @@ $unreadNotifications = 0;
             .main-content { margin-left: 0; }
             .menu-toggle { display: block; }
             .settings-grid-main { grid-template-columns: 1fr; }
-            .setting-row { flex-direction: column; align-items: flex-start; }
+            .setting-row { flex-direction: column; align-items: stretch; gap: 0.3rem; }
+            .setting-label { min-width: auto; }
+            .setting-control { justify-content: flex-start; flex-wrap: wrap; }
+            .setting-control select,
+            .setting-control input[type="text"],
+            .setting-control input[type="number"],
+            .setting-control input[type="time"] { width: 100%; max-width: 100%; }
+            .schedule-tags { justify-content: flex-start; }
         }
         ::-webkit-scrollbar { width: 0; height: 0; background: transparent; }
         * { scrollbar-width: none; -ms-overflow-style: none; }
@@ -314,9 +396,8 @@ $unreadNotifications = 0;
             <a href="fan_control.php"><i class="fas fa-fan"></i> Fan Control</a>
             <a href="feed_dispenser.php"><i class="fas fa-drumstick-bite"></i> Feed Dispenser</a>
             <a href="water_pump.php"><i class="fas fa-hand-holding-water"></i> Water Pump</a>
-             <a href="light_control.php" class=""><i class="fas fa-lightbulb"></i> Light Control</a>
-             <a href="automation_settings.php" class="active"><i class="fas fa-cog"></i> Automation Settings</a>
-            
+            <a href="light_control.php"><i class="fas fa-lightbulb"></i> Light Control</a>
+            <a href="automation_settings.php" class="active"><i class="fas fa-cog"></i> Automation Settings</a>
         </div>
         <div class="nav-section"><div class="nav-section-title">System</div>
             <a href="notifications.php"><i class="fas fa-bell"></i> Notifications</a>
@@ -345,14 +426,13 @@ $unreadNotifications = 0;
                 <span class="time" id="currentTime"><?php echo $currentTime; ?></span>
             </div>
         </div>
-                <div class="header-right">
-            
-            <div class="notification-bell" onclick="window.location.href='notifications.php'">
+        <div class="header-right">
+            <a href="notifications.php" class="notification-bell">
                 <i class="fas fa-bell"></i>
                 <?php if ($unreadNotifications > 0): ?>
                 <span class="notification-badge"><?php echo $unreadNotifications; ?></span>
                 <?php endif; ?>
-            </div>
+            </a>
             <button class="weather-widget" onclick="openWeatherModal()" title="Click for detailed weather">
                 <i class="fas <?php echo getWeatherIcon($weather['condition']); ?>"></i>
                 <span class="weather-temp"><?php echo $weather['temp']; ?>°C</span>
@@ -429,29 +509,26 @@ $unreadNotifications = 0;
                     <div class="setting-row">
                         <div class="setting-label"><i class="fas fa-thermometer-half"></i> Temperature Threshold</div>
                         <div class="setting-control">
-                            <input type="number" step="0.5" name="temp_threshold" value="<?php echo $fanSettings['temp_threshold']; ?>"> °C
+                            <input type="number" step="0.5" name="temp_threshold" value="<?php echo $fanSettings['temp_threshold']; ?>">
+                            <span class="unit">°C</span>
                         </div>
                     </div>
                     <div class="setting-row">
                         <div class="setting-label"><i class="fas fa-tint"></i> Humidity Threshold</div>
                         <div class="setting-control">
-                            <input type="number" step="5" name="humidity_threshold" value="<?php echo $fanSettings['humidity_threshold']; ?>"> %
+                            <input type="number" step="5" name="humidity_threshold" value="<?php echo $fanSettings['humidity_threshold']; ?>">
+                            <span class="unit">%</span>
                         </div>
                     </div>
                     <div class="setting-row">
                         <div class="setting-label"><i class="fas fa-clock"></i> Schedule Time</div>
                         <div class="setting-control">
-                            <input type="time" name="fan_schedule_start" value="<?php echo $fanSettings['schedule_start']; ?>"> - 
+                            <input type="time" name="fan_schedule_start" value="<?php echo $fanSettings['schedule_start']; ?>">
+                            <span class="time-sep">to</span>
                             <input type="time" name="fan_schedule_end" value="<?php echo $fanSettings['schedule_end']; ?>">
                         </div>
                     </div>
-                    <div class="setting-row">
-                        <div class="setting-label"><i class="fas fa-tachometer-alt"></i> Fan Speed</div>
-                        <div class="setting-control">
-                            <input type="range" name="fan_speed" min="0" max="100" value="<?php echo $fanSettings['fan_speed']; ?>" oninput="this.nextElementSibling.value=this.value">
-                            <output><?php echo $fanSettings['fan_speed']; ?></output>%
-                        </div>
-                    </div>
+                    
                 </div>
 
                 <!-- Feed Dispenser Settings -->
@@ -474,32 +551,43 @@ $unreadNotifications = 0;
                     <div class="setting-row">
                         <div class="setting-label"><i class="fas fa-weight-hanging"></i> Dispense Amount</div>
                         <div class="setting-control">
-                            <input type="number" step="0.1" name="dispense_amount" value="<?php echo $feedSettings['dispense_amount']; ?>"> kg
+                            <input type="number" step="0.1" name="dispense_amount" value="<?php echo $feedSettings['dispense_amount']; ?>">
+                            <span class="unit">kg</span>
                         </div>
                     </div>
                     <div class="setting-row">
                         <div class="setting-label"><i class="fas fa-exclamation-triangle"></i> Low Level Threshold</div>
                         <div class="setting-control">
-                            <input type="number" step="0.5" name="feed_low_threshold" value="<?php echo $feedSettings['low_level_threshold']; ?>"> kg
+                            <input type="number" step="0.5" name="feed_low_threshold" value="<?php echo $feedSettings['low_level_threshold']; ?>">
+                            <span class="unit">kg</span>
                         </div>
                     </div>
                     <div class="setting-row">
                         <div class="setting-label"><i class="fas fa-calendar-alt"></i> Schedule Interval</div>
                         <div class="setting-control">
-                            <input type="number" name="feed_interval" value="<?php echo $feedSettings['schedule_interval']; ?>"> hours
+                            <input type="number" name="feed_interval" value="<?php echo $feedSettings['schedule_interval']; ?>">
+                            <span class="unit">hours</span>
                         </div>
                     </div>
                     <div class="setting-row">
                         <div class="setting-label"><i class="fas fa-clock"></i> Feeding Times</div>
                         <div class="setting-control">
-                            <input type="text" name="feed_schedule_times" value="<?php echo $feedSettings['schedule_times']; ?>" placeholder="08:00,12:00,16:00,20:00" style="width:200px;">
+                            <input type="text" id="feedScheduleTimes" name="feed_schedule_times" value="<?php echo $feedSettings['schedule_times']; ?>" placeholder="08:00,12:00,16:00,20:00" oninput="updateScheduleTags(this.value)">
                         </div>
                     </div>
-                    <div class="schedule-tags">
-                        <span class="schedule-tag"><i class="fas fa-sun"></i> Morning: 08:00</span>
-                        <span class="schedule-tag"><i class="fas fa-cloud-sun"></i> Noon: 12:00</span>
-                        <span class="schedule-tag"><i class="fas fa-cloud"></i> Afternoon: 16:00</span>
-                        <span class="schedule-tag"><i class="fas fa-moon"></i> Evening: 20:00</span>
+                    <div class="schedule-tags" id="scheduleTags">
+                        <?php 
+                        $times = array_map('trim', explode(',', $feedSettings['schedule_times'] ?? '08:00,12:00,16:00,20:00'));
+                        $icons = ['fa-sun', 'fa-cloud-sun', 'fa-cloud', 'fa-moon'];
+                        $labels = ['Morning', 'Noon', 'Afternoon', 'Evening'];
+                        foreach ($times as $index => $time):
+                            if (!empty($time)):
+                        ?>
+                        <span class="schedule-tag"><i class="fas <?php echo $icons[$index % count($icons)]; ?>"></i> <?php echo $labels[$index % count($labels)]; ?>: <?php echo $time; ?></span>
+                        <?php 
+                            endif;
+                        endforeach; 
+                        ?>
                     </div>
                 </div>
 
@@ -523,25 +611,29 @@ $unreadNotifications = 0;
                     <div class="setting-row">
                         <div class="setting-label"><i class="fas fa-arrow-down"></i> Low Level Threshold</div>
                         <div class="setting-control">
-                            <input type="number" step="5" name="pump_low_threshold" value="<?php echo $pumpSettings['low_level_threshold']; ?>"> %
+                            <input type="number" step="5" name="pump_low_threshold" value="<?php echo $pumpSettings['low_level_threshold']; ?>">
+                            <span class="unit">%</span>
                         </div>
                     </div>
                     <div class="setting-row">
                         <div class="setting-label"><i class="fas fa-arrow-up"></i> High Level Threshold</div>
                         <div class="setting-control">
-                            <input type="number" step="5" name="pump_high_threshold" value="<?php echo $pumpSettings['high_level_threshold']; ?>"> %
+                            <input type="number" step="5" name="pump_high_threshold" value="<?php echo $pumpSettings['high_level_threshold']; ?>">
+                            <span class="unit">%</span>
                         </div>
                     </div>
                     <div class="setting-row">
                         <div class="setting-label"><i class="fas fa-hourglass-half"></i> Pump Duration</div>
                         <div class="setting-control">
-                            <input type="number" step="5" name="pump_duration" value="<?php echo $pumpSettings['pump_duration']; ?>"> seconds
+                            <input type="number" step="5" name="pump_duration" value="<?php echo $pumpSettings['pump_duration']; ?>">
+                            <span class="unit">seconds</span>
                         </div>
                     </div>
                     <div class="setting-row">
                         <div class="setting-label"><i class="fas fa-calendar-alt"></i> Schedule Interval</div>
                         <div class="setting-control">
-                            <input type="number" name="pump_schedule_interval" value="<?php echo $pumpSettings['schedule_interval']; ?>"> hours
+                            <input type="number" name="pump_schedule_interval" value="<?php echo $pumpSettings['schedule_interval']; ?>">
+                            <span class="unit">hours</span>
                         </div>
                     </div>
                 </div>
@@ -570,6 +662,26 @@ $unreadNotifications = 0;
         setTimeout(() => toast.style.display = 'none', 3000);
     }
 
+    function updateScheduleTags(value) {
+        const tagsContainer = document.getElementById('scheduleTags');
+        const times = value.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        const labels = ['Morning', 'Noon', 'Afternoon', 'Evening'];
+        const icons = ['fa-sun', 'fa-cloud-sun', 'fa-cloud', 'fa-moon'];
+        
+        if (times.length === 0) {
+            tagsContainer.innerHTML = '<span class="schedule-tag" style="color:var(--text-muted);font-weight:400;">No times set</span>';
+            return;
+        }
+        
+        let html = '';
+        times.forEach((time, index) => {
+            const label = labels[index % labels.length];
+            const icon = icons[index % icons.length];
+            html += `<span class="schedule-tag"><i class="fas ${icon}"></i> ${label}: ${time}</span>`;
+        });
+        tagsContainer.innerHTML = html;
+    }
+
     document.getElementById('settingsForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         const formData = new FormData(this);
@@ -586,10 +698,18 @@ $unreadNotifications = 0;
                 body: formData
             });
             const data = await response.json();
-            if (data.success) { showToast(data.message); setTimeout(() => location.reload(), 1000); }
+            if (data.success) { 
+                showToast(data.message); 
+                setTimeout(() => location.reload(), 1000); 
+            }
             else showToast(data.message, true);
-        } catch (error) { showToast('Error saving settings', true); }
-        finally { saveBtn.innerHTML = '<i class="fas fa-save"></i> Save All Settings'; saveBtn.disabled = false; }
+        } catch (error) { 
+            showToast('Error saving settings', true); 
+        }
+        finally { 
+            saveBtn.innerHTML = '<i class="fas fa-save"></i> Save All Settings'; 
+            saveBtn.disabled = false; 
+        }
     });
 
     document.getElementById('resetBtn').addEventListener('click', async function() {
@@ -604,30 +724,49 @@ $unreadNotifications = 0;
                 body: 'action=reset_defaults'
             });
             const data = await response.json();
-            if (data.success) { showToast(data.message); setTimeout(() => location.reload(), 1000); }
+            if (data.success) { 
+                showToast(data.message); 
+                setTimeout(() => location.reload(), 1000); 
+            }
             else showToast(data.message, true);
-        } catch (error) { showToast('Error resetting settings', true); }
-        finally { resetBtn.innerHTML = '<i class="fas fa-undo-alt"></i> Reset to Defaults'; resetBtn.disabled = false; }
+        } catch (error) { 
+            showToast('Error resetting settings', true); 
+        }
+        finally { 
+            resetBtn.innerHTML = '<i class="fas fa-undo-alt"></i> Reset to Defaults'; 
+            resetBtn.disabled = false; 
+        }
     });
 
-    document.querySelectorAll('input[type="range"]').forEach(range => {
-        range.addEventListener('input', function() { this.nextElementSibling.value = this.value; });
+    document.getElementById('menuToggle').addEventListener('click', function() { 
+        document.getElementById('sidebar').classList.toggle('open'); 
     });
-
-    document.getElementById('menuToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
     
     function updateDateTime() {
         const now = new Date();
         document.getElementById('currentTime').innerText = now.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
         document.getElementById('currentDate').innerText = now.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
     }
-    function openWeatherModal() { document.getElementById('weatherModal').style.display = 'flex'; }
-    function closeWeatherModal() { document.getElementById('weatherModal').style.display = 'none'; }
-    function refreshWeather() { window.location.href = 'automation_settings.php?refresh_weather=1'; }
-    document.getElementById('weatherModal').addEventListener('click', function(e) { if (e.target === this) closeWeatherModal(); });
+    
+    function openWeatherModal() { 
+        document.getElementById('weatherModal').style.display = 'flex'; 
+    }
+    
+    function closeWeatherModal() { 
+        document.getElementById('weatherModal').style.display = 'none'; 
+    }
+    
+    function refreshWeather() { 
+        window.location.href = 'automation_settings.php?refresh_weather=1'; 
+    }
+    
+    document.getElementById('weatherModal').addEventListener('click', function(e) { 
+        if (e.target === this) closeWeatherModal(); 
+    });
 
     setInterval(updateDateTime, 1000);
     updateDateTime();
+    
     window.addEventListener('load', function() {
         const activeMenu = document.querySelector('.sidebar-nav a.active');
         if (activeMenu) activeMenu.scrollIntoView({ behavior: 'auto', block: 'center' });
