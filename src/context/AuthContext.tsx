@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth } from '../api/endpoints/auth';
 import { API_BASE_URL } from '../api/client';
-import { useRouter } from 'expo-router';
+import { useRouter } from 'expo-router'; // ← ADD THIS
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -20,7 +20,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
-  const router = useRouter();
+  const router = useRouter(); // ← ADD THIS
 
   useEffect(() => {
     validateToken();
@@ -29,7 +29,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const validateToken = async (): Promise<boolean> => {
     try {
       const token = await AsyncStorage.getItem('auth_token');
-      console.log('🔍 Token found:', token ? 'Yes' : 'No');
       
       if (!token) {
         setIsAuthenticated(false);
@@ -37,29 +36,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
-      // ✅ Always consider token valid if it exists (for testing)
-      setIsAuthenticated(true);
-      setUser({ username: 'admin' });
-      setIsLoading(false);
-      return true;
-
-      // Uncomment this when backend validation is fully working
-      // try {
-      //   const response = await auth.validate();
-      //   if (response.data.success) {
-      //     setIsAuthenticated(true);
-      //     setUser(response.data.user || { username: 'admin' });
-      //     setIsLoading(false);
-      //     return true;
-      //   }
-      // } catch (error) {
-      //   console.log('Token validation failed');
-      // }
+      try {
+        const response = await auth.validate();
+        if (response.data.success) {
+          setIsAuthenticated(true);
+          setUser(response.data.user || { username: 'admin' });
+          setIsLoading(false);
+          // ✅ Redirect to home if already authenticated
+          router.replace('/(tabs)/home');
+          return true;
+        }
+      } catch (error) {
+        console.log('Token validation failed, clearing token');
+      }
       
-      // await AsyncStorage.removeItem('auth_token');
-      // setIsAuthenticated(false);
-      // setIsLoading(false);
-      // return false;
+      await AsyncStorage.removeItem('auth_token');
+      setIsAuthenticated(false);
+      setIsLoading(false);
+      return false;
     } catch (error) {
       console.error('Validation error:', error);
       setIsAuthenticated(false);
@@ -71,10 +65,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (username: string, password: string) => {
     setIsLoading(true);
     try {
-      console.log('🔐 Attempting login...');
+      const url = `${API_BASE_URL}/auth/login`;
+      console.log('========================================');
+      console.log('🔐 LOGIN ATTEMPT');
+      console.log('📍 URL:', url);
+      console.log('👤 Username:', username);
+      console.log('========================================');
       
       const response = await auth.login(username, password);
-      console.log('📥 Login response:', response.data);
+      
+      console.log('📥 Response:', response.data);
       
       if (response.data.success) {
         const { token, user } = response.data;
@@ -82,13 +82,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(user);
         setIsAuthenticated(true);
         console.log('✅ Login successful!');
+        
+        // ✅ REDIRECT TO HOME AFTER LOGIN
         router.replace('/(tabs)/home');
       } else {
         throw new Error(response.data.message || 'Login failed');
       }
     } catch (error: any) {
       console.error('❌ Login error:', error);
-      throw new Error(error.message || 'Login failed');
+      
+      let errorMessage = 'Network error. Please check your connection.';
+      
+      if (error.code === 'ECONNABORTED') {
+        errorMessage = 'Connection timeout. Server is not responding.';
+      } else if (error.message?.includes('Network Error')) {
+        errorMessage = `Cannot reach server at ${API_BASE_URL}`;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -103,6 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await AsyncStorage.removeItem('auth_token');
     setIsAuthenticated(false);
     setUser(null);
+    // ✅ Redirect to login after logout
     router.replace('/login');
   };
 
