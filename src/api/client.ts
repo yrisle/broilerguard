@@ -3,14 +3,13 @@ import axios from "axios";
 import { Platform } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Get the server IP - CHANGE THIS TO YOUR SERVER IP
-const SERVER_IP = "192.168.0.154"; // Change to your actual server IP
+// ✅ USE YOUR PC'S IP ADDRESS (from ipconfig)
+const SERVER_IP = "192.168.0.154"; // ← CHANGE THIS
 
-// Base URL for API
 const getBaseUrl = () => {
-  // For Android Emulator
+  // For Android Emulator - use PC's IP instead of 10.0.2.2
   if (Platform.OS === "android") {
-    return `http://10.0.2.2/broilerguard/api`;
+    return `http://${SERVER_IP}/broilerguard/api`; // ← USE IP
   }
   
   // For iOS Simulator
@@ -20,33 +19,25 @@ const getBaseUrl = () => {
   
   // For Web
   if (Platform.OS === "web") {
-    if (typeof window !== "undefined") {
-      const hostname = window.location.hostname;
-      if (hostname === "localhost" || hostname === "127.0.0.1") {
-        return `http://localhost/broilerguard/api`;
-      }
-      return `http://${hostname}/broilerguard/api`;
-    }
     return `http://localhost/broilerguard/api`;
   }
   
-  // For physical device - use your server IP
+  // For physical device
   return `http://${SERVER_IP}/broilerguard/api`;
 };
 
 export const API_BASE_URL = getBaseUrl();
 
-console.log("API Base URL:", API_BASE_URL);
+console.log("🔗 API Base URL:", API_BASE_URL);
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 30000,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Request interceptor to add token
 api.interceptors.request.use(
   async (config) => {
     try {
@@ -54,26 +45,16 @@ api.interceptors.request.use(
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
-    } catch (error) {
-      // Ignore storage errors
-    }
+    } catch (error) {}
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      try {
-        await AsyncStorage.removeItem("auth_token");
-        // You might want to trigger a logout event here
-      } catch {
-        // Ignore storage errors
-      }
-    }
+    console.log("❌ API Error:", error.message);
     return Promise.reject(error);
   }
 );
