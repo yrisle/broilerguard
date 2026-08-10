@@ -4,7 +4,7 @@ import { Platform } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Get the server IP - CHANGE THIS TO YOUR SERVER IP
-const SERVER_IP = "192.168.1.100"; // Change to your actual server IP
+const SERVER_IP = "192.168.0.154"; // Change to your actual server IP
 
 // Base URL for API
 const getBaseUrl = () => {
