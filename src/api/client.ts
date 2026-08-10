@@ -3,18 +3,22 @@ import axios from "axios";
 import { Platform } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// ✅ USE YOUR PC'S IP ADDRESS (from ipconfig)
-const SERVER_IP = "192.168.0.154"; // ← CHANGE THIS
+// ============================================
+// 🔧 PALITAN ITO - ILAGAY ANG NGROK URL MO
+// ============================================
+const NGROK_URL = "https://abc123.ngrok.app"; // ← PALITAN ITO
 
 const getBaseUrl = () => {
-  // For Android Emulator - use PC's IP instead of 10.0.2.2
+  // For Android Emulator
   if (Platform.OS === "android") {
-    return `http://10.0.2.2/broilerguard/api`; // ← USE IP
+    // Pwedeng gamitin ang 10.0.2.2 or ngrok
+    return `${NGROK_URL}/broilerguard/api`;
+    // return `http://10.0.2.2/broilerguard/api`;
   }
   
   // For iOS Simulator
   if (Platform.OS === "ios") {
-    return `http://localhost/broilerguard/api`;
+    return `${NGROK_URL}/broilerguard/api`;
   }
   
   // For Web
@@ -22,13 +26,15 @@ const getBaseUrl = () => {
     return `http://localhost/broilerguard/api`;
   }
   
-  // For physical device
-  return `http://${SERVER_IP}/broilerguard/api`;
+  // For Physical Device
+  return `${NGROK_URL}/broilerguard/api`;
 };
 
 export const API_BASE_URL = getBaseUrl();
 
+console.log("========================================");
 console.log("🔗 API Base URL:", API_BASE_URL);
+console.log("========================================");
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -38,6 +44,7 @@ export const api = axios.create({
   },
 });
 
+// Request interceptor - add token
 api.interceptors.request.use(
   async (config) => {
     try {
@@ -45,16 +52,35 @@ api.interceptors.request.use(
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
-    } catch (error) {}
+    } catch (error) {
+      console.log("Token error:", error);
+    }
+    console.log("📤 Request:", config.method?.toUpperCase(), config.url);
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.log("📤 Request Error:", error);
+    return Promise.reject(error);
+  }
 );
 
+// Response interceptor - handle errors
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log("📥 Response:", response.status, response.config.url);
+    return response;
+  },
   async (error) => {
-    console.log("❌ API Error:", error.message);
+    console.log("❌ Response Error:", error.message);
+    console.log("❌ URL:", error.config?.url);
+    console.log("❌ BaseURL:", error.config?.baseURL);
+    
+    if (error.response?.status === 401) {
+      try {
+        await AsyncStorage.removeItem("auth_token");
+      } catch {}
+    }
+    
     return Promise.reject(error);
   }
 );
