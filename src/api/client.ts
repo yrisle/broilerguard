@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // ============================================
 // 🔧 PALITAN ITO - ILAGAY ANG NGROK URL MO
 // ============================================
-const NGROK_URL = "https://abc123.ngrok.app"; // ← PALITAN ITO
+const NGROK_URL = "https://deltoidal-nonregeneratively-florance.ngrok-free.dev"; // ← PALITAN ITO
 
 const getBaseUrl = () => {
   // For Android Emulator
