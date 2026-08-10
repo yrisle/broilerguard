@@ -9,7 +9,7 @@ const SERVER_IP = "192.168.0.154"; // ← CHANGE THIS
 const getBaseUrl = () => {
   // For Android Emulator - use PC's IP instead of 10.0.2.2
   if (Platform.OS === "android") {
-    return `http://${SERVER_IP}/broilerguard/api`; // ← USE IP
+    return `http://10.0.2.2/broilerguard/api`; // ← USE IP
   }
   
   // For iOS Simulator
