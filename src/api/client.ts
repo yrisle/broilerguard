@@ -1,64 +1,46 @@
 // src/api/client.ts
 import axios from "axios";
-import Constants from "expo-constants";
 import { Platform } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const envBaseUrl = (process.env.EXPO_PUBLIC_API_BASE_URL || "").trim();
-const shouldLogNetworkErrors =
-  (process.env.EXPO_PUBLIC_API_DEBUG || "").toLowerCase() === "true";
+// Get the server IP - CHANGE THIS TO YOUR SERVER IP
+const SERVER_IP = "192.168.1.100"; // Change to your actual server IP
 
-// SIMPLIFIED: Get Expo local host
-const getExpoLocalHost = (): string | undefined => {
-  try {
-    // Get debugger host from Constants
-    const debuggerHost = Constants.expoConfig?.hostUri;
-    if (debuggerHost) {
-      const host = debuggerHost.split(":")[0];
-      return host?.trim() || undefined;
-    }
-    return undefined;
-  } catch (error) {
-    return undefined;
-  }
-};
-
-// SIMPLIFIED: Get base URL
-const getFallbackBaseUrl = () => {
-  // If env URL is set, use it
-  if (envBaseUrl) {
-    return envBaseUrl;
-  }
-
-  // CHANGE THIS TO YOUR PHP SERVER URL
-  const serverUrl = "http://192.168.1.100"; // Replace with your server IP
-
+// Base URL for API
+const getBaseUrl = () => {
   // For Android Emulator
   if (Platform.OS === "android") {
-    // Use 10.0.2.2 for Android emulator to access host machine
-    return "http://10.0.2.2/broilerguard/api";
+    return `http://10.0.2.2/broilerguard/api`;
   }
-
+  
   // For iOS Simulator
   if (Platform.OS === "ios") {
-    return "http://localhost/broilerguard/api";
+    return `http://localhost/broilerguard/api`;
   }
-
+  
   // For Web
   if (Platform.OS === "web") {
-    const isBrowser = typeof window !== "undefined";
-    const hostname = isBrowser ? window.location.hostname : "localhost";
-    return `http://${hostname}/broilerguard/api`;
+    if (typeof window !== "undefined") {
+      const hostname = window.location.hostname;
+      if (hostname === "localhost" || hostname === "127.0.0.1") {
+        return `http://localhost/broilerguard/api`;
+      }
+      return `http://${hostname}/broilerguard/api`;
+    }
+    return `http://localhost/broilerguard/api`;
   }
-
-  // Fallback for physical device - use your server IP
-  return `${serverUrl}/broilerguard/api`;
+  
+  // For physical device - use your server IP
+  return `http://${SERVER_IP}/broilerguard/api`;
 };
 
-export const API_BASE_URL = getFallbackBaseUrl().replace(/\/+$/, "");
+export const API_BASE_URL = getBaseUrl();
+
+console.log("API Base URL:", API_BASE_URL);
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 15000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -68,18 +50,16 @@ export const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     try {
-      // Use AsyncStorage for React Native
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
       const token = await AsyncStorage.getItem("auth_token");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
-    } catch {
-      // ignore storage access issues
+    } catch (error) {
+      // Ignore storage errors
     }
     return config;
   },
-  (error) => Promise.reject(error),
+  (error) => Promise.reject(error)
 );
 
 // Response interceptor for error handling
@@ -88,22 +68,14 @@ api.interceptors.response.use(
   async (error) => {
     if (error.response?.status === 401) {
       try {
-        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
         await AsyncStorage.removeItem("auth_token");
+        // You might want to trigger a logout event here
       } catch {
-        // ignore storage access issues
+        // Ignore storage errors
       }
     }
-
-    if (!error.response && shouldLogNetworkErrors) {
-      console.warn("API network error", {
-        baseURL: API_BASE_URL,
-        message: error.message,
-      });
-    }
-
     return Promise.reject(error);
-  },
+  }
 );
 
 export default api;

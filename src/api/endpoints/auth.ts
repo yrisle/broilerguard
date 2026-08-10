@@ -14,4 +14,4 @@ export const auth = {
     new_password: string;
     confirm_password: string;
   }) => api.post("/auth/change-password", data),
-};
+};  
