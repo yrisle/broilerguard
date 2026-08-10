@@ -8,17 +8,18 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
+  ScrollView,
 } from "react-native";
 import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/hooks/useTheme";
+import { API_BASE_URL } from "../src/api/client";
 
 export default function LoginScreen() {
   const { colors } = useTheme();
   const { login, isLoading } = useAuth();
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("broilerguard2025");
+  const [debugInfo, setDebugInfo] = useState("");
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -26,68 +27,65 @@ export default function LoginScreen() {
       return;
     }
 
+    setDebugInfo(`🔄 Connecting to: ${API_BASE_URL}/auth/login`);
+
     try {
       await login(username.trim(), password.trim());
+      setDebugInfo("✅ Login successful!");
     } catch (error: any) {
-      Alert.alert("Login Failed", error.message || "Invalid credentials");
+      console.error("Login error:", error);
+      setDebugInfo(`❌ Error: ${error.message || "Unknown error"}`);
+      
+      Alert.alert(
+        "Login Failed", 
+        error.message || "Invalid credentials",
+        [{ text: "OK" }]
+      );
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <View style={styles.content}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.logo}>🐔</Text>
           <Text style={[styles.title, { color: colors.text }]}>BroilerGuard</Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Smart Poultry Management System
+            Smart Poultry Management
           </Text>
         </View>
 
         <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Username</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                  color: colors.text,
-                },
-              ]}
-              placeholder="Enter username"
-              placeholderTextColor={colors.textMuted}
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!isLoading}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Password</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                  color: colors.text,
-                },
-              ]}
-              placeholder="Enter password"
-              placeholderTextColor={colors.textMuted}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              editable={!isLoading}
-            />
-          </View>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
+            placeholder="Username"
+            placeholderTextColor={colors.textMuted}
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+          />
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
+            placeholder="Password"
+            placeholderTextColor={colors.textMuted}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
 
           <TouchableOpacity
             style={[
@@ -105,12 +103,27 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
+          {/* Debug Info */}
+          <View style={[styles.debugBox, { backgroundColor: colors.card }]}>
+            <Text style={[styles.debugLabel, { color: colors.textSecondary }]}>
+              🔗 API URL:
+            </Text>
+            <Text style={[styles.debugText, { color: colors.textMuted }]}>
+              {API_BASE_URL}
+            </Text>
+            {debugInfo ? (
+              <Text style={[styles.debugText, { color: colors.primary, marginTop: 4 }]}>
+                {debugInfo}
+              </Text>
+            ) : null}
+          </View>
+
           <Text style={[styles.footerText, { color: colors.textMuted }]}>
-            Demo credentials: admin / broilerguard2025
+            Demo: admin / broilerguard2025
           </Text>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -118,10 +131,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: "center",
-    paddingHorizontal: 24,
+    padding: 24,
   },
   header: {
     alignItems: "center",
@@ -143,20 +156,13 @@ const styles = StyleSheet.create({
   form: {
     width: "100%",
   },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "500",
-    marginBottom: 6,
-  },
   input: {
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
+    marginBottom: 12,
   },
   loginBtn: {
     borderRadius: 12,
@@ -172,9 +178,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
   },
+  debugBox: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 8,
+  },
+  debugLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+  debugText: {
+    fontSize: 12,
+  },
   footerText: {
     textAlign: "center",
-    marginTop: 24,
+    marginTop: 16,
     fontSize: 12,
   },
 });
