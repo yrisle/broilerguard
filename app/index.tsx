@@ -26,11 +26,13 @@ function RootLayout() {
     );
   }
 
-  if (!isAuthenticated) {
-    return <Redirect href="/login" />;
+  // ✅ If authenticated, go to home
+  if (isAuthenticated) {
+    return <Redirect href="/(tabs)/home" />;
   }
 
-  return <Redirect href="/(tabs)/home" />;
+  // ✅ If not authenticated, go to login
+  return <Redirect href="/login" />;
 }
 
 export default function App() {

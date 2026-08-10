@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth } from '../api/endpoints/auth';
 import { API_BASE_URL } from '../api/client';
+import { useRouter } from 'expo-router'; // ← ADD THIS
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -19,6 +20,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const router = useRouter(); // ← ADD THIS
 
   useEffect(() => {
     validateToken();
@@ -40,6 +42,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsAuthenticated(true);
           setUser(response.data.user || { username: 'admin' });
           setIsLoading(false);
+          // ✅ Redirect to home if already authenticated
+          router.replace('/(tabs)/home');
           return true;
         }
       } catch (error) {
@@ -61,12 +65,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (username: string, password: string) => {
     setIsLoading(true);
     try {
-      console.log('🔐 Attempting login to:', API_BASE_URL + '/auth/login');
+      const url = `${API_BASE_URL}/auth/login`;
+      console.log('========================================');
+      console.log('🔐 LOGIN ATTEMPT');
+      console.log('📍 URL:', url);
       console.log('👤 Username:', username);
+      console.log('========================================');
       
       const response = await auth.login(username, password);
       
-      console.log('📥 Login response:', response.data);
+      console.log('📥 Response:', response.data);
       
       if (response.data.success) {
         const { token, user } = response.data;
@@ -74,6 +82,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(user);
         setIsAuthenticated(true);
         console.log('✅ Login successful!');
+        
+        // ✅ REDIRECT TO HOME AFTER LOGIN
+        router.replace('/(tabs)/home');
       } else {
         throw new Error(response.data.message || 'Login failed');
       }
@@ -85,7 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error.code === 'ECONNABORTED') {
         errorMessage = 'Connection timeout. Server is not responding.';
       } else if (error.message?.includes('Network Error')) {
-        errorMessage = `Cannot reach server at ${API_BASE_URL}. Make sure:\n1. PC and phone are on same WiFi\n2. XAMPP is running\n3. Firewall is disabled`;
+        errorMessage = `Cannot reach server at ${API_BASE_URL}`;
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
@@ -107,6 +118,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await AsyncStorage.removeItem('auth_token');
     setIsAuthenticated(false);
     setUser(null);
+    // ✅ Redirect to login after logout
+    router.replace('/login');
   };
 
   return (
