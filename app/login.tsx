@@ -1,6 +1,6 @@
-// app/login.tsx
+// app/login.tsx - i-update para maiwasan ang auto-login
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -11,17 +11,76 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/hooks/useTheme";
 
-export default function LoginScreen({ navigation }: any) {
+export default function LoginScreen() {
   const { colors } = useTheme();
+  const { login, isLoading, isAuthenticated } = useAuth();
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("broilerguard2025");
-  const [isLoading, setIsLoading] = useState(false);
   const [debugInfo, setDebugInfo] = useState("");
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  const API_URL =
-    "https://deltoidal-nonregeneratively-florance.ngrok-free.dev/broilerguard/api";
+  // ✅ Check if already authenticated
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = await AsyncStorage.getItem("auth_token");
+        if (token) {
+          // If has token, let AuthContext handle it
+          setIsCheckingAuth(false);
+        } else {
+          setIsCheckingAuth(false);
+        }
+      } catch (error) {
+        setIsCheckingAuth(false);
+      }
+    };
+    checkAuth();
+  }, []);
+
+  // ✅ If still checking, show loading
+  if (isCheckingAuth) {
+    return (
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: colors.background,
+            justifyContent: "center",
+            alignItems: "center",
+          },
+        ]}
+      >
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 20, color: colors.text }}>
+          Checking authentication...
+        </Text>
+      </View>
+    );
+  }
+
+  // ✅ If already authenticated, don't show login
+  if (isAuthenticated) {
+    return (
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: colors.background,
+            justifyContent: "center",
+            alignItems: "center",
+          },
+        ]}
+      >
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 20, color: colors.text }}>
+          Already logged in...
+        </Text>
+      </View>
+    );
+  }
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -29,136 +88,15 @@ export default function LoginScreen({ navigation }: any) {
       return;
     }
 
-    setIsLoading(true);
-    setDebugInfo("🔄 Starting login process...");
+    setDebugInfo("🔄 Logging in...");
 
     try {
-      const url = `${API_URL}/auth/login.php`;
-      console.log("========================================");
-      console.log("🔐 LOGIN ATTEMPT");
-      console.log("📍 URL:", url);
-      console.log("👤 Username:", username);
-      console.log("🔑 Password:", password);
-      console.log("========================================");
-
-      setDebugInfo(`📤 POST to: ${url}`);
-
-      // ✅ TRY 1: POST with JSON
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          username: username.trim(),
-          password: password.trim(),
-        }),
-      });
-
-      console.log("📥 Response status:", response.status);
-      setDebugInfo(`📥 Status: ${response.status}`);
-
-      // Get raw response
-      const responseText = await response.text();
-      console.log("📥 Raw response:", responseText);
-      setDebugInfo(`📥 Raw: ${responseText.substring(0, 100)}...`);
-
-      // Parse JSON
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (e: any) {
-        console.error("❌ JSON Parse error:", e);
-        setDebugInfo(`❌ Parse error: ${e.message}`);
-
-        // Show raw response in alert for debugging
-        Alert.alert(
-          "Invalid Response",
-          `Server returned:\n${responseText.substring(0, 200)}`,
-        );
-        setIsLoading(false);
-        return;
-      }
-
-      console.log("📥 Parsed data:", data);
-      setDebugInfo(`📥 Data: ${JSON.stringify(data).substring(0, 100)}`);
-
-      if (data.success) {
-        // Save token
-        await AsyncStorage.setItem("auth_token", data.token);
-        if (data.user) {
-          await AsyncStorage.setItem("user", JSON.stringify(data.user));
-        }
-
-        setDebugInfo("✅ Login successful!");
-        Alert.alert("Success", "Logged in successfully!");
-        navigation.replace("Main");
-      } else {
-        setDebugInfo(`❌ Login failed: ${data.message || "Unknown error"}`);
-        Alert.alert("Login Failed", data.message || "Invalid credentials");
-      }
+      await login(username.trim(), password.trim());
+      setDebugInfo("✅ Login successful!");
     } catch (error: any) {
-      console.error("❌ Login error:", error);
-      setDebugInfo(`❌ Error: ${error.message}`);
-
-      // ✅ TRY 2: GET method as fallback
-      try {
-        setDebugInfo("🔄 Trying GET method...");
-        const getUrl = `${API_URL}/auth/login.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
-        console.log("📍 GET URL:", getUrl);
-
-        const getResponse = await fetch(getUrl);
-        const getText = await getResponse.text();
-        console.log("📥 GET raw:", getText);
-        setDebugInfo(`📥 GET: ${getText.substring(0, 100)}...`);
-
-        const getData = JSON.parse(getText);
-        console.log("📥 GET parsed:", getData);
-
-        if (getData.success) {
-          await AsyncStorage.setItem("auth_token", getData.token);
-          if (getData.user) {
-            await AsyncStorage.setItem("user", JSON.stringify(getData.user));
-          }
-          setDebugInfo("✅ GET login successful!");
-          Alert.alert("Success", "Logged in successfully!");
-          navigation.replace("Main");
-          return;
-        }
-      } catch (getError: any) {
-        console.error("❌ GET also failed:", getError);
-        setDebugInfo(`❌ GET failed: ${getError.message}`);
-      }
-
-      Alert.alert(
-        "Connection Error",
-        `Failed to connect to server.\n\nError: ${error.message}\n\nPlease check:\n1. Internet connection\n2. Ngrok is running\n3. Backend is started`,
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const testConnection = async () => {
-    try {
-      setDebugInfo("🔄 Testing connection...");
-      const url = `${API_URL}/test-connection.php`;
-      console.log("📍 Test URL:", url);
-
-      const response = await fetch(url);
-      const text = await response.text();
-      console.log("📥 Test response:", text);
-      setDebugInfo(`✅ Connection OK`);
-
-      Alert.alert(
-        "Connection Test",
-        `✅ Server is reachable!\n\nResponse:\n${text.substring(0, 200)}`,
-      );
-    } catch (error: any) {
-      console.error("❌ Test failed:", error);
-      setDebugInfo(`❌ Test failed: ${error.message}`);
-      Alert.alert("Connection Failed", error.message);
+      console.error("Login error:", error);
+      setDebugInfo(`❌ Error: ${error.message || "Unknown error"}`);
+      Alert.alert("Login Failed", error.message || "Invalid credentials");
     }
   };
 
@@ -223,35 +161,13 @@ export default function LoginScreen({ navigation }: any) {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.testBtn, { borderColor: colors.border }]}
-            onPress={testConnection}
-            disabled={isLoading}
-          >
-            <Text style={[styles.testBtnText, { color: colors.textMuted }]}>
-              🔗 Test Connection
-            </Text>
-          </TouchableOpacity>
-
-          {/* Debug Info */}
-          <View style={[styles.debugBox, { backgroundColor: colors.card }]}>
-            <Text style={[styles.debugLabel, { color: colors.textSecondary }]}>
-              🔗 API URL:
-            </Text>
-            <Text style={[styles.debugText, { color: colors.textMuted }]}>
-              {API_URL}
-            </Text>
-            {debugInfo ? (
-              <Text
-                style={[
-                  styles.debugText,
-                  { color: colors.primary, marginTop: 4 },
-                ]}
-              >
+          {debugInfo ? (
+            <View style={[styles.debugBox, { backgroundColor: colors.card }]}>
+              <Text style={[styles.debugText, { color: colors.primary }]}>
                 {debugInfo}
               </Text>
-            ) : null}
-          </View>
+            </View>
+          ) : null}
 
           <Text style={[styles.footerText, { color: colors.textMuted }]}>
             Demo: admin / broilerguard2025
@@ -313,29 +229,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
   },
-  testBtn: {
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: "center",
-    marginTop: 8,
-    borderWidth: 1,
-  },
-  testBtnText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
   debugBox: {
     marginTop: 16,
     padding: 12,
     borderRadius: 8,
   },
-  debugLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    marginBottom: 2,
-  },
   debugText: {
     fontSize: 12,
+    textAlign: "center",
   },
   footerText: {
     textAlign: "center",

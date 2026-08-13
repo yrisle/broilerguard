@@ -3,6 +3,7 @@ import { FontAwesome5 } from "@expo/vector-icons";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -40,10 +41,12 @@ const STORAGE_KEYS = {
 
 function SettingsScreen() {
   const { colors } = useTheme();
-  const { logout } = useAuth(); // ✅ Get logout function
+  const { logout, user } = useAuth();
+  const router = useRouter();
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Profile states
   const [isEditing, setIsEditing] = useState(false);
@@ -71,7 +74,6 @@ function SettingsScreen() {
 
   const loadSavedData = async () => {
     try {
-      // Load profile from AsyncStorage
       const savedProfile = await AsyncStorage.getItem(STORAGE_KEYS.PROFILE);
       if (savedProfile) {
         const parsedProfile = JSON.parse(savedProfile);
@@ -79,7 +81,6 @@ function SettingsScreen() {
         setEditedProfile(parsedProfile);
       }
 
-      // Load preferences
       const savedNotifications = await AsyncStorage.getItem(
         STORAGE_KEYS.NOTIFICATIONS,
       );
@@ -126,7 +127,6 @@ function SettingsScreen() {
 
   const handlePickImage = async () => {
     try {
-      // Request permission
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
@@ -158,7 +158,6 @@ function SettingsScreen() {
   };
 
   const handleSaveProfile = async () => {
-    // Validate fields
     if (!editedProfile.name.trim()) {
       Alert.alert("Error", "Name is required");
       return;
@@ -170,19 +169,14 @@ function SettingsScreen() {
 
     try {
       setLoading(true);
-
-      // Save to AsyncStorage (persistent)
       await AsyncStorage.setItem(
         STORAGE_KEYS.PROFILE,
         JSON.stringify(editedProfile),
       );
-
-      // Update state
       setProfile(editedProfile);
       setIsEditing(false);
       setTempAvatar(null);
 
-      // Try to save to API if available
       try {
         const response = await api.put("/user/profile", editedProfile);
         if (response.data.success) {
@@ -210,7 +204,6 @@ function SettingsScreen() {
 
   const handleSaveSettings = async () => {
     try {
-      // Save preferences to AsyncStorage
       await AsyncStorage.setItem(
         STORAGE_KEYS.NOTIFICATIONS,
         JSON.stringify(notifications),
@@ -219,15 +212,13 @@ function SettingsScreen() {
         STORAGE_KEYS.AUTO_REFRESH,
         JSON.stringify(autoRefresh),
       );
-
       Alert.alert("Success", "Settings saved successfully!");
     } catch (error) {
       Alert.alert("Error", "Failed to save settings");
     }
   };
 
-  // ✅ LOGOUT FUNCTION
-
+  // ✅ FIXED LOGOUT FUNCTION - no router.replace here, just call logout
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
       {
@@ -239,11 +230,24 @@ function SettingsScreen() {
         style: "destructive",
         onPress: async () => {
           try {
-            // ✅ Use the logout function from AuthContext
+            setIsLoggingOut(true);
+
+            // ✅ Call logout from AuthContext - it handles navigation
             await logout();
+
+            // ✅ AuthContext will handle navigation to login
           } catch (error) {
             console.error("Logout error:", error);
-            Alert.alert("Error", "Failed to logout. Please try again.");
+
+            // ✅ Force logout if AuthContext fails
+            try {
+              await AsyncStorage.multiRemove(["auth_token", "user"]);
+              router.replace("/login");
+            } catch (e) {
+              console.error("Force logout failed:", e);
+            }
+          } finally {
+            setIsLoggingOut(false);
           }
         },
       },
@@ -306,7 +310,6 @@ function SettingsScreen() {
         </View>
 
         {!isEditing ? (
-          // View Mode
           <View
             style={[
               styles.profileCard,
@@ -391,7 +394,6 @@ function SettingsScreen() {
             </View>
           </View>
         ) : (
-          // Edit Mode
           <View
             style={[
               styles.profileCard,
@@ -648,6 +650,7 @@ function SettingsScreen() {
           ]}
           onPress={handleLogout}
           activeOpacity={0.7}
+          disabled={isLoggingOut}
         >
           <View style={styles.logoutContent}>
             <View style={styles.logoutIconContainer}>
@@ -664,17 +667,25 @@ function SettingsScreen() {
                   { color: colors.danger || "#FF4444" },
                 ]}
               >
-                Logout
+                {isLoggingOut ? "Logging out..." : "Logout"}
               </Text>
               <Text style={[styles.logoutDesc, { color: colors.textMuted }]}>
-                Sign out from your account
+                {isLoggingOut ? "Please wait..." : "Sign out from your account"}
               </Text>
             </View>
-            <Ionicons
-              name="chevron-forward-outline"
-              size={20}
-              color={colors.textMuted}
-            />
+            {!isLoggingOut && (
+              <Ionicons
+                name="chevron-forward-outline"
+                size={20}
+                color={colors.textMuted}
+              />
+            )}
+            {isLoggingOut && (
+              <ActivityIndicator
+                size="small"
+                color={colors.danger || "#FF4444"}
+              />
+            )}
           </View>
         </TouchableOpacity>
       </View>
@@ -903,7 +914,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
-  // ✅ Logout styles
   logoutCard: {
     borderRadius: 12,
     padding: 16,
