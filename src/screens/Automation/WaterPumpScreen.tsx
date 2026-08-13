@@ -69,7 +69,6 @@ function WaterPumpScreen() {
     const newStatus = currentStatus === "ON" ? "OFF" : "ON";
     try {
       await api.post("/automation/pump", {
-        action: "toggle",
         status: newStatus,
       });
       fetchData();

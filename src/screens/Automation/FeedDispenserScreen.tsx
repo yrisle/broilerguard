@@ -15,7 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { api } from "../../api/client";
+import api from "../../api/client";
 import { useTheme } from "../../hooks/useTheme";
 
 const FeedDispenserScreen = () => {
@@ -111,7 +111,7 @@ const FeedDispenserScreen = () => {
       console.log("🔄 Toggling auto mode to:", newMode);
 
       const response = await api.post("/automation/feeder", {
-        action: "settings", // or "toggle_auto"
+        // or "toggle_auto"
         auto_mode: newMode,
       });
 
