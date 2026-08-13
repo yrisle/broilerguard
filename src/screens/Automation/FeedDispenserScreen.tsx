@@ -75,18 +75,31 @@ const FeedDispenserScreen = () => {
     }
 
     try {
+      console.log("🔄 Refilling feed:", amount);
+
       const response = await api.post("/automation/feeder", {
         action: "refill",
-        amount,
+        amount: amount,
       });
+
+      console.log("📥 Response:", response.data);
+
       if (response.data.success) {
         Alert.alert("Success", `Added ${amount} kg of feed`);
         setRefillModalVisible(false);
         setRefillAmount("");
-        fetchData();
+        fetchData(); // Refresh data
+      } else {
+        Alert.alert("Error", response.data.message || "Failed to refill feed");
       }
-    } catch (error) {
-      Alert.alert("Error", "Failed to refill feed");
+    } catch (error: any) {
+      console.error("❌ Refill error:", error);
+      console.error("❌ Response:", error.response?.data);
+
+      Alert.alert(
+        "Error",
+        error.response?.data?.message || "Failed to refill feed",
+      );
     }
   };
 
