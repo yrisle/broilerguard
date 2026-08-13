@@ -27,6 +27,31 @@ console.log("========================================");
 console.log("🔗 API Base URL:", API_BASE_URL);
 console.log("========================================");
 
+// ✅ Helper function to add .php extension
+const addPhpExtension = (url: string): string => {
+  // Skip if URL already has .php
+  if (url.includes(".php")) {
+    return url;
+  }
+
+  // Skip if URL has query string with .php
+  const parts = url.split("?");
+  let path = parts[0];
+  const query = parts[1] || "";
+
+  // Remove trailing slash
+  path = path.replace(/\/$/, "");
+
+  // Skip if path is empty
+  if (!path || path === "/") {
+    return url;
+  }
+
+  // Add .php extension
+  const newPath = path + ".php";
+  return query ? `${newPath}?${query}` : newPath;
+};
+
 // ✅ CREATE AXIOS INSTANCE
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -41,12 +66,20 @@ const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     try {
+      // Add auth token
       const token = await AsyncStorage.getItem("auth_token");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (error) {
       console.log("Token error:", error);
+    }
+
+    // ✅ ADD .php EXTENSION
+    if (config.url) {
+      const originalUrl = config.url;
+      config.url = addPhpExtension(originalUrl);
+      console.log("🔄 URL:", originalUrl, "→", config.url);
     }
 
     console.log("📤 Request:", config.method?.toUpperCase(), config.url);

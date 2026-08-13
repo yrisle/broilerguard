@@ -1,6 +1,7 @@
 // src/screens/Automation/WaterPumpScreen.tsx
 import { FontAwesome5 } from "@expo/vector-icons";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -14,7 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import api from "../../api/client";
+import { API_BASE_URL } from "../../api/client";
 import { useTheme } from "../../hooks/useTheme";
 
 function WaterPumpScreen() {
@@ -25,23 +26,58 @@ function WaterPumpScreen() {
   const [autoMode, setAutoMode] = useState(true);
   const [customDuration, setCustomDuration] = useState("30");
 
+  // ✅ Helper function for API calls
+  const apiFetch = async (endpoint: string, options: any = {}) => {
+    try {
+      const token = await AsyncStorage.getItem("auth_token");
+      const url = `${API_BASE_URL}${endpoint}`;
+
+      console.log("📤 API Fetch:", url);
+
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: token ? `Bearer ${token}` : "",
+          ...options.headers,
+        },
+      });
+
+      const text = await response.text();
+      console.log("📥 Raw response:", text);
+
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        console.error("❌ JSON Parse error:", e);
+        return { success: false, message: "Invalid response from server" };
+      }
+    } catch (error: any) {
+      console.error("❌ API Fetch error:", error);
+      return { success: false, message: error.message || "Network error" };
+    }
+  };
+
   const fetchData = async () => {
     try {
       console.log("📥 Fetching pump data...");
-      const response = await api.get("/automation/pump");
-      console.log("📥 Pump response:", response.data);
+      const data = await apiFetch("/automation/pump.php", {
+        method: "GET",
+      });
 
-      if (response.data.success) {
-        setData(response.data.data);
-        if (response.data.data?.settings?.auto_mode !== undefined) {
-          setAutoMode(response.data.data.settings.auto_mode);
+      console.log("📥 Pump response:", data);
+
+      if (data.success) {
+        setData(data.data);
+        if (data.data?.settings?.auto_mode !== undefined) {
+          setAutoMode(data.data.settings.auto_mode);
         }
       } else {
         console.error("❌ API returned success: false");
       }
     } catch (error: any) {
       console.error("❌ Error fetching pump data:", error);
-      console.error("❌ Response:", error.response?.data);
       Alert.alert("Error", "Failed to load pump data. Please pull to refresh.");
     } finally {
       setLoading(false);
@@ -62,29 +98,22 @@ function WaterPumpScreen() {
     try {
       console.log("🔄 Releasing water:", duration);
 
-      let response;
-      // Try multiple API formats
-      try {
-        response = await api.post("/automation/pump/release", { duration });
-      } catch {
-        response = await api.post("/automation/pump", {
+      const data = await apiFetch("/automation/pump.php", {
+        method: "POST",
+        body: JSON.stringify({
           action: "water",
           duration,
-        });
-      }
+        }),
+      });
 
-      console.log("📥 Water release response:", response.data);
+      console.log("📥 Water release response:", data);
 
-      if (response.data.success) {
-        const amount =
-          response.data.data?.amount || (duration * 0.5).toFixed(1);
+      if (data.success) {
+        const amount = data.data?.amount || (duration * 0.5).toFixed(1);
         Alert.alert("Success", `Released ${amount} L of water`);
         fetchData();
       } else {
-        Alert.alert(
-          "Error",
-          response.data.message || "Failed to release water",
-        );
+        Alert.alert("Error", data.message || "Failed to release water");
       }
     } catch (error: any) {
       console.error("❌ Water release error:", error);
@@ -98,36 +127,24 @@ function WaterPumpScreen() {
     try {
       console.log("🔄 Toggling pump to:", newStatus);
 
-      let response;
-      // Try multiple API formats
-      try {
-        response = await api.post("/automation/pump/toggle", {
+      const data = await apiFetch("/automation/pump.php", {
+        method: "POST",
+        body: JSON.stringify({
+          action: "toggle",
           status: newStatus,
-        });
-      } catch {
-        try {
-          response = await api.post("/automation/pump", {
-            action: "toggle",
-            status: newStatus,
-          });
-        } catch {
-          response = await api.post("/automation/pump", {
-            status: newStatus,
-          });
-        }
-      }
+        }),
+      });
 
-      console.log("📥 Toggle pump response:", response.data);
+      console.log("📥 Toggle pump response:", data);
 
-      if (response.data.success) {
+      if (data.success) {
         Alert.alert("Success", `Pump turned ${newStatus}`);
         fetchData();
       } else {
-        Alert.alert("Error", response.data.message || "Failed to toggle pump");
+        Alert.alert("Error", data.message || "Failed to toggle pump");
       }
     } catch (error: any) {
       console.error("❌ Toggle pump error:", error);
-      console.error("❌ Response:", error.response?.data);
       Alert.alert("Error", "Failed to toggle pump. Please try again.");
     }
   };
@@ -137,40 +154,25 @@ function WaterPumpScreen() {
     try {
       console.log("🔄 Toggling pump auto mode to:", newMode);
 
-      let response;
-      // Try multiple API formats
-      try {
-        response = await api.post("/automation/pump/settings", {
+      const data = await apiFetch("/automation/pump.php", {
+        method: "POST",
+        body: JSON.stringify({
+          action: "settings",
           auto_mode: newMode,
-        });
-      } catch {
-        try {
-          response = await api.post("/automation/pump", {
-            action: "settings",
-            auto_mode: newMode,
-          });
-        } catch {
-          response = await api.post("/automation/pump/auto", {
-            auto_mode: newMode,
-          });
-        }
-      }
+        }),
+      });
 
-      console.log("📥 Auto mode response:", response.data);
+      console.log("📥 Auto mode response:", data);
 
-      if (response.data.success) {
+      if (data.success) {
         setAutoMode(newMode);
         Alert.alert("Success", `Auto mode ${newMode ? "enabled" : "disabled"}`);
         fetchData();
       } else {
-        Alert.alert(
-          "Error",
-          response.data.message || "Failed to update settings",
-        );
+        Alert.alert("Error", data.message || "Failed to update settings");
       }
     } catch (error: any) {
       console.error("❌ Toggle auto mode error:", error);
-      console.error("❌ Response:", error.response?.data);
       Alert.alert("Error", "Failed to update settings. Please try again.");
     }
   };

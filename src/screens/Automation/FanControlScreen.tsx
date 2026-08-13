@@ -1,6 +1,7 @@
 // src/screens/Automation/FanControlScreen.tsx
 import { FontAwesome5 } from "@expo/vector-icons";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -13,7 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import api from "../../api/client";
+import { API_BASE_URL } from "../../api/client";
 import { useTheme } from "../../hooks/useTheme";
 
 function FanControlScreen() {
@@ -27,21 +28,57 @@ function FanControlScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // ✅ Helper function for API calls
+  const apiFetch = async (endpoint: string, options: any = {}) => {
+    try {
+      const token = await AsyncStorage.getItem("auth_token");
+      const url = `${API_BASE_URL}${endpoint}`;
+
+      console.log("📤 API Fetch:", url);
+      console.log("📤 Options:", options);
+
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: token ? `Bearer ${token}` : "",
+          ...options.headers,
+        },
+      });
+
+      const text = await response.text();
+      console.log("📥 Raw response:", text);
+
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        console.error("❌ JSON Parse error:", e);
+        return { success: false, message: "Invalid response from server" };
+      }
+    } catch (error: any) {
+      console.error("❌ API Fetch error:", error);
+      return { success: false, message: error.message || "Network error" };
+    }
+  };
+
   const fetchData = async () => {
     try {
       console.log("📥 Fetching fan data...");
-      const response = await api.get("/automation/fan");
-      console.log("📥 Fan response:", response.data);
+      const data = await apiFetch("/automation/fan.php", {
+        method: "GET",
+      });
 
-      if (response.data.success) {
-        setFanStatus(response.data.data.status);
-        setSettings(response.data.data.settings);
+      console.log("📥 Fan response:", data);
+
+      if (data.success) {
+        setFanStatus(data.data.status);
+        setSettings(data.data.settings);
       } else {
         console.error("❌ API returned success: false");
       }
     } catch (error: any) {
       console.error("❌ Error fetching fan data:", error);
-      console.error("❌ Response:", error.response?.data);
       Alert.alert("Error", "Failed to load fan data. Please pull to refresh.");
     } finally {
       setLoading(false);
@@ -63,37 +100,25 @@ function FanControlScreen() {
     try {
       console.log("🔄 Toggling fan to:", newStatus);
 
-      let response;
-      // Try multiple API formats
-      try {
-        response = await api.post("/automation/fan/toggle", {
+      const data = await apiFetch("/automation/fan.php", {
+        method: "POST",
+        body: JSON.stringify({
+          action: "toggle",
           status: newStatus,
-        });
-      } catch {
-        try {
-          response = await api.post("/automation/fan", {
-            action: "toggle",
-            status: newStatus,
-          });
-        } catch {
-          response = await api.post("/automation/fan", {
-            status: newStatus,
-          });
-        }
-      }
+        }),
+      });
 
-      console.log("📥 Toggle fan response:", response.data);
+      console.log("📥 Toggle fan response:", data);
 
-      if (response.data.success) {
+      if (data.success) {
         setFanStatus(newStatus);
         Alert.alert("Success", `Fan turned ${newStatus}`);
         fetchData();
       } else {
-        Alert.alert("Error", response.data.message || "Failed to toggle fan");
+        Alert.alert("Error", data.message || "Failed to toggle fan");
       }
     } catch (error: any) {
       console.error("❌ Toggle error:", error);
-      console.error("❌ Error response:", error.response?.data);
       Alert.alert("Error", "Failed to toggle fan. Please try again.");
     }
   };
@@ -103,40 +128,27 @@ function FanControlScreen() {
     try {
       console.log("🔄 Toggling fan auto mode to:", newMode);
 
-      let response;
-      // Try multiple API formats
-      try {
-        response = await api.post("/automation/fan/settings", {
+      const data = await apiFetch("/automation/fan.php", {
+        method: "POST",
+        body: JSON.stringify({
+          action: "settings",
           auto_mode: newMode,
-        });
-      } catch {
-        try {
-          response = await api.post("/automation/fan", {
-            action: "settings",
-            auto_mode: newMode,
-          });
-        } catch {
-          response = await api.post("/automation/fan/auto", {
-            auto_mode: newMode,
-          });
-        }
-      }
+          temp_on: settings.temp_on,
+          temp_off: settings.temp_off,
+        }),
+      });
 
-      console.log("📥 Auto mode response:", response.data);
+      console.log("📥 Auto mode response:", data);
 
-      if (response.data.success) {
+      if (data.success) {
         setSettings({ ...settings, auto_mode: newMode });
         Alert.alert("Success", `Auto mode ${newMode ? "enabled" : "disabled"}`);
         fetchData();
       } else {
-        Alert.alert(
-          "Error",
-          response.data.message || "Failed to update settings",
-        );
+        Alert.alert("Error", data.message || "Failed to update settings");
       }
     } catch (error: any) {
       console.error("❌ Toggle auto mode error:", error);
-      console.error("❌ Response:", error.response?.data);
       Alert.alert("Error", "Failed to update settings. Please try again.");
     }
   };
