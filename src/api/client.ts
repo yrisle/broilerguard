@@ -6,26 +6,18 @@ import { Platform } from "react-native";
 // ============================================
 // 🔧 PALITAN ITO - ILAGAY ANG NGROK URL MO
 // ============================================
-const NGROK_URL = "https://deltoidal-nonregeneratively-florance.ngrok-free.dev"; // ← PALITAN ITO
+const NGROK_URL = "https://deltoidal-nonregeneratively-florance.ngrok-free.dev";
 
 const getBaseUrl = () => {
-  // For Android Emulator
   if (Platform.OS === "android") {
-    // Pwedeng gamitin ang 10.0.2.2 or ngrok
     return `${NGROK_URL}/broilerguard/api`;
   }
-
-  // For iOS Simulator
   if (Platform.OS === "ios") {
     return `${NGROK_URL}/broilerguard/api`;
   }
-
-  // For Web
   if (Platform.OS === "web") {
     return `http://localhost/broilerguard/api`;
   }
-
-  // For Physical Device
   return `${NGROK_URL}/broilerguard/api`;
 };
 
@@ -35,33 +27,8 @@ console.log("========================================");
 console.log("🔗 API Base URL:", API_BASE_URL);
 console.log("========================================");
 
-// ✅ FIX: Helper function to add .php extension to endpoints
-const addPhpExtension = (url: string): string => {
-  // Skip if URL already has .php or has query string with .php
-  if (url.includes(".php")) {
-    return url;
-  }
-
-  // Skip if URL is a custom route (has / in it, like /dashboard/stats)
-  // But we want to add .php to all endpoints
-  const parts = url.split("?");
-  let path = parts[0];
-  const query = parts[1] || "";
-
-  // Remove trailing slash
-  path = path.replace(/\/$/, "");
-
-  // If path is empty or just '/', return as is
-  if (!path || path === "/") {
-    return url;
-  }
-
-  // Add .php extension
-  const newPath = path + ".php";
-  return query ? `${newPath}?${query}` : newPath;
-};
-
-export const api = axios.create({
+// ✅ CREATE AXIOS INSTANCE
+const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {
@@ -69,17 +36,10 @@ export const api = axios.create({
   },
 });
 
-// ✅ FIX: Request interceptor - modify URL to add .php
+// ✅ SIMPLE INTERCEPTOR - just add token
 api.interceptors.request.use(
   async (config) => {
     try {
-      // ✅ Add .php extension to the URL
-      if (config.url) {
-        const originalUrl = config.url;
-        config.url = addPhpExtension(originalUrl);
-        console.log(`🔄 URL transformed: ${originalUrl} → ${config.url}`);
-      }
-
       const token = await AsyncStorage.getItem("auth_token");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -87,6 +47,31 @@ api.interceptors.request.use(
     } catch (error) {
       console.log("Token error:", error);
     }
+
+    // ✅ SIMPLE FIX: Add .php to auth endpoints only
+    if (config.url && !config.url.includes(".php")) {
+      // Only add .php to auth and automation endpoints
+      const needsPhp = ["/auth/", "/automation/", "/test"];
+      let shouldAdd = false;
+
+      for (const prefix of needsPhp) {
+        if (config.url.startsWith(prefix)) {
+          shouldAdd = true;
+          break;
+        }
+      }
+
+      // Also add for simple endpoints without slashes
+      if (!config.url.includes("/") && !config.url.includes(".")) {
+        shouldAdd = true;
+      }
+
+      if (shouldAdd) {
+        config.url = config.url + ".php";
+        console.log("🔄 Added .php:", config.url);
+      }
+    }
+
     console.log("📤 Request:", config.method?.toUpperCase(), config.url);
     return config;
   },
@@ -96,7 +81,7 @@ api.interceptors.request.use(
   },
 );
 
-// Response interceptor - handle errors
+// ✅ RESPONSE INTERCEPTOR
 api.interceptors.response.use(
   (response) => {
     console.log("📥 Response:", response.status, response.config.url);
@@ -105,7 +90,6 @@ api.interceptors.response.use(
   async (error) => {
     console.log("❌ Response Error:", error.message);
     console.log("❌ URL:", error.config?.url);
-    console.log("❌ BaseURL:", error.config?.baseURL);
     console.log("❌ Full URL:", error.config?.baseURL + error.config?.url);
 
     if (error.response?.status === 401) {
@@ -118,18 +102,5 @@ api.interceptors.response.use(
   },
 );
 
-// ✅ FIX: Export a wrapper that adds .php extension
-export const apiWithPhp = {
-  get: (url: string, config?: any) => api.get(addPhpExtension(url), config),
-  post: (url: string, data?: any, config?: any) =>
-    api.post(addPhpExtension(url), data, config),
-  put: (url: string, data?: any, config?: any) =>
-    api.put(addPhpExtension(url), data, config),
-  delete: (url: string, config?: any) =>
-    api.delete(addPhpExtension(url), config),
-  patch: (url: string, data?: any, config?: any) =>
-    api.patch(addPhpExtension(url), data, config),
-};
-
-// ✅ Default export with .php support
-export default apiWithPhp;
+// ✅ EXPORT DEFAULT
+export default api;
