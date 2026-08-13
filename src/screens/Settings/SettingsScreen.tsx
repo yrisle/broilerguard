@@ -40,7 +40,7 @@ const STORAGE_KEYS = {
 
 function SettingsScreen() {
   const { colors } = useTheme();
-  const { logout, user } = useAuth(); // ✅ Get logout function
+  const { logout } = useAuth(); // ✅ Get logout function
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -227,6 +227,7 @@ function SettingsScreen() {
   };
 
   // ✅ LOGOUT FUNCTION
+
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
       {
@@ -238,8 +239,8 @@ function SettingsScreen() {
         style: "destructive",
         onPress: async () => {
           try {
+            // ✅ Use the logout function from AuthContext
             await logout();
-            // Navigation will be handled by AuthContext
           } catch (error) {
             console.error("Logout error:", error);
             Alert.alert("Error", "Failed to logout. Please try again.");
