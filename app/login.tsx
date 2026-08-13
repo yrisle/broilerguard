@@ -1,5 +1,4 @@
-// app/login.tsx - i-update para maiwasan ang auto-login
-import AsyncStorage from "@react-native-async-storage/async-storage";
+// app/login.tsx
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -16,32 +15,29 @@ import { useTheme } from "../src/hooks/useTheme";
 
 export default function LoginScreen() {
   const { colors } = useTheme();
-  const { login, isLoading, isAuthenticated } = useAuth();
+  const { login, isLoading, isAuthenticated, clearAuth } = useAuth();
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("broilerguard2025");
   const [debugInfo, setDebugInfo] = useState("");
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isChecking, setIsChecking] = useState(true);
 
-  // ✅ Check if already authenticated
+  // ✅ Clear any old tokens on mount
   useEffect(() => {
-    const checkAuth = async () => {
+    const clearOldTokens = async () => {
       try {
-        const token = await AsyncStorage.getItem("auth_token");
-        if (token) {
-          // If has token, let AuthContext handle it
-          setIsCheckingAuth(false);
-        } else {
-          setIsCheckingAuth(false);
-        }
+        await clearAuth();
+        console.log("✅ Cleared old tokens");
       } catch (error) {
-        setIsCheckingAuth(false);
+        console.error("Error clearing tokens:", error);
+      } finally {
+        setIsChecking(false);
       }
     };
-    checkAuth();
+    clearOldTokens();
   }, []);
 
   // ✅ If still checking, show loading
-  if (isCheckingAuth) {
+  if (isChecking) {
     return (
       <View
         style={[
@@ -54,9 +50,7 @@ export default function LoginScreen() {
         ]}
       >
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 20, color: colors.text }}>
-          Checking authentication...
-        </Text>
+        <Text style={{ marginTop: 20, color: colors.text }}>Loading...</Text>
       </View>
     );
   }
@@ -96,7 +90,14 @@ export default function LoginScreen() {
     } catch (error: any) {
       console.error("Login error:", error);
       setDebugInfo(`❌ Error: ${error.message || "Unknown error"}`);
-      Alert.alert("Login Failed", error.message || "Invalid credentials");
+
+      // ✅ Clear any partial auth data
+      await clearAuth();
+
+      Alert.alert(
+        "Login Failed",
+        error.message || "Invalid credentials. Please try again.",
+      );
     }
   };
 

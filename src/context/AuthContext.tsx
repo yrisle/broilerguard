@@ -1,4 +1,4 @@
-// src/context/AuthContext.tsx - Simplified version
+// src/context/AuthContext.tsx
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -12,6 +12,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   validateToken: () => Promise<boolean>;
+  clearAuth: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -35,12 +36,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }
 
   useEffect(() => {
+    // ✅ Only validate if not logging out
     if (!isLoggingOut) {
       validateToken();
     }
   }, [isLoggingOut]);
 
-  // ✅ Simplified navigation - no segments
+  // ✅ Navigation effect
   useEffect(() => {
     if (!isLoading && router && !isLoggingOut) {
       try {
@@ -53,14 +55,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [isAuthenticated, isLoading, isLoggingOut]);
 
+  // ✅ Clear auth function
+  const clearAuth = async () => {
+    try {
+      await AsyncStorage.multiRemove(["auth_token", "user"]);
+      setIsAuthenticated(false);
+      setUser(null);
+    } catch (error) {
+      console.error("Clear auth error:", error);
+    }
+  };
+
   const validateToken = async (): Promise<boolean> => {
+    // ✅ Skip validation if logging out
     if (isLoggingOut) {
+      console.log("⏭️ Skipping validation during logout");
       setIsLoading(false);
       return false;
     }
 
     try {
       const token = await AsyncStorage.getItem("auth_token");
+      console.log("🔍 Token found:", token ? "Yes" : "No");
 
       if (!token) {
         setIsAuthenticated(false);
@@ -79,35 +95,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setIsLoading(false);
           return true;
         } else {
-          await AsyncStorage.removeItem("auth_token");
-          setIsAuthenticated(false);
-          setUser(null);
+          await clearAuth();
           setIsLoading(false);
           return false;
         }
       } catch (error) {
         console.log("Token validation failed:", error);
-        await AsyncStorage.removeItem("auth_token");
-        setIsAuthenticated(false);
-        setUser(null);
+        await clearAuth();
         setIsLoading(false);
         return false;
       }
     } catch (error) {
       console.error("Validation error:", error);
-      setIsAuthenticated(false);
-      setUser(null);
+      await clearAuth();
       setIsLoading(false);
       return false;
     }
   };
 
   const login = async (username: string, password: string) => {
+    // ✅ Reset logout flag
     setIsLoggingOut(false);
     setIsLoading(true);
 
     try {
       console.log("🔐 LOGIN ATTEMPT");
+      console.log("📍 URL:", `${API_BASE_URL}/auth/login.php`);
+
+      // ✅ Clear any old tokens first
+      await clearAuth();
 
       const response = await fetch(`${API_BASE_URL}/auth/login.php`, {
         method: "POST",
@@ -133,14 +149,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (data.success) {
         const { token, user } = data;
+
+        // ✅ Save new token
         await AsyncStorage.setItem("auth_token", token);
         if (user) {
           await AsyncStorage.setItem("user", JSON.stringify(user));
           setUser(user);
         }
+
         setIsAuthenticated(true);
         console.log("✅ Login successful!");
 
+        // ✅ Navigate to home
         if (router) {
           try {
             router.replace("/(tabs)/home");
@@ -153,6 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     } catch (error: any) {
       console.error("❌ Login error:", error);
+      await clearAuth();
       throw new Error(error.message || "Login failed");
     } finally {
       setIsLoading(false);
@@ -163,13 +184,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       console.log("🔄 Logging out...");
 
+      // ✅ Set logging out flag FIRST
       setIsLoggingOut(true);
-      await AsyncStorage.multiRemove(["auth_token", "user"]);
-      setIsAuthenticated(false);
-      setUser(null);
+
+      // ✅ Clear everything
+      await clearAuth();
 
       console.log("✅ Logout successful!");
 
+      // ✅ Navigate to login
       if (router) {
         try {
           router.replace("/login");
@@ -179,10 +202,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     } catch (error) {
       console.error("❌ Logout error:", error);
-      setIsAuthenticated(false);
-      setUser(null);
-      await AsyncStorage.removeItem("auth_token");
-      await AsyncStorage.removeItem("user");
+      await clearAuth();
     } finally {
       setIsLoading(false);
     }
@@ -197,6 +217,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         login,
         logout,
         validateToken,
+        clearAuth,
       }}
     >
       {children}
