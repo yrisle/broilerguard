@@ -96,7 +96,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.log("👤 Username:", username);
       console.log("========================================");
 
-      // ✅ DIRECT FETCH
       const response = await fetch(`${API_BASE_URL}/auth/login.php`, {
         method: "POST",
         headers: {
@@ -130,7 +129,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         setIsAuthenticated(true);
         console.log("✅ Login successful!");
-        router.replace("/(tabs)/home");
+
+        try {
+          router.replace("/(tabs)/home");
+        } catch (navError) {
+          console.log("Navigation error:", navError);
+          // Fallback - use window.location for web
+          if (typeof window !== "undefined") {
+            window.location.href = "/";
+          }
+        }
       } else {
         throw new Error(data.message || "Login failed");
       }
@@ -155,17 +163,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // ✅ FIX: LOGOUT FUNCTION - with safe navigation
   const logout = async () => {
     try {
-      await auth.logout();
+      setIsLoading(true);
+
+      // Try to call logout API
+      try {
+        await auth.logout();
+      } catch (error) {
+        console.log("Logout API error (ignored):", error);
+      }
+
+      // Clear storage
+      await AsyncStorage.removeItem("auth_token");
+      await AsyncStorage.removeItem("user");
+
+      // Update state
+      setIsAuthenticated(false);
+      setUser(null);
+
+      console.log("✅ Logout successful!");
+
+      // ✅ SAFE NAVIGATION - with try/catch
+      try {
+        router.replace("/login");
+      } catch (navError) {
+        console.log("Navigation error during logout:", navError);
+        // Fallback navigation
+        try {
+          router.push("/login");
+        } catch (e) {
+          console.log("Fallback navigation also failed:", e);
+        }
+      }
     } catch (error) {
-      console.error("Logout error:", error);
+      console.error("❌ Logout error:", error);
+      // Even if there's an error, try to clear state
+      setIsAuthenticated(false);
+      setUser(null);
+      await AsyncStorage.removeItem("auth_token");
+      await AsyncStorage.removeItem("user");
+
+      try {
+        router.replace("/login");
+      } catch (navError) {
+        console.log("Navigation error during logout fallback:", navError);
+      }
+    } finally {
+      setIsLoading(false);
     }
-    await AsyncStorage.removeItem("auth_token");
-    await AsyncStorage.removeItem("user");
-    setIsAuthenticated(false);
-    setUser(null);
-    router.replace("/login");
   };
 
   return (
