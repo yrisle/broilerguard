@@ -28,7 +28,6 @@ const DashboardScreen = () => {
     fanStatus: "OFF",
     waterPump: "OFF",
     lightStatus: "OFF",
-    // Auto mode states
     fanAutoMode: "manual",
     pumpAutoMode: "manual",
     feedAutoMode: "manual",
@@ -113,7 +112,6 @@ const DashboardScreen = () => {
     fetchDashboard();
   };
 
-  // Helper: Get status color
   const getStatusColor = (status: string, colors: any) => {
     return status === "ON" ? colors.success : colors.danger;
   };
@@ -272,7 +270,7 @@ const DashboardScreen = () => {
       </View>
 
       {/* ============================================
-      AUTOMATION STATUS - CLICKABLE CARDS
+      AUTOMATION STATUS - EQUAL SIZE CARDS
       ============================================ */}
       <View style={styles.section}>
         <View
@@ -292,24 +290,16 @@ const DashboardScreen = () => {
             Automation Status
           </Text>
         </View>
-        <View style={styles.row}>
-          {/* ==========================================
-          FAN - CLICKABLE
-          ========================================== */}
+        <View style={styles.automationRow}>
+          {/* ===== FAN ===== */}
           <TouchableOpacity
-            style={[styles.thirdCard, { marginHorizontal: 3 }]}
+            style={styles.automationCardWrapper}
             activeOpacity={0.7}
             onPress={() => handleNavigate("/fan-control")}
           >
             <Card style={styles.automationCard}>
               <View style={styles.automationItem}>
-                <View style={styles.automationIconContainer}>
-                  <Icon
-                    name="options-outline"
-                    size={24}
-                    color={colors.primary}
-                  />
-                </View>
+                <Icon name="options-outline" size={24} color={colors.primary} />
                 <View style={styles.automationInfo}>
                   <Text
                     style={[
@@ -356,28 +346,19 @@ const DashboardScreen = () => {
                     </Text>
                   </View>
                 </View>
-                <Icon
-                  name="chevron-forward"
-                  size={16}
-                  color={colors.textMuted}
-                />
               </View>
             </Card>
           </TouchableOpacity>
 
-          {/* ==========================================
-          WATER PUMP - CLICKABLE
-          ========================================== */}
+          {/* ===== WATER PUMP ===== */}
           <TouchableOpacity
-            style={[styles.thirdCard, { marginHorizontal: 3 }]}
+            style={styles.automationCardWrapper}
             activeOpacity={0.7}
             onPress={() => handleNavigate("/water-pump")}
           >
             <Card style={styles.automationCard}>
               <View style={styles.automationItem}>
-                <View style={styles.automationIconContainer}>
-                  <Icon name="water" size={24} color={colors.info} />
-                </View>
+                <Icon name="water" size={24} color={colors.info} />
                 <View style={styles.automationInfo}>
                   <Text
                     style={[
@@ -385,7 +366,7 @@ const DashboardScreen = () => {
                       { color: colors.primaryDark },
                     ]}
                   >
-                    Water Pump
+                    Pump
                   </Text>
                   <View
                     style={[
@@ -424,28 +405,19 @@ const DashboardScreen = () => {
                     </Text>
                   </View>
                 </View>
-                <Icon
-                  name="chevron-forward"
-                  size={16}
-                  color={colors.textMuted}
-                />
               </View>
             </Card>
           </TouchableOpacity>
 
-          {/* ==========================================
-          LIGHT - CLICKABLE
-          ========================================== */}
+          {/* ===== LIGHT ===== */}
           <TouchableOpacity
-            style={[styles.thirdCard, { marginHorizontal: 3 }]}
+            style={styles.automationCardWrapper}
             activeOpacity={0.7}
             onPress={() => handleNavigate("/light-control")}
           >
             <Card style={styles.automationCard}>
               <View style={styles.automationItem}>
-                <View style={styles.automationIconContainer}>
-                  <Icon name="bulb-outline" size={24} color={colors.warning} />
-                </View>
+                <Icon name="bulb-outline" size={24} color={colors.warning} />
                 <View style={styles.automationInfo}>
                   <Text
                     style={[
@@ -492,11 +464,6 @@ const DashboardScreen = () => {
                     </Text>
                   </View>
                 </View>
-                <Icon
-                  name="chevron-forward"
-                  size={16}
-                  color={colors.textMuted}
-                />
               </View>
             </Card>
           </TouchableOpacity>
@@ -698,44 +665,32 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 4,
   },
-  thirdCard: {
-    flex: 1,
-    marginHorizontal: 3,
+  // ============================================
+  // AUTOMATION STYLES - EQUAL SIZE
+  // ============================================
+  automationRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 6,
+  },
+  automationCardWrapper: {
+    flex: 1, // Each card takes equal space
+    maxWidth: "33.33%", // Ensures 3 equal columns
   },
   automationCard: {
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-  },
-  tempContainer: {
-    alignItems: "center",
     paddingVertical: 8,
-  },
-  tempValue: {
-    fontSize: 36,
-    fontWeight: "800",
-  },
-  tempLabel: {
-    fontSize: 14,
-    marginTop: 4,
-  },
-  tempRange: {
-    fontSize: 11,
-    marginTop: 4,
+    paddingHorizontal: 4,
+    minHeight: 110, // Fixed minimum height for all cards
+    justifyContent: "center",
   },
   automationItem: {
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 4,
-    paddingHorizontal: 2,
-  },
-  automationIconContainer: {
-    width: 32,
-    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 2,
   },
   automationInfo: {
     alignItems: "center",
-    flex: 1,
+    marginTop: 4,
   },
   automationLabel: {
     fontSize: 12,
@@ -758,6 +713,22 @@ const styles = StyleSheet.create({
   autoModeText: {
     fontSize: 9,
     fontWeight: "600",
+  },
+  tempContainer: {
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  tempValue: {
+    fontSize: 36,
+    fontWeight: "800",
+  },
+  tempLabel: {
+    fontSize: 14,
+    marginTop: 4,
+  },
+  tempRange: {
+    fontSize: 11,
+    marginTop: 4,
   },
   chickenStats: {
     flexDirection: "row",
