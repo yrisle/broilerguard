@@ -1,5 +1,4 @@
 // src/screens/Automation/FanControlScreen.tsx
-
 import { FontAwesome5 } from "@expo/vector-icons";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState } from "react";
@@ -30,14 +29,20 @@ function FanControlScreen() {
 
   const fetchData = async () => {
     try {
+      console.log("📥 Fetching fan data...");
       const response = await api.get("/automation/fan");
-      console.log("📥 Fan data:", response.data);
+      console.log("📥 Fan response:", response.data);
+
       if (response.data.success) {
         setFanStatus(response.data.data.status);
         setSettings(response.data.data.settings);
+      } else {
+        console.error("❌ API returned success: false");
       }
-    } catch (error) {
-      console.error("Error fetching fan data:", error);
+    } catch (error: any) {
+      console.error("❌ Error fetching fan data:", error);
+      console.error("❌ Response:", error.response?.data);
+      Alert.alert("Error", "Failed to load fan data. Please pull to refresh.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -59,22 +64,25 @@ function FanControlScreen() {
       console.log("🔄 Toggling fan to:", newStatus);
 
       let response;
-
-      // FIX: Try different approaches
+      // Try multiple API formats
       try {
-        // Try 1: Direct status update
         response = await api.post("/automation/fan/toggle", {
           status: newStatus,
         });
       } catch {
-        // Try 2: With action parameter
-        response = await api.post("/automation/fan", {
-          action: "toggle",
-          status: newStatus,
-        });
+        try {
+          response = await api.post("/automation/fan", {
+            action: "toggle",
+            status: newStatus,
+          });
+        } catch {
+          response = await api.post("/automation/fan", {
+            status: newStatus,
+          });
+        }
       }
 
-      console.log("📥 Response:", response.data);
+      console.log("📥 Toggle fan response:", response.data);
 
       if (response.data.success) {
         setFanStatus(newStatus);
@@ -86,12 +94,7 @@ function FanControlScreen() {
     } catch (error: any) {
       console.error("❌ Toggle error:", error);
       console.error("❌ Error response:", error.response?.data);
-
-      Alert.alert(
-        "Error",
-        error.response?.data?.message ||
-          "Failed to toggle fan. Please try again.",
-      );
+      Alert.alert("Error", "Failed to toggle fan. Please try again.");
     }
   };
 
@@ -101,24 +104,25 @@ function FanControlScreen() {
       console.log("🔄 Toggling fan auto mode to:", newMode);
 
       let response;
-
-      // FIX: Try different approaches
+      // Try multiple API formats
       try {
-        // Try 1: Direct settings update
         response = await api.post("/automation/fan/settings", {
           auto_mode: newMode,
         });
       } catch {
-        // Try 2: With action parameter
-        response = await api.post("/automation/fan", {
-          action: "settings",
-          auto_mode: newMode,
-          temp_on: settings.temp_on,
-          temp_off: settings.temp_off,
-        });
+        try {
+          response = await api.post("/automation/fan", {
+            action: "settings",
+            auto_mode: newMode,
+          });
+        } catch {
+          response = await api.post("/automation/fan/auto", {
+            auto_mode: newMode,
+          });
+        }
       }
 
-      console.log("📥 Response:", response.data);
+      console.log("📥 Auto mode response:", response.data);
 
       if (response.data.success) {
         setSettings({ ...settings, auto_mode: newMode });
@@ -133,12 +137,7 @@ function FanControlScreen() {
     } catch (error: any) {
       console.error("❌ Toggle auto mode error:", error);
       console.error("❌ Response:", error.response?.data);
-
-      Alert.alert(
-        "Error",
-        error.response?.data?.message ||
-          "Failed to update settings. Please try again.",
-      );
+      Alert.alert("Error", "Failed to update settings. Please try again.");
     }
   };
 

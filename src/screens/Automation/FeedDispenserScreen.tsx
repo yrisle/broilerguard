@@ -1,5 +1,4 @@
 // src/screens/Automation/FeedDispenserScreen.tsx
-
 import { FontAwesome5 } from "@expo/vector-icons";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState } from "react";
@@ -16,7 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import api from "../../api/client"; // FIX: Remove braces
+import api from "../../api/client";
 import { useTheme } from "../../hooks/useTheme";
 
 const FeedDispenserScreen = () => {
@@ -26,23 +25,30 @@ const FeedDispenserScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [autoMode, setAutoMode] = useState(true);
   const [customAmount, setCustomAmount] = useState("0.5");
-
   const [refillModalVisible, setRefillModalVisible] = useState(false);
   const [refillAmount, setRefillAmount] = useState("");
 
   const fetchData = async () => {
     try {
+      console.log("📥 Fetching feeder data...");
       const response = await api.get("/automation/feeder");
-      console.log("📥 Feeder data:", response.data);
+      console.log("📥 Feeder response:", response.data);
+
       if (response.data.success) {
         setData(response.data.data);
-        // FIX: Set autoMode from API response
         if (response.data.data?.settings?.auto_mode !== undefined) {
           setAutoMode(response.data.data.settings.auto_mode);
         }
+      } else {
+        console.error("❌ API returned success: false");
       }
-    } catch (error) {
-      console.error("Error fetching feeder data:", error);
+    } catch (error: any) {
+      console.error("❌ Error fetching feeder data:", error);
+      console.error("❌ Response:", error.response?.data);
+      Alert.alert(
+        "Error",
+        "Failed to load feeder data. Please pull to refresh.",
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -60,19 +66,33 @@ const FeedDispenserScreen = () => {
 
   const handleDispense = async (amount: number) => {
     try {
-      const response = await api.post("/automation/feeder/dispense", {
-        amount,
-      });
+      console.log("🔄 Dispensing feed:", amount);
+
+      // Try multiple API formats
+      let response;
+      try {
+        response = await api.post("/automation/feeder/dispense", { amount });
+      } catch {
+        response = await api.post("/automation/feeder", {
+          action: "dispense",
+          amount,
+        });
+      }
+
+      console.log("📥 Dispense response:", response.data);
+
       if (response.data.success) {
         Alert.alert("Success", `Dispensed ${amount} kg of feed`);
         fetchData();
+      } else {
+        Alert.alert(
+          "Error",
+          response.data.message || "Failed to dispense feed",
+        );
       }
     } catch (error: any) {
       console.error("❌ Dispense error:", error);
-      Alert.alert(
-        "Error",
-        error.response?.data?.message || "Failed to dispense feed",
-      );
+      Alert.alert("Error", "Failed to dispense feed. Please try again.");
     }
   };
 
@@ -86,12 +106,25 @@ const FeedDispenserScreen = () => {
     try {
       console.log("🔄 Refilling feed:", amount);
 
-      // FIX: Use specific endpoint
-      const response = await api.post("/automation/feeder/refill", {
-        amount: amount,
-      });
+      let response;
+      // Try multiple API formats
+      try {
+        response = await api.post("/automation/feeder/refill", { amount });
+      } catch {
+        try {
+          response = await api.post("/automation/feeder", {
+            action: "refill",
+            amount,
+          });
+        } catch {
+          response = await api.post("/automation/feeder/refill", {
+            amount,
+            action: "refill",
+          });
+        }
+      }
 
-      console.log("📥 Response:", response.data);
+      console.log("📥 Refill response:", response.data);
 
       if (response.data.success) {
         Alert.alert("Success", `Added ${amount} kg of feed`);
@@ -103,31 +136,7 @@ const FeedDispenserScreen = () => {
       }
     } catch (error: any) {
       console.error("❌ Refill error:", error);
-      console.error("❌ Response:", error.response?.data);
-
-      // FIX: Try alternative endpoint if the first one fails
-      try {
-        const response2 = await api.post("/automation/feeder", {
-          action: "refill",
-          amount: amount,
-        });
-
-        if (response2.data.success) {
-          Alert.alert("Success", `Added ${amount} kg of feed`);
-          setRefillModalVisible(false);
-          setRefillAmount("");
-          fetchData();
-          return;
-        }
-      } catch (error2) {
-        console.error("❌ Alternative refill also failed:", error2);
-      }
-
-      Alert.alert(
-        "Error",
-        error.response?.data?.message ||
-          "Failed to refill feed. Please try again.",
-      );
+      Alert.alert("Error", "Failed to refill feed. Please try again.");
     }
   };
 
@@ -136,23 +145,26 @@ const FeedDispenserScreen = () => {
     try {
       console.log("🔄 Toggling auto mode to:", newMode);
 
-      // FIX: Try different approaches
       let response;
-
-      // Try 1: Direct settings update
+      // Try multiple API formats
       try {
         response = await api.post("/automation/feeder/settings", {
           auto_mode: newMode,
         });
       } catch {
-        // Try 2: With action parameter
-        response = await api.post("/automation/feeder", {
-          action: "settings",
-          auto_mode: newMode,
-        });
+        try {
+          response = await api.post("/automation/feeder", {
+            action: "settings",
+            auto_mode: newMode,
+          });
+        } catch {
+          response = await api.post("/automation/feeder/auto", {
+            auto_mode: newMode,
+          });
+        }
       }
 
-      console.log("📥 Response:", response.data);
+      console.log("📥 Auto mode response:", response.data);
 
       if (response.data.success) {
         setAutoMode(newMode);
@@ -166,13 +178,7 @@ const FeedDispenserScreen = () => {
       }
     } catch (error: any) {
       console.error("❌ Toggle auto mode error:", error);
-      console.error("❌ Response:", error.response?.data);
-
-      Alert.alert(
-        "Error",
-        error.response?.data?.message ||
-          "Failed to update settings. Please try again.",
-      );
+      Alert.alert("Error", "Failed to update settings. Please try again.");
     }
   };
 
@@ -580,6 +586,7 @@ const FeedDispenserScreen = () => {
   );
 };
 
+// ... styles remain the same
 const styles = StyleSheet.create({
   container: {
     flex: 1,
