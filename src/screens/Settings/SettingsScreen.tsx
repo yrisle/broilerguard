@@ -1,7 +1,8 @@
 // src/screens/Settings/SettingsScreen.tsx
 import { FontAwesome5 } from "@expo/vector-icons";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -16,8 +17,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from "../../api/client";
+import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../hooks/useTheme";
 
 interface UserProfile {
@@ -32,13 +33,14 @@ interface UserProfile {
 
 // Storage keys
 const STORAGE_KEYS = {
-  PROFILE: '@broilerguard_profile',
-  NOTIFICATIONS: '@broilerguard_notifications',
-  AUTO_REFRESH: '@broilerguard_auto_refresh',
+  PROFILE: "@broilerguard_profile",
+  NOTIFICATIONS: "@broilerguard_notifications",
+  AUTO_REFRESH: "@broilerguard_auto_refresh",
 };
 
 function SettingsScreen() {
   const { colors } = useTheme();
+  const { logout, user } = useAuth(); // ✅ Get logout function
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -78,12 +80,16 @@ function SettingsScreen() {
       }
 
       // Load preferences
-      const savedNotifications = await AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
+      const savedNotifications = await AsyncStorage.getItem(
+        STORAGE_KEYS.NOTIFICATIONS,
+      );
       if (savedNotifications !== null) {
         setNotifications(JSON.parse(savedNotifications));
       }
 
-      const savedAutoRefresh = await AsyncStorage.getItem(STORAGE_KEYS.AUTO_REFRESH);
+      const savedAutoRefresh = await AsyncStorage.getItem(
+        STORAGE_KEYS.AUTO_REFRESH,
+      );
       if (savedAutoRefresh !== null) {
         setAutoRefresh(JSON.parse(savedAutoRefresh));
       }
@@ -121,10 +127,14 @@ function SettingsScreen() {
   const handlePickImage = async () => {
     try {
       // Request permission
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (status !== 'granted') {
-        Alert.alert('Permission Needed', 'Please grant permission to access your photos.');
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Needed",
+          "Please grant permission to access your photos.",
+        );
         return;
       }
 
@@ -143,7 +153,7 @@ function SettingsScreen() {
       }
     } catch (error) {
       console.error("Error picking image:", error);
-      Alert.alert('Error', 'Failed to select image. Please try again.');
+      Alert.alert("Error", "Failed to select image. Please try again.");
     }
   };
 
@@ -162,7 +172,10 @@ function SettingsScreen() {
       setLoading(true);
 
       // Save to AsyncStorage (persistent)
-      await AsyncStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(editedProfile));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.PROFILE,
+        JSON.stringify(editedProfile),
+      );
 
       // Update state
       setProfile(editedProfile);
@@ -198,13 +211,42 @@ function SettingsScreen() {
   const handleSaveSettings = async () => {
     try {
       // Save preferences to AsyncStorage
-      await AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
-      await AsyncStorage.setItem(STORAGE_KEYS.AUTO_REFRESH, JSON.stringify(autoRefresh));
-      
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.NOTIFICATIONS,
+        JSON.stringify(notifications),
+      );
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.AUTO_REFRESH,
+        JSON.stringify(autoRefresh),
+      );
+
       Alert.alert("Success", "Settings saved successfully!");
     } catch (error) {
       Alert.alert("Error", "Failed to save settings");
     }
+  };
+
+  // ✅ LOGOUT FUNCTION
+  const handleLogout = () => {
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await logout();
+            // Navigation will be handled by AuthContext
+          } catch (error) {
+            console.error("Logout error:", error);
+            Alert.alert("Error", "Failed to logout. Please try again.");
+          }
+        },
+      },
+    ]);
   };
 
   if (loading) {
@@ -273,17 +315,30 @@ function SettingsScreen() {
               },
             ]}
           >
-            <TouchableOpacity onPress={handleEditProfile} style={styles.avatarContainer}>
+            <TouchableOpacity
+              onPress={handleEditProfile}
+              style={styles.avatarContainer}
+            >
               {profile.avatar ? (
-                <Image source={{ uri: profile.avatar }} style={styles.avatarImage} />
+                <Image
+                  source={{ uri: profile.avatar }}
+                  style={styles.avatarImage}
+                />
               ) : (
-                <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+                <View
+                  style={[styles.avatar, { backgroundColor: colors.primary }]}
+                >
                   <Text style={[styles.avatarText, { color: "#FFFFFF" }]}>
                     {profile.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
               )}
-              <View style={[styles.avatarBadge, { backgroundColor: colors.primary }]}>
+              <View
+                style={[
+                  styles.avatarBadge,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
                 <Ionicons name="camera" size={12} color="#FFFFFF" />
               </View>
             </TouchableOpacity>
@@ -347,27 +402,39 @@ function SettingsScreen() {
               },
             ]}
           >
-            <TouchableOpacity onPress={handlePickImage} style={styles.avatarContainer}>
+            <TouchableOpacity
+              onPress={handlePickImage}
+              style={styles.avatarContainer}
+            >
               {tempAvatar || editedProfile.avatar ? (
-                <Image 
-                  source={{ uri: tempAvatar || editedProfile.avatar || undefined }} 
-                  style={styles.avatarImage} 
+                <Image
+                  source={{
+                    uri: tempAvatar || editedProfile.avatar || undefined,
+                  }}
+                  style={styles.avatarImage}
                 />
               ) : (
-                <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+                <View
+                  style={[styles.avatar, { backgroundColor: colors.primary }]}
+                >
                   <Text style={[styles.avatarText, { color: "#FFFFFF" }]}>
                     {editedProfile.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
               )}
-              <View style={[styles.avatarBadge, { backgroundColor: colors.primary }]}>
+              <View
+                style={[
+                  styles.avatarBadge,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
                 <Ionicons name="camera" size={12} color="#FFFFFF" />
               </View>
             </TouchableOpacity>
             <Text style={[styles.changePhotoText, { color: colors.primary }]}>
               Tap to change photo
             </Text>
-            
+
             <View style={styles.editForm}>
               <TextInput
                 style={[
@@ -547,6 +614,68 @@ function SettingsScreen() {
             />
           </View>
         </View>
+      </View>
+
+      {/* ✅ LOGOUT SECTION */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Ionicons
+              name="log-out-outline"
+              size={18}
+              color={colors.danger || "#FF4444"}
+              style={{ marginRight: 8 }}
+            />
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: colors.danger || "#FF4444" },
+              ]}
+            >
+              Account
+            </Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={[
+            styles.logoutCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}
+          onPress={handleLogout}
+          activeOpacity={0.7}
+        >
+          <View style={styles.logoutContent}>
+            <View style={styles.logoutIconContainer}>
+              <Ionicons
+                name="log-out-outline"
+                size={24}
+                color={colors.danger || "#FF4444"}
+              />
+            </View>
+            <View style={styles.logoutTextContainer}>
+              <Text
+                style={[
+                  styles.logoutTitle,
+                  { color: colors.danger || "#FF4444" },
+                ]}
+              >
+                Logout
+              </Text>
+              <Text style={[styles.logoutDesc, { color: colors.textMuted }]}>
+                Sign out from your account
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward-outline"
+              size={20}
+              color={colors.textMuted}
+            />
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* About Section */}
@@ -772,6 +901,36 @@ const styles = StyleSheet.create({
   settingDesc: {
     fontSize: 12,
     marginTop: 2,
+  },
+  // ✅ Logout styles
+  logoutCard: {
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+  },
+  logoutContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  logoutIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 68, 68, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  logoutTextContainer: {
+    flex: 1,
+  },
+  logoutTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  logoutDesc: {
+    fontSize: 13,
+    marginTop: 1,
   },
   aboutCard: {
     borderRadius: 12,
