@@ -28,18 +28,15 @@ const DashboardScreen = () => {
     fanStatus: "OFF",
     waterPump: "OFF",
     lightStatus: "OFF",
-    // ============================================
-    // ADD AUTO MODE STATES
-    // ============================================
-    fanAutoMode: "manual", // 'auto' or 'manual'
-    pumpAutoMode: "manual", // 'auto' or 'manual'
-    feedAutoMode: "manual", // 'auto' or 'manual'
-    lightAutoMode: "manual", // 'auto' or 'manual'
+    // Auto mode states
+    fanAutoMode: "manual",
+    pumpAutoMode: "manual",
+    feedAutoMode: "manual",
+    lightAutoMode: "manual",
     fanIsAuto: false,
     pumpIsAuto: false,
     feedIsAuto: false,
     lightIsAuto: false,
-    // ============================================
     healthyChicks: 0,
     weakChicks: 0,
     totalChicks: 0,
@@ -76,9 +73,6 @@ const DashboardScreen = () => {
         fanStatus: sensorData.fan_status || "OFF",
         waterPump: sensorData.water_pump || "OFF",
         lightStatus: sensorData.light_status || "OFF",
-        // ============================================
-        // SET AUTO MODE VALUES FROM API
-        // ============================================
         fanAutoMode: statsData.fan_auto_mode || "manual",
         pumpAutoMode: statsData.pump_auto_mode || "manual",
         feedAutoMode: statsData.feed_auto_mode || "manual",
@@ -87,7 +81,6 @@ const DashboardScreen = () => {
         pumpIsAuto: statsData.pump_is_auto || false,
         feedIsAuto: statsData.feed_is_auto || false,
         lightIsAuto: statsData.light_is_auto || false,
-        // ============================================
         healthyChicks: statsData.healthy_chicks || 0,
         weakChicks: statsData.weak_chicks || 0,
         totalChicks: statsData.total_chicks || 0,
@@ -120,30 +113,13 @@ const DashboardScreen = () => {
     fetchDashboard();
   };
 
-  // ============================================
-  // HELPER: Get status display text
-  // ============================================
-  const getAutoStatusDisplay = (autoMode: string, currentStatus: string) => {
-    if (autoMode === "auto") {
-      return currentStatus === "ON" ? "ON (Auto)" : "OFF (Auto)";
-    }
-    return currentStatus === "ON" ? "ON (Manual)" : "OFF (Manual)";
-  };
-
+  // Helper: Get status color
   const getStatusColor = (status: string, colors: any) => {
     return status === "ON" ? colors.success : colors.danger;
   };
 
   const getStatusBgColor = (status: string, colors: any) => {
     return status === "ON" ? colors.successLight : colors.dangerLight;
-  };
-
-  const getAutoModeBadge = (isAuto: boolean, colors: any) => {
-    return {
-      text: isAuto ? "Auto" : "Manual",
-      color: isAuto ? colors.success : colors.textMuted,
-      bgColor: isAuto ? colors.successLight : colors.border,
-    };
   };
 
   if (loading) {
@@ -296,7 +272,7 @@ const DashboardScreen = () => {
       </View>
 
       {/* ============================================
-      AUTOMATION STATUS - UPDATED WITH AUTO MODE
+      AUTOMATION STATUS - CLICKABLE CARDS
       ============================================ */}
       <View style={styles.section}>
         <View
@@ -317,167 +293,213 @@ const DashboardScreen = () => {
           </Text>
         </View>
         <View style={styles.row}>
-          {/* FAN */}
-          <Card style={styles.thirdCard}>
-            <View style={styles.automationItem}>
-              <Icon name="options-outline" size={24} color={colors.primary} />
-              <View style={styles.automationInfo}>
-                <Text
-                  style={[
-                    styles.automationLabel,
-                    { color: colors.primaryDark },
-                  ]}
-                >
-                  Fan
-                </Text>
-                <View
-                  style={[
-                    styles.statusIndicator,
-                    {
-                      backgroundColor: getStatusBgColor(
-                        stats.fanStatus,
-                        colors,
-                      ),
-                    },
-                  ]}
-                >
+          {/* ==========================================
+          FAN - CLICKABLE
+          ========================================== */}
+          <TouchableOpacity
+            style={[styles.thirdCard, { marginHorizontal: 3 }]}
+            activeOpacity={0.7}
+            onPress={() => handleNavigate("/fan-control")}
+          >
+            <Card style={styles.automationCard}>
+              <View style={styles.automationItem}>
+                <View style={styles.automationIconContainer}>
+                  <Icon
+                    name="options-outline"
+                    size={24}
+                    color={colors.primary}
+                  />
+                </View>
+                <View style={styles.automationInfo}>
                   <Text
                     style={[
-                      styles.statusText,
+                      styles.automationLabel,
+                      { color: colors.primaryDark },
+                    ]}
+                  >
+                    Fan
+                  </Text>
+                  <View
+                    style={[
+                      styles.statusIndicator,
                       {
-                        color: getStatusColor(stats.fanStatus, colors),
+                        backgroundColor: getStatusBgColor(
+                          stats.fanStatus,
+                          colors,
+                        ),
                       },
                     ]}
                   >
-                    {stats.fanStatus}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.statusText,
+                        {
+                          color: getStatusColor(stats.fanStatus, colors),
+                        },
+                      ]}
+                    >
+                      {stats.fanStatus}
+                    </Text>
+                  </View>
+                  <View style={styles.autoModeBadge}>
+                    <Text
+                      style={[
+                        styles.autoModeText,
+                        {
+                          color: stats.fanIsAuto
+                            ? colors.success
+                            : colors.textMuted,
+                        },
+                      ]}
+                    >
+                      {stats.fanIsAuto ? "🤖 Auto" : "👤 Manual"}
+                    </Text>
+                  </View>
                 </View>
-                {/* AUTO MODE BADGE */}
-                <View style={styles.autoModeBadge}>
-                  <Text
-                    style={[
-                      styles.autoModeText,
-                      {
-                        color: stats.fanIsAuto
-                          ? colors.success
-                          : colors.textMuted,
-                      },
-                    ]}
-                  >
-                    {stats.fanIsAuto ? "🤖 Auto" : "👤 Manual"}
-                  </Text>
-                </View>
+                <Icon
+                  name="chevron-forward"
+                  size={16}
+                  color={colors.textMuted}
+                />
               </View>
-            </View>
-          </Card>
+            </Card>
+          </TouchableOpacity>
 
-          {/* WATER PUMP */}
-          <Card style={styles.thirdCard}>
-            <View style={styles.automationItem}>
-              <Icon name="water" size={24} color={colors.info} />
-              <View style={styles.automationInfo}>
-                <Text
-                  style={[
-                    styles.automationLabel,
-                    { color: colors.primaryDark },
-                  ]}
-                >
-                  Water Pump
-                </Text>
-                <View
-                  style={[
-                    styles.statusIndicator,
-                    {
-                      backgroundColor: getStatusBgColor(
-                        stats.waterPump,
-                        colors,
-                      ),
-                    },
-                  ]}
-                >
+          {/* ==========================================
+          WATER PUMP - CLICKABLE
+          ========================================== */}
+          <TouchableOpacity
+            style={[styles.thirdCard, { marginHorizontal: 3 }]}
+            activeOpacity={0.7}
+            onPress={() => handleNavigate("/water-pump")}
+          >
+            <Card style={styles.automationCard}>
+              <View style={styles.automationItem}>
+                <View style={styles.automationIconContainer}>
+                  <Icon name="water" size={24} color={colors.info} />
+                </View>
+                <View style={styles.automationInfo}>
                   <Text
                     style={[
-                      styles.statusText,
+                      styles.automationLabel,
+                      { color: colors.primaryDark },
+                    ]}
+                  >
+                    Water Pump
+                  </Text>
+                  <View
+                    style={[
+                      styles.statusIndicator,
                       {
-                        color: getStatusColor(stats.waterPump, colors),
+                        backgroundColor: getStatusBgColor(
+                          stats.waterPump,
+                          colors,
+                        ),
                       },
                     ]}
                   >
-                    {stats.waterPump}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.statusText,
+                        {
+                          color: getStatusColor(stats.waterPump, colors),
+                        },
+                      ]}
+                    >
+                      {stats.waterPump}
+                    </Text>
+                  </View>
+                  <View style={styles.autoModeBadge}>
+                    <Text
+                      style={[
+                        styles.autoModeText,
+                        {
+                          color: stats.pumpIsAuto
+                            ? colors.success
+                            : colors.textMuted,
+                        },
+                      ]}
+                    >
+                      {stats.pumpIsAuto ? "🤖 Auto" : "👤 Manual"}
+                    </Text>
+                  </View>
                 </View>
-                {/* AUTO MODE BADGE */}
-                <View style={styles.autoModeBadge}>
-                  <Text
-                    style={[
-                      styles.autoModeText,
-                      {
-                        color: stats.pumpIsAuto
-                          ? colors.success
-                          : colors.textMuted,
-                      },
-                    ]}
-                  >
-                    {stats.pumpIsAuto ? "🤖 Auto" : "👤 Manual"}
-                  </Text>
-                </View>
+                <Icon
+                  name="chevron-forward"
+                  size={16}
+                  color={colors.textMuted}
+                />
               </View>
-            </View>
-          </Card>
+            </Card>
+          </TouchableOpacity>
 
-          {/* LIGHT */}
-          <Card style={styles.thirdCard}>
-            <View style={styles.automationItem}>
-              <Icon name="bulb-outline" size={24} color={colors.warning} />
-              <View style={styles.automationInfo}>
-                <Text
-                  style={[
-                    styles.automationLabel,
-                    { color: colors.primaryDark },
-                  ]}
-                >
-                  Light
-                </Text>
-                <View
-                  style={[
-                    styles.statusIndicator,
-                    {
-                      backgroundColor: getStatusBgColor(
-                        stats.lightStatus,
-                        colors,
-                      ),
-                    },
-                  ]}
-                >
+          {/* ==========================================
+          LIGHT - CLICKABLE
+          ========================================== */}
+          <TouchableOpacity
+            style={[styles.thirdCard, { marginHorizontal: 3 }]}
+            activeOpacity={0.7}
+            onPress={() => handleNavigate("/light-control")}
+          >
+            <Card style={styles.automationCard}>
+              <View style={styles.automationItem}>
+                <View style={styles.automationIconContainer}>
+                  <Icon name="bulb-outline" size={24} color={colors.warning} />
+                </View>
+                <View style={styles.automationInfo}>
                   <Text
                     style={[
-                      styles.statusText,
+                      styles.automationLabel,
+                      { color: colors.primaryDark },
+                    ]}
+                  >
+                    Light
+                  </Text>
+                  <View
+                    style={[
+                      styles.statusIndicator,
                       {
-                        color: getStatusColor(stats.lightStatus, colors),
+                        backgroundColor: getStatusBgColor(
+                          stats.lightStatus,
+                          colors,
+                        ),
                       },
                     ]}
                   >
-                    {stats.lightStatus}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.statusText,
+                        {
+                          color: getStatusColor(stats.lightStatus, colors),
+                        },
+                      ]}
+                    >
+                      {stats.lightStatus}
+                    </Text>
+                  </View>
+                  <View style={styles.autoModeBadge}>
+                    <Text
+                      style={[
+                        styles.autoModeText,
+                        {
+                          color: stats.lightIsAuto
+                            ? colors.success
+                            : colors.textMuted,
+                        },
+                      ]}
+                    >
+                      {stats.lightIsAuto ? "🤖 Auto" : "👤 Manual"}
+                    </Text>
+                  </View>
                 </View>
-                {/* AUTO MODE BADGE */}
-                <View style={styles.autoModeBadge}>
-                  <Text
-                    style={[
-                      styles.autoModeText,
-                      {
-                        color: stats.lightIsAuto
-                          ? colors.success
-                          : colors.textMuted,
-                      },
-                    ]}
-                  >
-                    {stats.lightIsAuto ? "🤖 Auto" : "👤 Manual"}
-                  </Text>
-                </View>
+                <Icon
+                  name="chevron-forward"
+                  size={16}
+                  color={colors.textMuted}
+                />
               </View>
-            </View>
-          </Card>
+            </Card>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -680,6 +702,10 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 3,
   },
+  automationCard: {
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
   tempContainer: {
     alignItems: "center",
     paddingVertical: 8,
@@ -699,12 +725,17 @@ const styles = StyleSheet.create({
   automationItem: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 8,
-    gap: 6,
+    justifyContent: "space-between",
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  automationIconContainer: {
+    width: 32,
+    alignItems: "center",
   },
   automationInfo: {
     alignItems: "center",
+    flex: 1,
   },
   automationLabel: {
     fontSize: 12,
@@ -717,8 +748,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 2,
   },
-  statusOn: {},
-  statusOff: {},
   statusText: {
     fontSize: 10,
     fontWeight: "700",
