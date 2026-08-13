@@ -27,7 +27,19 @@ const DashboardScreen = () => {
     waterLevel: 0,
     fanStatus: "OFF",
     waterPump: "OFF",
-    lightStatus: "OFF", // Added light status
+    lightStatus: "OFF",
+    // ============================================
+    // ADD AUTO MODE STATES
+    // ============================================
+    fanAutoMode: "manual", // 'auto' or 'manual'
+    pumpAutoMode: "manual", // 'auto' or 'manual'
+    feedAutoMode: "manual", // 'auto' or 'manual'
+    lightAutoMode: "manual", // 'auto' or 'manual'
+    fanIsAuto: false,
+    pumpIsAuto: false,
+    feedIsAuto: false,
+    lightIsAuto: false,
+    // ============================================
     healthyChicks: 0,
     weakChicks: 0,
     totalChicks: 0,
@@ -63,7 +75,19 @@ const DashboardScreen = () => {
         waterLevel: sensorData.water_level || 0,
         fanStatus: sensorData.fan_status || "OFF",
         waterPump: sensorData.water_pump || "OFF",
-        lightStatus: sensorData.light_status || "OFF", // Added light status
+        lightStatus: sensorData.light_status || "OFF",
+        // ============================================
+        // SET AUTO MODE VALUES FROM API
+        // ============================================
+        fanAutoMode: statsData.fan_auto_mode || "manual",
+        pumpAutoMode: statsData.pump_auto_mode || "manual",
+        feedAutoMode: statsData.feed_auto_mode || "manual",
+        lightAutoMode: statsData.light_auto_mode || "manual",
+        fanIsAuto: statsData.fan_is_auto || false,
+        pumpIsAuto: statsData.pump_is_auto || false,
+        feedIsAuto: statsData.feed_is_auto || false,
+        lightIsAuto: statsData.light_is_auto || false,
+        // ============================================
         healthyChicks: statsData.healthy_chicks || 0,
         weakChicks: statsData.weak_chicks || 0,
         totalChicks: statsData.total_chicks || 0,
@@ -94,6 +118,32 @@ const DashboardScreen = () => {
   const onRefresh = () => {
     setRefreshing(true);
     fetchDashboard();
+  };
+
+  // ============================================
+  // HELPER: Get status display text
+  // ============================================
+  const getAutoStatusDisplay = (autoMode: string, currentStatus: string) => {
+    if (autoMode === "auto") {
+      return currentStatus === "ON" ? "ON (Auto)" : "OFF (Auto)";
+    }
+    return currentStatus === "ON" ? "ON (Manual)" : "OFF (Manual)";
+  };
+
+  const getStatusColor = (status: string, colors: any) => {
+    return status === "ON" ? colors.success : colors.danger;
+  };
+
+  const getStatusBgColor = (status: string, colors: any) => {
+    return status === "ON" ? colors.successLight : colors.dangerLight;
+  };
+
+  const getAutoModeBadge = (isAuto: boolean, colors: any) => {
+    return {
+      text: isAuto ? "Auto" : "Manual",
+      color: isAuto ? colors.success : colors.textMuted,
+      bgColor: isAuto ? colors.successLight : colors.border,
+    };
   };
 
   if (loading) {
@@ -245,7 +295,9 @@ const DashboardScreen = () => {
         </Card>
       </View>
 
-      {/* Automation Status - Updated with Light */}
+      {/* ============================================
+      AUTOMATION STATUS - UPDATED WITH AUTO MODE
+      ============================================ */}
       <View style={styles.section}>
         <View
           style={{
@@ -265,10 +317,11 @@ const DashboardScreen = () => {
           </Text>
         </View>
         <View style={styles.row}>
+          {/* FAN */}
           <Card style={styles.thirdCard}>
             <View style={styles.automationItem}>
-              <Icon name="options-outline" size={28} color={colors.primary} />
-              <View>
+              <Icon name="options-outline" size={24} color={colors.primary} />
+              <View style={styles.automationInfo}>
                 <Text
                   style={[
                     styles.automationLabel,
@@ -280,38 +333,49 @@ const DashboardScreen = () => {
                 <View
                   style={[
                     styles.statusIndicator,
-                    stats.fanStatus === "ON"
-                      ? [
-                          styles.statusOn,
-                          { backgroundColor: colors.successLight },
-                        ]
-                      : [
-                          styles.statusOff,
-                          { backgroundColor: colors.dangerLight },
-                        ],
+                    {
+                      backgroundColor: getStatusBgColor(
+                        stats.fanStatus,
+                        colors,
+                      ),
+                    },
                   ]}
                 >
                   <Text
                     style={[
                       styles.statusText,
                       {
-                        color:
-                          stats.fanStatus === "ON"
-                            ? colors.success
-                            : colors.danger,
+                        color: getStatusColor(stats.fanStatus, colors),
                       },
                     ]}
                   >
                     {stats.fanStatus}
                   </Text>
                 </View>
+                {/* AUTO MODE BADGE */}
+                <View style={styles.autoModeBadge}>
+                  <Text
+                    style={[
+                      styles.autoModeText,
+                      {
+                        color: stats.fanIsAuto
+                          ? colors.success
+                          : colors.textMuted,
+                      },
+                    ]}
+                  >
+                    {stats.fanIsAuto ? "🤖 Auto" : "👤 Manual"}
+                  </Text>
+                </View>
               </View>
             </View>
           </Card>
+
+          {/* WATER PUMP */}
           <Card style={styles.thirdCard}>
             <View style={styles.automationItem}>
-              <Icon name="water" size={28} color={colors.info} />
-              <View>
+              <Icon name="water" size={24} color={colors.info} />
+              <View style={styles.automationInfo}>
                 <Text
                   style={[
                     styles.automationLabel,
@@ -323,38 +387,49 @@ const DashboardScreen = () => {
                 <View
                   style={[
                     styles.statusIndicator,
-                    stats.waterPump === "ON"
-                      ? [
-                          styles.statusOn,
-                          { backgroundColor: colors.successLight },
-                        ]
-                      : [
-                          styles.statusOff,
-                          { backgroundColor: colors.dangerLight },
-                        ],
+                    {
+                      backgroundColor: getStatusBgColor(
+                        stats.waterPump,
+                        colors,
+                      ),
+                    },
                   ]}
                 >
                   <Text
                     style={[
                       styles.statusText,
                       {
-                        color:
-                          stats.waterPump === "ON"
-                            ? colors.success
-                            : colors.danger,
+                        color: getStatusColor(stats.waterPump, colors),
                       },
                     ]}
                   >
                     {stats.waterPump}
                   </Text>
                 </View>
+                {/* AUTO MODE BADGE */}
+                <View style={styles.autoModeBadge}>
+                  <Text
+                    style={[
+                      styles.autoModeText,
+                      {
+                        color: stats.pumpIsAuto
+                          ? colors.success
+                          : colors.textMuted,
+                      },
+                    ]}
+                  >
+                    {stats.pumpIsAuto ? "🤖 Auto" : "👤 Manual"}
+                  </Text>
+                </View>
               </View>
             </View>
           </Card>
+
+          {/* LIGHT */}
           <Card style={styles.thirdCard}>
             <View style={styles.automationItem}>
-              <Icon name="bulb-outline" size={28} color={colors.warning} />
-              <View>
+              <Icon name="bulb-outline" size={24} color={colors.warning} />
+              <View style={styles.automationInfo}>
                 <Text
                   style={[
                     styles.automationLabel,
@@ -366,29 +441,38 @@ const DashboardScreen = () => {
                 <View
                   style={[
                     styles.statusIndicator,
-                    stats.lightStatus === "ON"
-                      ? [
-                          styles.statusOn,
-                          { backgroundColor: colors.successLight },
-                        ]
-                      : [
-                          styles.statusOff,
-                          { backgroundColor: colors.dangerLight },
-                        ],
+                    {
+                      backgroundColor: getStatusBgColor(
+                        stats.lightStatus,
+                        colors,
+                      ),
+                    },
                   ]}
                 >
                   <Text
                     style={[
                       styles.statusText,
                       {
-                        color:
-                          stats.lightStatus === "ON"
-                            ? colors.success
-                            : colors.danger,
+                        color: getStatusColor(stats.lightStatus, colors),
                       },
                     ]}
                   >
                     {stats.lightStatus}
+                  </Text>
+                </View>
+                {/* AUTO MODE BADGE */}
+                <View style={styles.autoModeBadge}>
+                  <Text
+                    style={[
+                      styles.autoModeText,
+                      {
+                        color: stats.lightIsAuto
+                          ? colors.success
+                          : colors.textMuted,
+                      },
+                    ]}
+                  >
+                    {stats.lightIsAuto ? "🤖 Auto" : "👤 Manual"}
                   </Text>
                 </View>
               </View>
@@ -446,7 +530,7 @@ const DashboardScreen = () => {
         </Card>
       </View>
 
-      {/* Quick Actions - Updated with Light */}
+      {/* Quick Actions */}
       <View style={styles.section}>
         <View
           style={{
@@ -615,24 +699,36 @@ const styles = StyleSheet.create({
   automationItem: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
-    paddingVertical: 12,
+    justifyContent: "center",
+    paddingVertical: 8,
+    gap: 6,
+  },
+  automationInfo: {
+    alignItems: "center",
   },
   automationLabel: {
     fontSize: 12,
     fontWeight: "600",
+    marginBottom: 2,
   },
   statusIndicator: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginTop: 2,
   },
   statusOn: {},
   statusOff: {},
   statusText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
+  },
+  autoModeBadge: {
+    marginTop: 2,
+  },
+  autoModeText: {
+    fontSize: 9,
+    fontWeight: "600",
   },
   chickenStats: {
     flexDirection: "row",
