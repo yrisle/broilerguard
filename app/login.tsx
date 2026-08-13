@@ -1,18 +1,18 @@
 // app/login.tsx
 import React, { useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  ScrollView,
+  View,
 } from "react-native";
+import { API_BASE_URL } from "../src/api/client";
 import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/hooks/useTheme";
-import { API_BASE_URL } from "../src/api/client";
 
 export default function LoginScreen() {
   const { colors } = useTheme();
@@ -27,7 +27,7 @@ export default function LoginScreen() {
       return;
     }
 
-    setDebugInfo(`🔄 Connecting to: ${API_BASE_URL}/auth/login`);
+    setDebugInfo(`🔄 Connecting to: ${API_BASE_URL}/auth/login.php`);
 
     try {
       await login(username.trim(), password.trim());
@@ -35,12 +35,24 @@ export default function LoginScreen() {
     } catch (error: any) {
       console.error("Login error:", error);
       setDebugInfo(`❌ Error: ${error.message || "Unknown error"}`);
-      
-      Alert.alert(
-        "Login Failed", 
-        error.message || "Invalid credentials",
-        [{ text: "OK" }]
-      );
+
+      Alert.alert("Login Failed", error.message || "Invalid credentials", [
+        { text: "OK" },
+      ]);
+    }
+  };
+
+  const testConnection = async () => {
+    try {
+      setDebugInfo("🔄 Testing connection...");
+      const response = await fetch(`${API_BASE_URL}/test-connection.php`);
+      const text = await response.text();
+      console.log("Test response:", text);
+      setDebugInfo(`✅ Connection OK: ${text.substring(0, 50)}...`);
+      Alert.alert("Connection Test", "✅ Server is reachable!");
+    } catch (error: any) {
+      setDebugInfo(`❌ Connection failed: ${error.message}`);
+      Alert.alert("Connection Failed", error.message);
     }
   };
 
@@ -49,7 +61,9 @@ export default function LoginScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.logo}>🐔</Text>
-          <Text style={[styles.title, { color: colors.text }]}>BroilerGuard</Text>
+          <Text style={[styles.title, { color: colors.text }]}>
+            BroilerGuard
+          </Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
             Smart Poultry Management
           </Text>
@@ -103,6 +117,16 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={[styles.testBtn, { borderColor: colors.border }]}
+            onPress={testConnection}
+            disabled={isLoading}
+          >
+            <Text style={[styles.testBtnText, { color: colors.textMuted }]}>
+              Test Connection
+            </Text>
+          </TouchableOpacity>
+
           {/* Debug Info */}
           <View style={[styles.debugBox, { backgroundColor: colors.card }]}>
             <Text style={[styles.debugLabel, { color: colors.textSecondary }]}>
@@ -112,7 +136,12 @@ export default function LoginScreen() {
               {API_BASE_URL}
             </Text>
             {debugInfo ? (
-              <Text style={[styles.debugText, { color: colors.primary, marginTop: 4 }]}>
+              <Text
+                style={[
+                  styles.debugText,
+                  { color: colors.primary, marginTop: 4 },
+                ]}
+              >
                 {debugInfo}
               </Text>
             ) : null}
@@ -177,6 +206,17 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
+  },
+  testBtn: {
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 8,
+    borderWidth: 1,
+  },
+  testBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
   debugBox: {
     marginTop: 16,

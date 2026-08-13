@@ -6,27 +6,18 @@ import { Platform } from "react-native";
 // ============================================
 // 🔧 PALITAN ITO - ILAGAY ANG NGROK URL MO
 // ============================================
-const NGROK_URL = "https://deltoidal-nonregeneratively-florance.ngrok-free.dev"; // ← PALITAN ITO
+const NGROK_URL = "https://deltoidal-nonregeneratively-florance.ngrok-free.dev";
 
 const getBaseUrl = () => {
-  // For Android Emulator
   if (Platform.OS === "android") {
-    // Pwedeng gamitin ang 10.0.2.2 or ngrok
     return `${NGROK_URL}/broilerguard/api`;
-    // return `http://10.0.2.2/broilerguard/api`;
   }
-
-  // For iOS Simulator
   if (Platform.OS === "ios") {
     return `${NGROK_URL}/broilerguard/api`;
   }
-
-  // For Web
   if (Platform.OS === "web") {
     return `http://localhost/broilerguard/api`;
   }
-
-  // For Physical Device
   return `${NGROK_URL}/broilerguard/api`;
 };
 
@@ -36,15 +27,17 @@ console.log("========================================");
 console.log("🔗 API Base URL:", API_BASE_URL);
 console.log("========================================");
 
-export const api = axios.create({
+// ✅ CREATE AXIOS INSTANCE
+const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {
     "Content-Type": "application/json",
+    Accept: "application/json",
   },
 });
 
-// Request interceptor - add token
+// ✅ REQUEST INTERCEPTOR
 api.interceptors.request.use(
   async (config) => {
     try {
@@ -55,6 +48,7 @@ api.interceptors.request.use(
     } catch (error) {
       console.log("Token error:", error);
     }
+
     console.log("📤 Request:", config.method?.toUpperCase(), config.url);
     return config;
   },
@@ -64,7 +58,7 @@ api.interceptors.request.use(
   },
 );
 
-// Response interceptor - handle errors
+// ✅ RESPONSE INTERCEPTOR
 api.interceptors.response.use(
   (response) => {
     console.log("📥 Response:", response.status, response.config.url);
@@ -73,7 +67,7 @@ api.interceptors.response.use(
   async (error) => {
     console.log("❌ Response Error:", error.message);
     console.log("❌ URL:", error.config?.url);
-    console.log("❌ BaseURL:", error.config?.baseURL);
+    console.log("❌ Full URL:", error.config?.baseURL + error.config?.url);
 
     if (error.response?.status === 401) {
       try {
@@ -85,4 +79,5 @@ api.interceptors.response.use(
   },
 );
 
+// ✅ EXPORT DEFAULT
 export default api;

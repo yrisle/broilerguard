@@ -1,9 +1,9 @@
 // src/context/AuthContext.tsx
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth } from '../api/endpoints/auth';
-import { API_BASE_URL } from '../api/client';
-import { useRouter } from 'expo-router'; // ← ADD THIS
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter, useSegments } from "expo-router";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { API_BASE_URL } from "../api/client";
+import { auth } from "../api/endpoints/auth";
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -14,49 +14,74 @@ interface AuthContextType {
   validateToken: () => Promise<boolean>;
 }
 
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(
+  undefined,
+);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
-  const router = useRouter(); // ← ADD THIS
+  const router = useRouter();
+  const segments = useSegments();
 
   useEffect(() => {
     validateToken();
   }, []);
 
+  useEffect(() => {
+    if (!isLoading) {
+      const inAuthGroup = segments[0] === "login";
+
+      if (!isAuthenticated && !inAuthGroup) {
+        router.replace("/login");
+      } else if (isAuthenticated && inAuthGroup) {
+        router.replace("/(tabs)/home");
+      }
+    }
+  }, [isAuthenticated, isLoading, segments]);
+
   const validateToken = async (): Promise<boolean> => {
     try {
-      const token = await AsyncStorage.getItem('auth_token');
-      
+      const token = await AsyncStorage.getItem("auth_token");
+
       if (!token) {
         setIsAuthenticated(false);
+        setUser(null);
         setIsLoading(false);
         return false;
       }
 
       try {
         const response = await auth.validate();
+        console.log("📥 Validate response:", response.data);
+
         if (response.data.success) {
           setIsAuthenticated(true);
-          setUser(response.data.user || { username: 'admin' });
+          setUser(response.data.user || { username: "admin" });
           setIsLoading(false);
-          // ✅ Redirect to home if already authenticated
-          router.replace('/(tabs)/home');
           return true;
+        } else {
+          await AsyncStorage.removeItem("auth_token");
+          setIsAuthenticated(false);
+          setUser(null);
+          setIsLoading(false);
+          return false;
         }
       } catch (error) {
-        console.log('Token validation failed, clearing token');
+        console.log("Token validation failed:", error);
+        await AsyncStorage.removeItem("auth_token");
+        setIsAuthenticated(false);
+        setUser(null);
+        setIsLoading(false);
+        return false;
       }
-      
-      await AsyncStorage.removeItem('auth_token');
-      setIsAuthenticated(false);
-      setIsLoading(false);
-      return false;
     } catch (error) {
-      console.error('Validation error:', error);
+      console.error("Validation error:", error);
       setIsAuthenticated(false);
+      setUser(null);
       setIsLoading(false);
       return false;
     }
@@ -65,44 +90,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (username: string, password: string) => {
     setIsLoading(true);
     try {
-      const url = `${API_BASE_URL}/auth/login`;
-      console.log('========================================');
-      console.log('🔐 LOGIN ATTEMPT');
-      console.log('📍 URL:', url);
-      console.log('👤 Username:', username);
-      console.log('========================================');
-      
-      const response = await auth.login(username, password);
-      
-      console.log('📥 Response:', response.data);
-      
-      if (response.data.success) {
-        const { token, user } = response.data;
-        await AsyncStorage.setItem('auth_token', token);
-        setUser(user);
+      console.log("========================================");
+      console.log("🔐 LOGIN ATTEMPT");
+      console.log("📍 URL:", `${API_BASE_URL}/auth/login.php`);
+      console.log("👤 Username:", username);
+      console.log("========================================");
+
+      // ✅ DIRECT FETCH
+      const response = await fetch(`${API_BASE_URL}/auth/login.php`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      console.log("📥 Response status:", response.status);
+
+      const responseText = await response.text();
+      console.log("📥 Raw response:", responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error("❌ JSON Parse error:", e);
+        throw new Error("Invalid server response format");
+      }
+
+      console.log("📥 Parsed data:", data);
+
+      if (data.success) {
+        const { token, user } = data;
+        await AsyncStorage.setItem("auth_token", token);
+        if (user) {
+          await AsyncStorage.setItem("user", JSON.stringify(user));
+          setUser(user);
+        }
         setIsAuthenticated(true);
-        console.log('✅ Login successful!');
-        
-        // ✅ REDIRECT TO HOME AFTER LOGIN
-        router.replace('/(tabs)/home');
+        console.log("✅ Login successful!");
+        router.replace("/(tabs)/home");
       } else {
-        throw new Error(response.data.message || 'Login failed');
+        throw new Error(data.message || "Login failed");
       }
     } catch (error: any) {
-      console.error('❌ Login error:', error);
-      
-      let errorMessage = 'Network error. Please check your connection.';
-      
-      if (error.code === 'ECONNABORTED') {
-        errorMessage = 'Connection timeout. Server is not responding.';
-      } else if (error.message?.includes('Network Error')) {
+      console.error("❌ Login error:", error);
+
+      let errorMessage = "Network error. Please check your connection.";
+
+      if (error.code === "ECONNABORTED") {
+        errorMessage = "Connection timeout. Server is not responding.";
+      } else if (error.message?.includes("Network Error")) {
         errorMessage = `Cannot reach server at ${API_BASE_URL}`;
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -113,13 +159,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await auth.logout();
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
     }
-    await AsyncStorage.removeItem('auth_token');
+    await AsyncStorage.removeItem("auth_token");
+    await AsyncStorage.removeItem("user");
     setIsAuthenticated(false);
     setUser(null);
-    // ✅ Redirect to login after logout
-    router.replace('/login');
+    router.replace("/login");
   };
 
   return (
@@ -141,7 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
