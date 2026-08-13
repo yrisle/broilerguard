@@ -90,17 +90,37 @@ const FeedDispenserScreen = () => {
     }
   };
 
+  // src/screens/Automation/FeedDispenserScreen.tsx
+
   const toggleAutoMode = async () => {
     const newMode = !autoMode;
     try {
-      await api.post("/automation/feeder", {
-        action: "settings",
+      console.log("🔄 Toggling auto mode to:", newMode);
+
+      const response = await api.post("/automation/feeder", {
+        action: "settings", // or "toggle_auto"
         auto_mode: newMode,
       });
-      setAutoMode(newMode);
-      Alert.alert("Success", `Auto mode ${newMode ? "enabled" : "disabled"}`);
-    } catch (error) {
-      Alert.alert("Error", "Failed to update settings");
+
+      console.log("📥 Response:", response.data);
+
+      if (response.data.success) {
+        setAutoMode(newMode);
+        Alert.alert("Success", `Auto mode ${newMode ? "enabled" : "disabled"}`);
+      } else {
+        Alert.alert(
+          "Error",
+          response.data.message || "Failed to update settings",
+        );
+      }
+    } catch (error: any) {
+      console.error("❌ Toggle auto mode error:", error);
+      console.error("❌ Response:", error.response?.data);
+
+      Alert.alert(
+        "Error",
+        error.response?.data?.message || "Failed to update settings",
+      );
     }
   };
 
