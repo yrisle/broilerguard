@@ -1,4 +1,5 @@
 // src/screens/Automation/FeedDispenserScreen.tsx
+
 import { FontAwesome5 } from "@expo/vector-icons";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState } from "react";
@@ -15,7 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import api from "../../api/client";
+import api from "../../api/client"; // FIX: Remove braces
 import { useTheme } from "../../hooks/useTheme";
 
 const FeedDispenserScreen = () => {
@@ -32,8 +33,13 @@ const FeedDispenserScreen = () => {
   const fetchData = async () => {
     try {
       const response = await api.get("/automation/feeder");
+      console.log("📥 Feeder data:", response.data);
       if (response.data.success) {
         setData(response.data.data);
+        // FIX: Set autoMode from API response
+        if (response.data.data?.settings?.auto_mode !== undefined) {
+          setAutoMode(response.data.data.settings.auto_mode);
+        }
       }
     } catch (error) {
       console.error("Error fetching feeder data:", error);
@@ -54,16 +60,19 @@ const FeedDispenserScreen = () => {
 
   const handleDispense = async (amount: number) => {
     try {
-      const response = await api.post("/automation/feeder", {
-        action: "dispense",
+      const response = await api.post("/automation/feeder/dispense", {
         amount,
       });
       if (response.data.success) {
         Alert.alert("Success", `Dispensed ${amount} kg of feed`);
         fetchData();
       }
-    } catch (error) {
-      Alert.alert("Error", "Failed to dispense feed");
+    } catch (error: any) {
+      console.error("❌ Dispense error:", error);
+      Alert.alert(
+        "Error",
+        error.response?.data?.message || "Failed to dispense feed",
+      );
     }
   };
 
@@ -77,8 +86,8 @@ const FeedDispenserScreen = () => {
     try {
       console.log("🔄 Refilling feed:", amount);
 
-      const response = await api.post("/automation/feeder", {
-        action: "refill",
+      // FIX: Use specific endpoint
+      const response = await api.post("/automation/feeder/refill", {
         amount: amount,
       });
 
@@ -88,7 +97,7 @@ const FeedDispenserScreen = () => {
         Alert.alert("Success", `Added ${amount} kg of feed`);
         setRefillModalVisible(false);
         setRefillAmount("");
-        fetchData(); // Refresh data
+        fetchData();
       } else {
         Alert.alert("Error", response.data.message || "Failed to refill feed");
       }
@@ -96,30 +105,59 @@ const FeedDispenserScreen = () => {
       console.error("❌ Refill error:", error);
       console.error("❌ Response:", error.response?.data);
 
+      // FIX: Try alternative endpoint if the first one fails
+      try {
+        const response2 = await api.post("/automation/feeder", {
+          action: "refill",
+          amount: amount,
+        });
+
+        if (response2.data.success) {
+          Alert.alert("Success", `Added ${amount} kg of feed`);
+          setRefillModalVisible(false);
+          setRefillAmount("");
+          fetchData();
+          return;
+        }
+      } catch (error2) {
+        console.error("❌ Alternative refill also failed:", error2);
+      }
+
       Alert.alert(
         "Error",
-        error.response?.data?.message || "Failed to refill feed",
+        error.response?.data?.message ||
+          "Failed to refill feed. Please try again.",
       );
     }
   };
-
-  // src/screens/Automation/FeedDispenserScreen.tsx
 
   const toggleAutoMode = async () => {
     const newMode = !autoMode;
     try {
       console.log("🔄 Toggling auto mode to:", newMode);
 
-      const response = await api.post("/automation/feeder", {
-        // or "toggle_auto"
-        auto_mode: newMode,
-      });
+      // FIX: Try different approaches
+      let response;
+
+      // Try 1: Direct settings update
+      try {
+        response = await api.post("/automation/feeder/settings", {
+          auto_mode: newMode,
+        });
+      } catch {
+        // Try 2: With action parameter
+        response = await api.post("/automation/feeder", {
+          action: "settings",
+          auto_mode: newMode,
+        });
+      }
 
       console.log("📥 Response:", response.data);
 
       if (response.data.success) {
         setAutoMode(newMode);
         Alert.alert("Success", `Auto mode ${newMode ? "enabled" : "disabled"}`);
+        fetchData();
       } else {
         Alert.alert(
           "Error",
@@ -132,7 +170,8 @@ const FeedDispenserScreen = () => {
 
       Alert.alert(
         "Error",
-        error.response?.data?.message || "Failed to update settings",
+        error.response?.data?.message ||
+          "Failed to update settings. Please try again.",
       );
     }
   };

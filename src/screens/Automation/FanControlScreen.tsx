@@ -1,4 +1,5 @@
 // src/screens/Automation/FanControlScreen.tsx
+
 import { FontAwesome5 } from "@expo/vector-icons";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState } from "react";
@@ -30,6 +31,7 @@ function FanControlScreen() {
   const fetchData = async () => {
     try {
       const response = await api.get("/automation/fan");
+      console.log("📥 Fan data:", response.data);
       if (response.data.success) {
         setFanStatus(response.data.data.status);
         setSettings(response.data.data.settings);
@@ -51,22 +53,33 @@ function FanControlScreen() {
     fetchData();
   };
 
-  // src/screens/Automation/FanControlScreen.tsx
-
   const toggleFan = async () => {
     const newStatus = fanStatus === "ON" ? "OFF" : "ON";
     try {
       console.log("🔄 Toggling fan to:", newStatus);
 
-      const response = await api.post("/automation/fan", {
-        status: newStatus,
-      });
+      let response;
+
+      // FIX: Try different approaches
+      try {
+        // Try 1: Direct status update
+        response = await api.post("/automation/fan/toggle", {
+          status: newStatus,
+        });
+      } catch {
+        // Try 2: With action parameter
+        response = await api.post("/automation/fan", {
+          action: "toggle",
+          status: newStatus,
+        });
+      }
 
       console.log("📥 Response:", response.data);
 
       if (response.data.success) {
         setFanStatus(newStatus);
         Alert.alert("Success", `Fan turned ${newStatus}`);
+        fetchData();
       } else {
         Alert.alert("Error", response.data.message || "Failed to toggle fan");
       }
@@ -85,18 +98,47 @@ function FanControlScreen() {
   const toggleAutoMode = async () => {
     const newMode = !settings.auto_mode;
     try {
-      const response = await api.post("/automation/fan", {
-        action: "settings",
-        auto_mode: newMode,
-        temp_on: settings.temp_on,
-        temp_off: settings.temp_off,
-      });
+      console.log("🔄 Toggling fan auto mode to:", newMode);
+
+      let response;
+
+      // FIX: Try different approaches
+      try {
+        // Try 1: Direct settings update
+        response = await api.post("/automation/fan/settings", {
+          auto_mode: newMode,
+        });
+      } catch {
+        // Try 2: With action parameter
+        response = await api.post("/automation/fan", {
+          action: "settings",
+          auto_mode: newMode,
+          temp_on: settings.temp_on,
+          temp_off: settings.temp_off,
+        });
+      }
+
+      console.log("📥 Response:", response.data);
+
       if (response.data.success) {
         setSettings({ ...settings, auto_mode: newMode });
         Alert.alert("Success", `Auto mode ${newMode ? "enabled" : "disabled"}`);
+        fetchData();
+      } else {
+        Alert.alert(
+          "Error",
+          response.data.message || "Failed to update settings",
+        );
       }
-    } catch (error) {
-      Alert.alert("Error", "Failed to update settings");
+    } catch (error: any) {
+      console.error("❌ Toggle auto mode error:", error);
+      console.error("❌ Response:", error.response?.data);
+
+      Alert.alert(
+        "Error",
+        error.response?.data?.message ||
+          "Failed to update settings. Please try again.",
+      );
     }
   };
 

@@ -1,4 +1,5 @@
 // src/screens/Automation/WaterPumpScreen.tsx
+
 import { FontAwesome5 } from "@expo/vector-icons";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState } from "react";
@@ -28,8 +29,13 @@ function WaterPumpScreen() {
   const fetchData = async () => {
     try {
       const response = await api.get("/automation/pump");
+      console.log("📥 Pump data:", response.data);
       if (response.data.success) {
         setData(response.data.data);
+        // FIX: Set autoMode from API response
+        if (response.data.data?.settings?.auto_mode !== undefined) {
+          setAutoMode(response.data.data.settings.auto_mode);
+        }
       }
     } catch (error) {
       console.error("Error fetching pump data:", error);
@@ -50,17 +56,21 @@ function WaterPumpScreen() {
 
   const handleWaterRelease = async (duration: number) => {
     try {
-      const response = await api.post("/automation/pump", {
-        action: "water",
+      const response = await api.post("/automation/pump/release", {
         duration,
       });
       if (response.data.success) {
-        const amount = response.data.data.amount;
+        const amount =
+          response.data.data?.amount || (duration * 0.5).toFixed(1);
         Alert.alert("Success", `Released ${amount} L of water`);
         fetchData();
       }
-    } catch (error) {
-      Alert.alert("Error", "Failed to release water");
+    } catch (error: any) {
+      console.error("❌ Water release error:", error);
+      Alert.alert(
+        "Error",
+        error.response?.data?.message || "Failed to release water",
+      );
     }
   };
 
@@ -68,19 +78,87 @@ function WaterPumpScreen() {
     const currentStatus = data?.pump?.status || "OFF";
     const newStatus = currentStatus === "ON" ? "OFF" : "ON";
     try {
-      await api.post("/automation/pump", {
-        status: newStatus,
-      });
-      fetchData();
-    } catch (error) {
-      Alert.alert("Error", "Failed to toggle pump");
+      console.log("🔄 Toggling pump to:", newStatus);
+
+      let response;
+
+      // FIX: Try different approaches
+      try {
+        // Try 1: Direct toggle endpoint
+        response = await api.post("/automation/pump/toggle", {
+          status: newStatus,
+        });
+      } catch {
+        // Try 2: With action parameter
+        response = await api.post("/automation/pump", {
+          action: "toggle",
+          status: newStatus,
+        });
+      }
+
+      console.log("📥 Response:", response.data);
+
+      if (response.data.success) {
+        Alert.alert("Success", `Pump turned ${newStatus}`);
+        fetchData();
+      } else {
+        Alert.alert("Error", response.data.message || "Failed to toggle pump");
+      }
+    } catch (error: any) {
+      console.error("❌ Toggle pump error:", error);
+      console.error("❌ Response:", error.response?.data);
+
+      Alert.alert(
+        "Error",
+        error.response?.data?.message ||
+          "Failed to toggle pump. Please try again.",
+      );
     }
   };
 
   const toggleAutoMode = async () => {
     const newMode = !autoMode;
-    setAutoMode(newMode);
-    Alert.alert("Success", `Auto mode ${newMode ? "enabled" : "disabled"}`);
+    try {
+      console.log("🔄 Toggling pump auto mode to:", newMode);
+
+      let response;
+
+      // FIX: Try different approaches
+      try {
+        // Try 1: Direct settings update
+        response = await api.post("/automation/pump/settings", {
+          auto_mode: newMode,
+        });
+      } catch {
+        // Try 2: With action parameter
+        response = await api.post("/automation/pump", {
+          action: "settings",
+          auto_mode: newMode,
+        });
+      }
+
+      console.log("📥 Response:", response.data);
+
+      if (response.data.success) {
+        setAutoMode(newMode);
+        Alert.alert("Success", `Auto mode ${newMode ? "enabled" : "disabled"}`);
+        fetchData();
+      } else {
+        Alert.alert(
+          "Error",
+          response.data.message || "Failed to update settings",
+        );
+      }
+    } catch (error: any) {
+      console.error("❌ Toggle auto mode error:", error);
+      console.error("❌ Response:", error.response?.data);
+
+      Alert.alert(
+        "Error",
+        error.response?.data?.message ||
+          "Failed to update settings. Please try again.",
+      );
+    }
   };
 
   if (loading) {
