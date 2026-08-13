@@ -51,21 +51,36 @@ function FanControlScreen() {
     fetchData();
   };
 
-  const toggleFan = async () => {
-    const newStatus = fanStatus === "ON" ? "OFF" : "ON";
-    try {
-      const response = await api.post("/automation/fan", {
-        action: "toggle",
-        status: newStatus,
-      });
-      if (response.data.success) {
-        setFanStatus(newStatus);
-        Alert.alert("Success", `Fan turned ${newStatus}`);
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to toggle fan");
+  // src/screens/Automation/FanControlScreen.tsx
+
+const toggleFan = async () => {
+  const newStatus = fanStatus === "ON" ? "OFF" : "ON";
+  try {
+    console.log("🔄 Toggling fan to:", newStatus);
+    
+    const response = await api.post("/automation/fan", {
+      action: "toggle",
+      status: newStatus,
+    });
+    
+    console.log("📥 Response:", response.data);
+    
+    if (response.data.success) {
+      setFanStatus(newStatus);
+      Alert.alert("Success", `Fan turned ${newStatus}`);
+    } else {
+      Alert.alert("Error", response.data.message || "Failed to toggle fan");
     }
-  };
+  } catch (error: any) {
+    console.error("❌ Toggle error:", error);
+    console.error("❌ Error response:", error.response?.data);
+    
+    Alert.alert(
+      "Error", 
+      error.response?.data?.message || "Failed to toggle fan. Please try again."
+    );
+  }
+};
 
   const toggleAutoMode = async () => {
     const newMode = !settings.auto_mode;
