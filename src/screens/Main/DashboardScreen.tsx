@@ -64,6 +64,8 @@ const DashboardScreen = () => {
       const sensorData = sensorRes.data.data || {};
       const statsData = statsRes.data.data || {};
 
+      console.log("📥 Dashboard Data:", { sensorData, statsData });
+
       setStats({
         temperature: sensorData.temperature || 0,
         humidity: sensorData.humidity || 0,
@@ -101,8 +103,12 @@ const DashboardScreen = () => {
     }
   };
 
+  // ============================================
+  // AUTO-REFRESH WHEN SCREEN COMES INTO FOCUS
+  // ============================================
   useFocusEffect(
     useCallback(() => {
+      console.log("📱 Dashboard focused - refreshing data...");
       fetchDashboard();
     }, []),
   );
@@ -270,7 +276,10 @@ const DashboardScreen = () => {
       </View>
 
       {/* ============================================
-      AUTOMATION STATUS - EQUAL SIZE CARDS
+      AUTOMATION STATUS - UPDATED
+      - Shows only ON/OFF (no Manual/Auto label)
+      - Replaced Light with Water
+      - Clickable to navigate to control screens
       ============================================ */}
       <View style={styles.section}>
         <View
@@ -331,26 +340,12 @@ const DashboardScreen = () => {
                       {stats.fanStatus}
                     </Text>
                   </View>
-                  <View style={styles.autoModeBadge}>
-                    <Text
-                      style={[
-                        styles.autoModeText,
-                        {
-                          color: stats.fanIsAuto
-                            ? colors.success
-                            : colors.textMuted,
-                        },
-                      ]}
-                    >
-                      {stats.fanIsAuto ? "🤖 Auto" : "👤 Manual"}
-                    </Text>
-                  </View>
                 </View>
               </View>
             </Card>
           </TouchableOpacity>
 
-          {/* ===== WATER PUMP ===== */}
+          {/* ===== WATER PUMP (replaced Light) ===== */}
           <TouchableOpacity
             style={styles.automationCardWrapper}
             activeOpacity={0.7}
@@ -366,7 +361,7 @@ const DashboardScreen = () => {
                       { color: colors.primaryDark },
                     ]}
                   >
-                    Pump
+                    Water
                   </Text>
                   <View
                     style={[
@@ -390,34 +385,20 @@ const DashboardScreen = () => {
                       {stats.waterPump}
                     </Text>
                   </View>
-                  <View style={styles.autoModeBadge}>
-                    <Text
-                      style={[
-                        styles.autoModeText,
-                        {
-                          color: stats.pumpIsAuto
-                            ? colors.success
-                            : colors.textMuted,
-                        },
-                      ]}
-                    >
-                      {stats.pumpIsAuto ? "🤖 Auto" : "👤 Manual"}
-                    </Text>
-                  </View>
                 </View>
               </View>
             </Card>
           </TouchableOpacity>
 
-          {/* ===== LIGHT ===== */}
+          {/* ===== FEEDER ===== */}
           <TouchableOpacity
             style={styles.automationCardWrapper}
             activeOpacity={0.7}
-            onPress={() => handleNavigate("/light-control")}
+            onPress={() => handleNavigate("/feed-dispenser")}
           >
             <Card style={styles.automationCard}>
               <View style={styles.automationItem}>
-                <Icon name="bulb-outline" size={24} color={colors.warning} />
+                <Icon name="fast-food" size={24} color={colors.primary} />
                 <View style={styles.automationInfo}>
                   <Text
                     style={[
@@ -425,14 +406,14 @@ const DashboardScreen = () => {
                       { color: colors.primaryDark },
                     ]}
                   >
-                    Light
+                    Feeder
                   </Text>
                   <View
                     style={[
                       styles.statusIndicator,
                       {
                         backgroundColor: getStatusBgColor(
-                          stats.lightStatus,
+                          stats.feedLevel > 0 ? "ON" : "OFF",
                           colors,
                         ),
                       },
@@ -442,25 +423,14 @@ const DashboardScreen = () => {
                       style={[
                         styles.statusText,
                         {
-                          color: getStatusColor(stats.lightStatus, colors),
+                          color: getStatusColor(
+                            stats.feedLevel > 0 ? "ON" : "OFF",
+                            colors,
+                          ),
                         },
                       ]}
                     >
-                      {stats.lightStatus}
-                    </Text>
-                  </View>
-                  <View style={styles.autoModeBadge}>
-                    <Text
-                      style={[
-                        styles.autoModeText,
-                        {
-                          color: stats.lightIsAuto
-                            ? colors.success
-                            : colors.textMuted,
-                        },
-                      ]}
-                    >
-                      {stats.lightIsAuto ? "🤖 Auto" : "👤 Manual"}
+                      {stats.feedLevel > 0 ? "ON" : "OFF"}
                     </Text>
                   </View>
                 </View>
@@ -568,15 +538,6 @@ const DashboardScreen = () => {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.quickAction, { backgroundColor: colors.card }]}
-            onPress={() => handleNavigate("/light-control")}
-          >
-            <Icon name="bulb-outline" size={28} color={colors.warning} />
-            <Text style={[styles.quickActionText, { color: colors.text }]}>
-              Light
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.quickAction, { backgroundColor: colors.card }]}
             onPress={() => handleNavigate("/(tabs)/camera")}
           >
             <Icon name="camera" size={28} color={colors.purple} />
@@ -666,7 +627,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   // ============================================
-  // AUTOMATION STYLES - EQUAL SIZE
+  // AUTOMATION STYLES
   // ============================================
   automationRow: {
     flexDirection: "row",
@@ -674,13 +635,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   automationCardWrapper: {
-    flex: 1, // Each card takes equal space
-    maxWidth: "33.33%", // Ensures 3 equal columns
+    flex: 1,
+    maxWidth: "33.33%",
   },
   automationCard: {
     paddingVertical: 8,
     paddingHorizontal: 4,
-    minHeight: 110, // Fixed minimum height for all cards
+    minHeight: 100,
     justifyContent: "center",
   },
   automationItem: {
@@ -698,21 +659,16 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   statusIndicator: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
     marginTop: 2,
+    minWidth: 50,
+    alignItems: "center",
   },
   statusText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
-  },
-  autoModeBadge: {
-    marginTop: 2,
-  },
-  autoModeText: {
-    fontSize: 9,
-    fontWeight: "600",
   },
   tempContainer: {
     alignItems: "center",
@@ -753,7 +709,7 @@ const styles = StyleSheet.create({
   },
   quickAction: {
     flex: 1,
-    minWidth: "18%",
+    minWidth: "23%",
     alignItems: "center",
     padding: 12,
     borderRadius: 12,
