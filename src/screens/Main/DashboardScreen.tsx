@@ -21,27 +21,32 @@ const DashboardScreen = () => {
   const { colors } = useTheme();
   const router = useRouter();
   const [stats, setStats] = useState({
+    // Environmental Conditions
     temperature: 0,
     humidity: 0,
     feedLevel: 0,
     waterLevel: 0,
-    // ============================================
-    // AUTOMATION STATUS - Shows AUTO MODE on/off
-    // ============================================
-    fanStatus: "OFF",
-    waterPump: "OFF",
-    feedAutoStatus: "OFF",
-    // Physical statuses (for reference)
     fanPhysicalStatus: "OFF",
     waterPumpPhysicalStatus: "OFF",
     lightStatus: "OFF",
+
+    // Automation Status (shows reverse of auto mode)
+    fanStatus: "OFF", // ON = Manual, OFF = Auto
+    waterPump: "OFF", // ON = Manual, OFF = Auto
+    feedStatus: "OFF", // ON = Manual, OFF = Auto
+
     // Auto mode booleans
     fanIsAuto: false,
     pumpIsAuto: false,
     feedIsAuto: false,
+
+    // Chicken Health
     healthyChicks: 0,
     weakChicks: 0,
+    unhealthyChicks: 0,
     totalChicks: 0,
+
+    // Consumption
     feedConsumed: 0,
     waterConsumed: 0,
   });
@@ -70,27 +75,32 @@ const DashboardScreen = () => {
       console.log("📥 Dashboard Data:", { sensorData, statsData });
 
       setStats({
+        // Environmental Conditions - from sensor_readings
         temperature: sensorData.temperature || 0,
         humidity: sensorData.humidity || 0,
         feedLevel: sensorData.feed_level || 0,
         waterLevel: sensorData.water_level || 0,
-        // ============================================
-        // AUTOMATION STATUS - From AUTO MODE settings
-        // ============================================
-        fanStatus: statsData.fan_status || "OFF",
-        waterPump: statsData.water_pump || "OFF",
-        feedAutoStatus: statsData.feed_auto_status || "OFF",
-        // Physical statuses
         fanPhysicalStatus: sensorData.fan_status || "OFF",
         waterPumpPhysicalStatus: sensorData.water_pump || "OFF",
         lightStatus: sensorData.light_status || "OFF",
+
+        // Automation Status - reverse logic from auto mode
+        fanStatus: statsData.fan_auto_status || "OFF",
+        waterPump: statsData.pump_auto_status || "OFF",
+        feedStatus: statsData.feed_auto_status || "OFF",
+
         // Auto mode booleans
         fanIsAuto: statsData.fan_is_auto || false,
         pumpIsAuto: statsData.pump_is_auto || false,
         feedIsAuto: statsData.feed_is_auto || false,
+
+        // Chicken Health - from detection_logs
         healthyChicks: statsData.healthy_chicks || 0,
         weakChicks: statsData.weak_chicks || 0,
+        unhealthyChicks: statsData.unhealthy_chicks || 0,
         totalChicks: statsData.total_chicks || 0,
+
+        // Consumption
         feedConsumed: statsData.feed_consumed_today || 0,
         waterConsumed: statsData.water_consumed_today || 0,
       });
@@ -127,6 +137,15 @@ const DashboardScreen = () => {
 
   const getStatusBgColor = (status: string, colors: any) => {
     return status === "ON" ? colors.successLight : colors.dangerLight;
+  };
+
+  // Get status label text
+  const getStatusLabel = (isAuto: boolean, status: string) => {
+    if (isAuto) {
+      return "Auto Mode";
+    } else {
+      return status === "ON" ? "Manual Mode" : "Auto Mode";
+    }
   };
 
   if (loading) {
@@ -190,7 +209,9 @@ const DashboardScreen = () => {
         </View>
       ) : null}
 
-      {/* Environmental Conditions */}
+      {/* ============================================
+      ENVIRONMENTAL CONDITIONS - From sensor_readings
+      ============================================ */}
       <View style={styles.section}>
         <View
           style={{
@@ -239,7 +260,9 @@ const DashboardScreen = () => {
         </View>
       </View>
 
-      {/* Resource Levels */}
+      {/* ============================================
+      RESOURCE LEVELS
+      ============================================ */}
       <View style={styles.section}>
         <View
           style={{
@@ -279,7 +302,8 @@ const DashboardScreen = () => {
       </View>
 
       {/* ============================================
-      AUTOMATION STATUS - Shows AUTO MODE on/off
+      AUTOMATION STATUS - Reverse Logic
+      ON = Manual Mode, OFF = Auto Mode
       ============================================ */}
       <View style={styles.section}>
         <View
@@ -341,18 +365,17 @@ const DashboardScreen = () => {
                       {stats.fanStatus}
                     </Text>
                   </View>
-                  {/* Subtext: Shows what AUTO mode means */}
                   <Text
                     style={[styles.statusSubtext, { color: colors.textMuted }]}
                   >
-                    {stats.fanIsAuto ? "🤖 Auto Mode ON" : "👤 Manual Mode"}
+                    {stats.fanIsAuto ? "🤖 Auto Mode" : "👤 Manual Mode"}
                   </Text>
                 </View>
               </View>
             </Card>
           </TouchableOpacity>
 
-          {/* ===== WATER PUMP ===== */}
+          {/* ===== WATER ===== */}
           <TouchableOpacity
             style={styles.automationCardWrapper}
             activeOpacity={0.7}
@@ -395,7 +418,7 @@ const DashboardScreen = () => {
                   <Text
                     style={[styles.statusSubtext, { color: colors.textMuted }]}
                   >
-                    {stats.pumpIsAuto ? "🤖 Auto Mode ON" : "👤 Manual Mode"}
+                    {stats.pumpIsAuto ? "🤖 Auto Mode" : "👤 Manual Mode"}
                   </Text>
                 </View>
               </View>
@@ -425,7 +448,7 @@ const DashboardScreen = () => {
                       styles.statusIndicator,
                       {
                         backgroundColor: getStatusBgColor(
-                          stats.feedAutoStatus,
+                          stats.feedStatus,
                           colors,
                         ),
                       },
@@ -435,17 +458,17 @@ const DashboardScreen = () => {
                       style={[
                         styles.statusText,
                         {
-                          color: getStatusColor(stats.feedAutoStatus, colors),
+                          color: getStatusColor(stats.feedStatus, colors),
                         },
                       ]}
                     >
-                      {stats.feedAutoStatus}
+                      {stats.feedStatus}
                     </Text>
                   </View>
                   <Text
                     style={[styles.statusSubtext, { color: colors.textMuted }]}
                   >
-                    {stats.feedIsAuto ? "🤖 Auto Mode ON" : "👤 Manual Mode"}
+                    {stats.feedIsAuto ? "🤖 Auto Mode" : "👤 Manual Mode"}
                   </Text>
                 </View>
               </View>
@@ -454,7 +477,9 @@ const DashboardScreen = () => {
         </View>
       </View>
 
-      {/* Chicken Health */}
+      {/* ============================================
+      CHICKEN HEALTH - From detection_logs
+      ============================================ */}
       <View style={styles.section}>
         <View
           style={{
@@ -493,17 +518,26 @@ const DashboardScreen = () => {
             </View>
             <View style={styles.chickenStat}>
               <Text style={[styles.chickenValue, { color: colors.danger }]}>
-                {stats.totalChicks - stats.healthyChicks - stats.weakChicks}
+                {stats.unhealthyChicks}
               </Text>
               <Text style={[styles.chickenLabel, { color: colors.textMuted }]}>
                 Unhealthy
               </Text>
             </View>
           </View>
+          <View style={styles.chickenTotal}>
+            <Text
+              style={[styles.chickenTotalText, { color: colors.textMuted }]}
+            >
+              Total Chicks: {stats.totalChicks}
+            </Text>
+          </View>
         </Card>
       </View>
 
-      {/* Quick Actions */}
+      {/* ============================================
+      QUICK ACTIONS
+      ============================================ */}
       <View style={styles.section}>
         <View
           style={{
@@ -675,6 +709,16 @@ const styles = StyleSheet.create({
   chickenStat: { alignItems: "center" },
   chickenValue: { fontSize: 28, fontWeight: "800" },
   chickenLabel: { fontSize: 12, marginTop: 4 },
+  chickenTotal: {
+    alignItems: "center",
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#E0E0E0",
+  },
+  chickenTotalText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
   quickActions: {
     flexDirection: "row",
     justifyContent: "space-between",
