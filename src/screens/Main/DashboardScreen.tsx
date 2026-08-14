@@ -276,10 +276,7 @@ const DashboardScreen = () => {
       </View>
 
       {/* ============================================
-      AUTOMATION STATUS - UPDATED
-      - Shows only ON/OFF (no Manual/Auto label)
-      - Replaced Light with Water
-      - Clickable to navigate to control screens
+      AUTOMATION STATUS
       ============================================ */}
       <View style={styles.section}>
         <View
@@ -345,7 +342,7 @@ const DashboardScreen = () => {
             </Card>
           </TouchableOpacity>
 
-          {/* ===== WATER PUMP (replaced Light) ===== */}
+          {/* ===== WATER PUMP ===== */}
           <TouchableOpacity
             style={styles.automationCardWrapper}
             activeOpacity={0.7}
@@ -626,9 +623,6 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 4,
   },
-  // ============================================
-  // AUTOMATION STYLES
-  // ============================================
   automationRow: {
     flexDirection: "row",
     justifyContent: "space-between",
