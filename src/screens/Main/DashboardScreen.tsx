@@ -276,7 +276,7 @@ const DashboardScreen = () => {
       </View>
 
       {/* ============================================
-      AUTOMATION STATUS
+      AUTOMATION STATUS - 4 CARDS: FAN, WATER, LIGHT, FEEDER
       ============================================ */}
       <View style={styles.section}>
         <View
@@ -296,6 +296,8 @@ const DashboardScreen = () => {
             Automation Status
           </Text>
         </View>
+
+        {/* Row 1: Fan + Water + Light */}
         <View style={styles.automationRow}>
           {/* ===== FAN ===== */}
           <TouchableOpacity
@@ -329,9 +331,7 @@ const DashboardScreen = () => {
                     <Text
                       style={[
                         styles.statusText,
-                        {
-                          color: getStatusColor(stats.fanStatus, colors),
-                        },
+                        { color: getStatusColor(stats.fanStatus, colors) },
                       ]}
                     >
                       {stats.fanStatus}
@@ -374,9 +374,7 @@ const DashboardScreen = () => {
                     <Text
                       style={[
                         styles.statusText,
-                        {
-                          color: getStatusColor(stats.waterPump, colors),
-                        },
+                        { color: getStatusColor(stats.waterPump, colors) },
                       ]}
                     >
                       {stats.waterPump}
@@ -387,9 +385,54 @@ const DashboardScreen = () => {
             </Card>
           </TouchableOpacity>
 
-          {/* ===== FEEDER ===== */}
+          {/* ===== LIGHT ===== */}
           <TouchableOpacity
             style={styles.automationCardWrapper}
+            activeOpacity={0.7}
+            onPress={() => handleNavigate("/light-control")}
+          >
+            <Card style={styles.automationCard}>
+              <View style={styles.automationItem}>
+                <Icon name="bulb-outline" size={24} color={colors.warning} />
+                <View style={styles.automationInfo}>
+                  <Text
+                    style={[
+                      styles.automationLabel,
+                      { color: colors.primaryDark },
+                    ]}
+                  >
+                    Light
+                  </Text>
+                  <View
+                    style={[
+                      styles.statusIndicator,
+                      {
+                        backgroundColor: getStatusBgColor(
+                          stats.lightStatus,
+                          colors,
+                        ),
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusText,
+                        { color: getStatusColor(stats.lightStatus, colors) },
+                      ]}
+                    >
+                      {stats.lightStatus}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </Card>
+          </TouchableOpacity>
+        </View>
+
+        {/* Row 2: Feeder (centered) */}
+        <View style={[styles.automationRow, { marginTop: 6 }]}>
+          <TouchableOpacity
+            style={[styles.automationCardWrapper, { maxWidth: "33.33%" }]}
             activeOpacity={0.7}
             onPress={() => handleNavigate("/feed-dispenser")}
           >
@@ -434,6 +477,13 @@ const DashboardScreen = () => {
               </View>
             </Card>
           </TouchableOpacity>
+          {/* Empty spaces to center the feeder */}
+          <View
+            style={[styles.automationCardWrapper, { maxWidth: "33.33%" }]}
+          />
+          <View
+            style={[styles.automationCardWrapper, { maxWidth: "33.33%" }]}
+          />
         </View>
       </View>
 
@@ -535,6 +585,15 @@ const DashboardScreen = () => {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.quickAction, { backgroundColor: colors.card }]}
+            onPress={() => handleNavigate("/light-control")}
+          >
+            <Icon name="bulb-outline" size={28} color={colors.warning} />
+            <Text style={[styles.quickActionText, { color: colors.text }]}>
+              Light
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.quickAction, { backgroundColor: colors.card }]}
             onPress={() => handleNavigate("/(tabs)/camera")}
           >
             <Icon name="camera" size={28} color={colors.purple} />
@@ -551,14 +610,8 @@ const DashboardScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  container: { flex: 1 },
+  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -567,18 +620,9 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 8,
   },
-  greeting: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  date: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  notificationBtn: {
-    position: "relative",
-    padding: 8,
-  },
+  greeting: { fontSize: 20, fontWeight: "700" },
+  date: { fontSize: 13, marginTop: 2 },
+  notificationBtn: { position: "relative", padding: 8 },
   notificationBadge: {
     position: "absolute",
     top: 4,
@@ -589,15 +633,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  badgeText: {
-    color: "#282121",
-    fontSize: 10,
-    fontWeight: "700",
-  },
-  section: {
-    paddingHorizontal: 16,
-    marginTop: 16,
-  },
+  badgeText: { color: "#282121", fontSize: 10, fontWeight: "700" },
+  section: { paddingHorizontal: 16, marginTop: 16 },
   errorBanner: {
     marginHorizontal: 16,
     marginTop: 12,
@@ -606,23 +643,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
   },
-  errorText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 0,
-  },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  halfCard: {
-    flex: 1,
-    marginHorizontal: 4,
-  },
+  errorText: { fontSize: 12, fontWeight: "600" },
+  sectionTitle: { fontSize: 16, fontWeight: "600", marginBottom: 0 },
+  row: { flexDirection: "row", justifyContent: "space-between" },
+  halfCard: { flex: 1, marginHorizontal: 4 },
   automationRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -668,34 +692,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 8,
   },
-  tempValue: {
-    fontSize: 36,
-    fontWeight: "800",
-  },
-  tempLabel: {
-    fontSize: 14,
-    marginTop: 4,
-  },
-  tempRange: {
-    fontSize: 11,
-    marginTop: 4,
-  },
+  tempValue: { fontSize: 36, fontWeight: "800" },
+  tempLabel: { fontSize: 14, marginTop: 4 },
+  tempRange: { fontSize: 11, marginTop: 4 },
   chickenStats: {
     flexDirection: "row",
     justifyContent: "space-around",
     paddingVertical: 12,
   },
-  chickenStat: {
-    alignItems: "center",
-  },
-  chickenValue: {
-    fontSize: 28,
-    fontWeight: "800",
-  },
-  chickenLabel: {
-    fontSize: 12,
-    marginTop: 4,
-  },
+  chickenStat: { alignItems: "center" },
+  chickenValue: { fontSize: 28, fontWeight: "800" },
+  chickenLabel: { fontSize: 12, marginTop: 4 },
   quickActions: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -703,7 +710,7 @@ const styles = StyleSheet.create({
   },
   quickAction: {
     flex: 1,
-    minWidth: "23%",
+    minWidth: "18%",
     alignItems: "center",
     padding: 12,
     borderRadius: 12,
@@ -714,14 +721,8 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  quickActionText: {
-    fontSize: 11,
-    fontWeight: "600",
-    marginTop: 4,
-  },
-  footer: {
-    height: 40,
-  },
+  quickActionText: { fontSize: 11, fontWeight: "600", marginTop: 4 },
+  footer: { height: 40 },
 });
 
 export default DashboardScreen;
