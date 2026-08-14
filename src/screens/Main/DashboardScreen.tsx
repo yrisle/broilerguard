@@ -103,9 +103,7 @@ const DashboardScreen = () => {
     }
   };
 
-  // ============================================
-  // AUTO-REFRESH WHEN SCREEN COMES INTO FOCUS
-  // ============================================
+  // Auto-refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       console.log("📱 Dashboard focused - refreshing data...");
@@ -276,7 +274,7 @@ const DashboardScreen = () => {
       </View>
 
       {/* ============================================
-      AUTOMATION STATUS - 4 CARDS: FAN, WATER, LIGHT, FEEDER
+      AUTOMATION STATUS - 3 CARDS: FAN, WATER, FEEDER
       ============================================ */}
       <View style={styles.section}>
         <View
@@ -297,7 +295,7 @@ const DashboardScreen = () => {
           </Text>
         </View>
 
-        {/* Row 1: Fan + Water + Light */}
+        {/* Row: Fan + Water + Feeder (3 equal cards) */}
         <View style={styles.automationRow}>
           {/* ===== FAN ===== */}
           <TouchableOpacity
@@ -331,7 +329,9 @@ const DashboardScreen = () => {
                     <Text
                       style={[
                         styles.statusText,
-                        { color: getStatusColor(stats.fanStatus, colors) },
+                        {
+                          color: getStatusColor(stats.fanStatus, colors),
+                        },
                       ]}
                     >
                       {stats.fanStatus}
@@ -374,7 +374,9 @@ const DashboardScreen = () => {
                     <Text
                       style={[
                         styles.statusText,
-                        { color: getStatusColor(stats.waterPump, colors) },
+                        {
+                          color: getStatusColor(stats.waterPump, colors),
+                        },
                       ]}
                     >
                       {stats.waterPump}
@@ -385,54 +387,9 @@ const DashboardScreen = () => {
             </Card>
           </TouchableOpacity>
 
-          {/* ===== LIGHT ===== */}
+          {/* ===== FEEDER ===== */}
           <TouchableOpacity
             style={styles.automationCardWrapper}
-            activeOpacity={0.7}
-            onPress={() => handleNavigate("/light-control")}
-          >
-            <Card style={styles.automationCard}>
-              <View style={styles.automationItem}>
-                <Icon name="bulb-outline" size={24} color={colors.warning} />
-                <View style={styles.automationInfo}>
-                  <Text
-                    style={[
-                      styles.automationLabel,
-                      { color: colors.primaryDark },
-                    ]}
-                  >
-                    Light
-                  </Text>
-                  <View
-                    style={[
-                      styles.statusIndicator,
-                      {
-                        backgroundColor: getStatusBgColor(
-                          stats.lightStatus,
-                          colors,
-                        ),
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.statusText,
-                        { color: getStatusColor(stats.lightStatus, colors) },
-                      ]}
-                    >
-                      {stats.lightStatus}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </Card>
-          </TouchableOpacity>
-        </View>
-
-        {/* Row 2: Feeder (centered) */}
-        <View style={[styles.automationRow, { marginTop: 6 }]}>
-          <TouchableOpacity
-            style={[styles.automationCardWrapper, { maxWidth: "33.33%" }]}
             activeOpacity={0.7}
             onPress={() => handleNavigate("/feed-dispenser")}
           >
@@ -477,13 +434,6 @@ const DashboardScreen = () => {
               </View>
             </Card>
           </TouchableOpacity>
-          {/* Empty spaces to center the feeder */}
-          <View
-            style={[styles.automationCardWrapper, { maxWidth: "33.33%" }]}
-          />
-          <View
-            style={[styles.automationCardWrapper, { maxWidth: "33.33%" }]}
-          />
         </View>
       </View>
 
@@ -536,7 +486,9 @@ const DashboardScreen = () => {
         </Card>
       </View>
 
-      {/* Quick Actions */}
+      {/* ============================================
+      QUICK ACTIONS - INCLUDES LIGHT
+      ============================================ */}
       <View style={styles.section}>
         <View
           style={{
@@ -647,6 +599,10 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: "600", marginBottom: 0 },
   row: { flexDirection: "row", justifyContent: "space-between" },
   halfCard: { flex: 1, marginHorizontal: 4 },
+
+  // ============================================
+  // AUTOMATION STATUS - 3 EQUAL CARDS
+  // ============================================
   automationRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -703,6 +659,10 @@ const styles = StyleSheet.create({
   chickenStat: { alignItems: "center" },
   chickenValue: { fontSize: 28, fontWeight: "800" },
   chickenLabel: { fontSize: 12, marginTop: 4 },
+
+  // ============================================
+  // QUICK ACTIONS - 5 BUTTONS (INCLUDES LIGHT)
+  // ============================================
   quickActions: {
     flexDirection: "row",
     justifyContent: "space-between",
