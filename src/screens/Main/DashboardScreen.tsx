@@ -25,17 +25,20 @@ const DashboardScreen = () => {
     humidity: 0,
     feedLevel: 0,
     waterLevel: 0,
+    // ============================================
+    // AUTOMATION STATUS - Shows AUTO MODE on/off
+    // ============================================
     fanStatus: "OFF",
     waterPump: "OFF",
+    feedAutoStatus: "OFF",
+    // Physical statuses (for reference)
+    fanPhysicalStatus: "OFF",
+    waterPumpPhysicalStatus: "OFF",
     lightStatus: "OFF",
-    fanAutoMode: "manual",
-    pumpAutoMode: "manual",
-    feedAutoMode: "manual",
-    lightAutoMode: "manual",
+    // Auto mode booleans
     fanIsAuto: false,
     pumpIsAuto: false,
     feedIsAuto: false,
-    lightIsAuto: false,
     healthyChicks: 0,
     weakChicks: 0,
     totalChicks: 0,
@@ -71,17 +74,20 @@ const DashboardScreen = () => {
         humidity: sensorData.humidity || 0,
         feedLevel: sensorData.feed_level || 0,
         waterLevel: sensorData.water_level || 0,
-        fanStatus: sensorData.fan_status || "OFF",
-        waterPump: sensorData.water_pump || "OFF",
+        // ============================================
+        // AUTOMATION STATUS - From AUTO MODE settings
+        // ============================================
+        fanStatus: statsData.fan_status || "OFF",
+        waterPump: statsData.water_pump || "OFF",
+        feedAutoStatus: statsData.feed_auto_status || "OFF",
+        // Physical statuses
+        fanPhysicalStatus: sensorData.fan_status || "OFF",
+        waterPumpPhysicalStatus: sensorData.water_pump || "OFF",
         lightStatus: sensorData.light_status || "OFF",
-        fanAutoMode: statsData.fan_auto_mode || "manual",
-        pumpAutoMode: statsData.pump_auto_mode || "manual",
-        feedAutoMode: statsData.feed_auto_mode || "manual",
-        lightAutoMode: statsData.light_auto_mode || "manual",
+        // Auto mode booleans
         fanIsAuto: statsData.fan_is_auto || false,
         pumpIsAuto: statsData.pump_is_auto || false,
         feedIsAuto: statsData.feed_is_auto || false,
-        lightIsAuto: statsData.light_is_auto || false,
         healthyChicks: statsData.healthy_chicks || 0,
         weakChicks: statsData.weak_chicks || 0,
         totalChicks: statsData.total_chicks || 0,
@@ -103,7 +109,6 @@ const DashboardScreen = () => {
     }
   };
 
-  // Auto-refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       console.log("📱 Dashboard focused - refreshing data...");
@@ -274,7 +279,7 @@ const DashboardScreen = () => {
       </View>
 
       {/* ============================================
-      AUTOMATION STATUS - 3 CARDS: FAN, WATER, FEEDER
+      AUTOMATION STATUS - Shows AUTO MODE on/off
       ============================================ */}
       <View style={styles.section}>
         <View
@@ -295,7 +300,6 @@ const DashboardScreen = () => {
           </Text>
         </View>
 
-        {/* Row: Fan + Water + Feeder (3 equal cards) */}
         <View style={styles.automationRow}>
           {/* ===== FAN ===== */}
           <TouchableOpacity
@@ -337,6 +341,12 @@ const DashboardScreen = () => {
                       {stats.fanStatus}
                     </Text>
                   </View>
+                  {/* Subtext: Shows what AUTO mode means */}
+                  <Text
+                    style={[styles.statusSubtext, { color: colors.textMuted }]}
+                  >
+                    {stats.fanIsAuto ? "🤖 Auto Mode ON" : "👤 Manual Mode"}
+                  </Text>
                 </View>
               </View>
             </Card>
@@ -382,6 +392,11 @@ const DashboardScreen = () => {
                       {stats.waterPump}
                     </Text>
                   </View>
+                  <Text
+                    style={[styles.statusSubtext, { color: colors.textMuted }]}
+                  >
+                    {stats.pumpIsAuto ? "🤖 Auto Mode ON" : "👤 Manual Mode"}
+                  </Text>
                 </View>
               </View>
             </Card>
@@ -410,7 +425,7 @@ const DashboardScreen = () => {
                       styles.statusIndicator,
                       {
                         backgroundColor: getStatusBgColor(
-                          stats.feedLevel > 0 ? "ON" : "OFF",
+                          stats.feedAutoStatus,
                           colors,
                         ),
                       },
@@ -420,16 +435,18 @@ const DashboardScreen = () => {
                       style={[
                         styles.statusText,
                         {
-                          color: getStatusColor(
-                            stats.feedLevel > 0 ? "ON" : "OFF",
-                            colors,
-                          ),
+                          color: getStatusColor(stats.feedAutoStatus, colors),
                         },
                       ]}
                     >
-                      {stats.feedLevel > 0 ? "ON" : "OFF"}
+                      {stats.feedAutoStatus}
                     </Text>
                   </View>
+                  <Text
+                    style={[styles.statusSubtext, { color: colors.textMuted }]}
+                  >
+                    {stats.feedIsAuto ? "🤖 Auto Mode ON" : "👤 Manual Mode"}
+                  </Text>
                 </View>
               </View>
             </Card>
@@ -486,9 +503,7 @@ const DashboardScreen = () => {
         </Card>
       </View>
 
-      {/* ============================================
-      QUICK ACTIONS - INCLUDES LIGHT
-      ============================================ */}
+      {/* Quick Actions */}
       <View style={styles.section}>
         <View
           style={{
@@ -600,9 +615,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", justifyContent: "space-between" },
   halfCard: { flex: 1, marginHorizontal: 4 },
 
-  // ============================================
-  // AUTOMATION STATUS - 3 EQUAL CARDS
-  // ============================================
   automationRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -615,7 +627,7 @@ const styles = StyleSheet.create({
   automationCard: {
     paddingVertical: 8,
     paddingHorizontal: 4,
-    minHeight: 100,
+    minHeight: 120,
     justifyContent: "center",
   },
   automationItem: {
@@ -644,6 +656,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
+  statusSubtext: {
+    fontSize: 9,
+    marginTop: 2,
+  },
   tempContainer: {
     alignItems: "center",
     paddingVertical: 8,
@@ -659,10 +675,6 @@ const styles = StyleSheet.create({
   chickenStat: { alignItems: "center" },
   chickenValue: { fontSize: 28, fontWeight: "800" },
   chickenLabel: { fontSize: 12, marginTop: 4 },
-
-  // ============================================
-  // QUICK ACTIONS - 5 BUTTONS (INCLUDES LIGHT)
-  // ============================================
   quickActions: {
     flexDirection: "row",
     justifyContent: "space-between",
