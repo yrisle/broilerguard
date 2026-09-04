@@ -20,32 +20,26 @@ import { useTheme } from "../../hooks/useTheme";
 
 const GateControlScreen = () => {
   const { colors } = useTheme();
-  const [gateStatus, setGateStatus] = useState(false); // false = closed, true = open
+  const [gateStatus, setGateStatus] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
-  // ✅ Automation States
   const [autoMode, setAutoMode] = useState(false);
-  const [feedAmount, setFeedAmount] = useState("0.5"); // kg per dispense
-  const [feedDispensed, setFeedDispensed] = useState(0); // total dispensed today
-  const [feedTarget, setFeedTarget] = useState("5.0"); // target kg per day
+  const [feedAmount, setFeedAmount] = useState("0.5");
+  const [feedDispensed, setFeedDispensed] = useState(0);
+  const [feedTarget, setFeedTarget] = useState("5.0");
   const [isAutoDispensing, setIsAutoDispensing] = useState(false);
   const [dispenseCount, setDispenseCount] = useState(0);
 
-  // ✅ Use ref for interval
   const intervalRef = useRef<number | null>(null);
-  const autoDispenseRef = useRef<boolean>(false);
 
   const fetchData = async () => {
     try {
       console.log("📥 Fetching gate data from ESP32...");
       const response = await automation.gate.getStatus();
-
-      // ESP32 returns: { gate: 0 or 1 }
       const data = response.data;
       const isOpen = data.gate === 1;
-
       setGateStatus(isOpen);
       console.log("📥 Gate status:", isOpen ? "OPEN" : "CLOSED");
     } catch (error: any) {
@@ -133,18 +127,12 @@ const GateControlScreen = () => {
       const amount = parseFloat(feedAmount) || 0.5;
       console.log(`🔄 Dispensing ${amount} kg of feed...`);
 
-      // Open gate to dispense feed
       await automation.gate.open();
       setGateStatus(true);
-
-      // Simulate dispensing time (3 seconds)
       await new Promise((resolve) => setTimeout(resolve, 3000));
-
-      // Close gate after dispensing
       await automation.gate.close();
       setGateStatus(false);
 
-      // Update stats
       const newTotal = feedDispensed + amount;
       setFeedDispensed(parseFloat(newTotal.toFixed(2)));
       setDispenseCount((prev) => prev + 1);
@@ -153,7 +141,6 @@ const GateControlScreen = () => {
         `✅ Dispensed ${amount} kg. Total today: ${newTotal.toFixed(2)} kg`,
       );
 
-      // Check if target reached
       const target = parseFloat(feedTarget) || 5.0;
       if (newTotal >= target) {
         Alert.alert(
@@ -161,7 +148,6 @@ const GateControlScreen = () => {
           `Daily feed target of ${target} kg has been reached!`,
           [{ text: "OK" }],
         );
-        // Auto turn off auto mode when target is reached
         if (autoMode) {
           setAutoMode(false);
         }
@@ -183,14 +169,13 @@ const GateControlScreen = () => {
   };
 
   // ============================================
-  // AUTO MODE - Continuous Dispensing (Fixed)
+  // AUTO MODE
   // ============================================
   const toggleAutoMode = () => {
     const newMode = !autoMode;
     setAutoMode(newMode);
 
     if (newMode) {
-      // Reset daily counter when auto mode is enabled
       setFeedDispensed(0);
       setDispenseCount(0);
       Alert.alert(
@@ -199,21 +184,17 @@ const GateControlScreen = () => {
         [{ text: "OK" }],
       );
     } else {
-      // Clear interval when auto mode is turned off
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      autoDispenseRef.current = false;
       Alert.alert("Auto Mode Disabled", "Manual control restored.", [
         { text: "OK" },
       ]);
     }
   };
 
-  // ✅ Auto dispense timer - FIXED with proper TypeScript
   useEffect(() => {
-    // Clear any existing interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -222,7 +203,6 @@ const GateControlScreen = () => {
     if (autoMode && !isAutoDispensing) {
       const target = parseFloat(feedTarget) || 5.0;
 
-      // Check if target already reached
       if (feedDispensed >= target) {
         setAutoMode(false);
         Alert.alert(
@@ -233,19 +213,15 @@ const GateControlScreen = () => {
         return;
       }
 
-      // ✅ Set interval with proper type
       intervalRef.current = setInterval(() => {
         if (!autoMode || isAutoDispensing) return;
 
         const amount = parseFloat(feedAmount) || 0.5;
         const newTotal = feedDispensed + amount;
 
-        // Check if adding this amount will exceed target
         if (newTotal > target) {
-          // Adjust amount to exactly hit target
           const remaining = target - feedDispensed;
           if (remaining > 0) {
-            // Dispense the remaining amount
             setFeedDispensed(target);
             setDispenseCount((prev) => prev + 1);
             setAutoMode(false);
@@ -256,13 +232,11 @@ const GateControlScreen = () => {
             );
           }
         } else {
-          // Dispense the normal amount
           handleDispenseFeed();
         }
-      }, 10000); // 10 seconds interval
+      }, 10000);
     }
 
-    // Cleanup
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -271,7 +245,6 @@ const GateControlScreen = () => {
     };
   }, [autoMode, feedDispensed, feedTarget, feedAmount]);
 
-  // Reset daily counter at midnight (simulated by checking time)
   useEffect(() => {
     const checkMidnight = () => {
       const now = new Date();
@@ -282,7 +255,7 @@ const GateControlScreen = () => {
       }
     };
 
-    const interval = setInterval(checkMidnight, 60000); // Check every minute
+    const interval = setInterval(checkMidnight, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -324,9 +297,7 @@ const GateControlScreen = () => {
         </Text>
       </View>
 
-      {/* ============================================
-      GATE STATUS CARD
-      ============================================ */}
+      {/* Gate Status Card */}
       <View style={[styles.statusCard, { backgroundColor: colors.card }]}>
         <View
           style={[
@@ -381,9 +352,7 @@ const GateControlScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* ============================================
-      QUICK ACTION BUTTONS
-      ============================================ */}
+      {/* Quick Action Buttons */}
       <View style={styles.section}>
         <View
           style={{
@@ -438,9 +407,7 @@ const GateControlScreen = () => {
         </View>
       </View>
 
-      {/* ============================================
-      AUTO FEED DISPENSING SECTION
-      ============================================ */}
+      {/* Auto Feed Dispensing Section */}
       <View style={styles.section}>
         <View
           style={{
@@ -498,7 +465,7 @@ const GateControlScreen = () => {
             />
           </View>
 
-          {/* Feed Amount Setting */}
+          {/* Amount per Dispense - Always editable */}
           <View style={[styles.settingRow, { borderColor: colors.border }]}>
             <Text style={[styles.settingLabel, { color: colors.text }]}>
               Amount per Dispense
@@ -517,7 +484,7 @@ const GateControlScreen = () => {
                 value={feedAmount}
                 onChangeText={setFeedAmount}
                 keyboardType="numeric"
-                editable={!autoMode}
+                editable={true}
               />
               <Text style={[styles.settingValue, { color: colors.textMuted }]}>
                 kg
@@ -525,7 +492,7 @@ const GateControlScreen = () => {
             </View>
           </View>
 
-          {/* Daily Target Setting */}
+          {/* Daily Target - Always editable */}
           <View style={[styles.settingRow, { borderColor: colors.border }]}>
             <Text style={[styles.settingLabel, { color: colors.text }]}>
               Daily Target
@@ -544,7 +511,7 @@ const GateControlScreen = () => {
                 value={feedTarget}
                 onChangeText={setFeedTarget}
                 keyboardType="numeric"
-                editable={!autoMode}
+                editable={true}
               />
               <Text style={[styles.settingValue, { color: colors.textMuted }]}>
                 kg
@@ -769,7 +736,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
   },
-  // Auto Feed Styles
   autoCard: {
     borderRadius: 12,
     padding: 16,
@@ -889,24 +855,6 @@ const styles = StyleSheet.create({
   },
   positionLabel: {
     fontSize: 12,
-  },
-  infoCard: {
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-  },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-  },
-  infoLabel: {
-    fontSize: 14,
-  },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: "600",
   },
   footer: {
     height: 40,
