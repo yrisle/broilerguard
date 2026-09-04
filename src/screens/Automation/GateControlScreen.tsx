@@ -25,16 +25,13 @@ const GateControlScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
-  // ✅ Feed Settings
   const [autoMode, setAutoMode] = useState(false);
-  const [feedAmount, setFeedAmount] = useState("0.5"); // kg per dispense
-  const [feedTarget, setFeedTarget] = useState("5.0"); // target kg per day
-  const [dispensesPerDay, setDispensesPerDay] = useState("4"); // ✅ NEW: number of dispenses per day
-
-  // ✅ Tracking
+  const [feedAmount, setFeedAmount] = useState("0.5");
   const [feedDispensed, setFeedDispensed] = useState(0);
-  const [dispenseCount, setDispenseCount] = useState(0);
+  const [feedTarget, setFeedTarget] = useState("5.0");
+  const [dispensesPerDay, setDispensesPerDay] = useState("4");
   const [isAutoDispensing, setIsAutoDispensing] = useState(false);
+  const [dispenseCount, setDispenseCount] = useState(0);
   const [nextDispenseTime, setNextDispenseTime] = useState<Date | null>(null);
 
   const intervalRef = useRef<number | null>(null);
@@ -68,11 +65,8 @@ const GateControlScreen = () => {
     fetchData();
   };
 
-  // ============================================
-  // MANUAL GATE CONTROL
-  // ============================================
   const handleOpenGate = async () => {
-    if (isToggling) return;
+    if (isToggling || autoMode) return;
     setIsToggling(true);
 
     try {
@@ -89,7 +83,7 @@ const GateControlScreen = () => {
   };
 
   const handleCloseGate = async () => {
-    if (isToggling) return;
+    if (isToggling || autoMode) return;
     setIsToggling(true);
 
     try {
@@ -106,7 +100,7 @@ const GateControlScreen = () => {
   };
 
   const handleToggleGate = async () => {
-    if (isToggling) return;
+    if (isToggling || autoMode) return;
     setIsToggling(true);
 
     try {
@@ -121,9 +115,6 @@ const GateControlScreen = () => {
     }
   };
 
-  // ============================================
-  // AUTO FEED DISPENSING
-  // ============================================
   const handleDispenseFeed = async () => {
     if (isAutoDispensing) return;
     setIsAutoDispensing(true);
@@ -132,18 +123,12 @@ const GateControlScreen = () => {
       const amount = parseFloat(feedAmount) || 0.5;
       console.log(`🔄 Dispensing ${amount} kg of feed...`);
 
-      // Open gate to dispense feed
       await automation.gate.open();
       setGateStatus(true);
-
-      // Simulate dispensing time (3 seconds)
       await new Promise((resolve) => setTimeout(resolve, 3000));
-
-      // Close gate after dispensing
       await automation.gate.close();
       setGateStatus(false);
 
-      // Update stats
       const newTotal = feedDispensed + amount;
       setFeedDispensed(parseFloat(newTotal.toFixed(2)));
       setDispenseCount((prev) => prev + 1);
@@ -155,12 +140,10 @@ const GateControlScreen = () => {
         `📊 Dispenses today: ${dispenseCount + 1}/${dispensesPerDay}`,
       );
 
-      // Calculate next dispense time
       const intervalSeconds = getInterval();
       const nextTime = new Date(Date.now() + intervalSeconds * 1000);
       setNextDispenseTime(nextTime);
 
-      // Check if target reached
       const target = parseFloat(feedTarget) || 5.0;
       const maxDispenses = parseInt(dispensesPerDay) || 4;
 
@@ -201,15 +184,11 @@ const GateControlScreen = () => {
     }
   };
 
-  // ============================================
-  // AUTO MODE - Scheduled Dispensing
-  // ============================================
   const toggleAutoMode = () => {
     const newMode = !autoMode;
     setAutoMode(newMode);
 
     if (newMode) {
-      // Reset daily counter when auto mode is enabled
       setFeedDispensed(0);
       setDispenseCount(0);
 
@@ -219,18 +198,17 @@ const GateControlScreen = () => {
         `Feed will be dispensed automatically ${maxDispenses} times per day.\n\n` +
           `Amount per dispense: ${feedAmount} kg\n` +
           `Daily target: ${feedTarget} kg\n` +
-          `Dispenses per day: ${maxDispenses}`,
+          `Dispenses per day: ${maxDispenses}\n\n` +
+          `🔒 Manual gate controls are now disabled.`,
         [{ text: "OK" }],
       );
 
-      // Start the first dispense after 5 seconds
       setTimeout(() => {
         if (autoMode) {
           handleDispenseFeed();
         }
       }, 5000);
     } else {
-      // Clear interval when auto mode is turned off
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -242,14 +220,11 @@ const GateControlScreen = () => {
     }
   };
 
-  // ✅ Calculate interval based on dispenses per day
   const getInterval = () => {
     const count = parseInt(dispensesPerDay) || 4;
-    // 24 hours = 86400 seconds
     return Math.floor(86400 / count);
   };
 
-  // ✅ Auto dispense timer - based on dispenses per day
   useEffect(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -260,7 +235,6 @@ const GateControlScreen = () => {
       const target = parseFloat(feedTarget) || 5.0;
       const maxDispenses = parseInt(dispensesPerDay) || 4;
 
-      // Check if target or max dispenses reached
       if (feedDispensed >= target || dispenseCount >= maxDispenses) {
         setAutoMode(false);
         let message = "";
@@ -277,59 +251,16 @@ const GateControlScreen = () => {
         return;
       }
 
-      // Calculate interval in seconds
       const intervalSeconds = getInterval();
       const intervalMs = intervalSeconds * 1000;
 
       console.log(
         `⏰ Auto mode: Dispensing every ${intervalSeconds} seconds (${dispensesPerDay} times/day)`,
       );
-      console.log(
-        `📊 Progress: ${feedDispensed.toFixed(2)}/${target} kg, ${dispenseCount}/${maxDispenses} dispenses`,
-      );
 
-      // ✅ Set interval based on dispenses per day
       intervalRef.current = setInterval(() => {
         if (!autoMode || isAutoDispensing) return;
-
-        const amount = parseFloat(feedAmount) || 0.5;
-        const newTotal = feedDispensed + amount;
-        const maxDisp = parseInt(dispensesPerDay) || 4;
-
-        // Check if adding this amount will exceed target or max dispenses
-        if (newTotal > target || dispenseCount + 1 > maxDisp) {
-          // If target reached but still have dispenses left, adjust
-          if (newTotal > target && dispenseCount + 1 <= maxDisp) {
-            // Dispense just enough to reach target
-            const remaining = target - feedDispensed;
-            if (remaining > 0) {
-              // We need to handle this differently - for now, just dispense
-              handleDispenseFeed();
-            }
-          }
-          // Auto turn off when limits reached
-          setAutoMode(false);
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-          }
-
-          let message = "";
-          if (feedDispensed >= target) {
-            message = `Daily feed target of ${target} kg has been completed.`;
-          } else if (dispenseCount >= maxDisp) {
-            message = `Maximum ${maxDisp} dispenses per day has been completed.`;
-          }
-
-          Alert.alert(
-            "✅ Daily Limit Reached",
-            `${message}\n\nTotal dispensed: ${feedDispensed.toFixed(2)} kg\nDispenses: ${dispenseCount}/${maxDisp}`,
-            [{ text: "OK" }],
-          );
-        } else {
-          // Normal dispense
-          handleDispenseFeed();
-        }
+        handleDispenseFeed();
       }, intervalMs);
     }
 
@@ -341,7 +272,6 @@ const GateControlScreen = () => {
     };
   }, [autoMode, feedDispensed, feedTarget, feedAmount, dispensesPerDay]);
 
-  // Reset daily counter at midnight
   useEffect(() => {
     const checkMidnight = () => {
       const now = new Date();
@@ -436,24 +366,43 @@ const GateControlScreen = () => {
           {gateStatus ? "🔓 Unlocked" : "🔒 Locked"}
         </Text>
 
+        {/* ✅ Toggle Button - Disabled when auto mode is ON */}
         <TouchableOpacity
           style={[
             styles.toggleBtn,
             gateStatus
               ? [styles.toggleClose, { backgroundColor: colors.danger }]
               : [styles.toggleOpen, { backgroundColor: colors.success }],
+            autoMode && styles.disabledBtn,
           ]}
           onPress={handleToggleGate}
-          disabled={isToggling}
+          disabled={isToggling || autoMode}
         >
           <Text style={styles.toggleBtnText}>
             {isToggling
               ? "Processing..."
-              : gateStatus
-                ? "Close Gate"
-                : "Open Gate"}
+              : autoMode
+                ? "🔒 Auto Mode ON"
+                : gateStatus
+                  ? "Close Gate"
+                  : "Open Gate"}
           </Text>
         </TouchableOpacity>
+
+        {/* ✅ Auto Mode Indicator */}
+        {autoMode && (
+          <View
+            style={[
+              styles.autoIndicator,
+              { backgroundColor: colors.successLight },
+            ]}
+          >
+            <Ionicons name="rocket-outline" size={16} color={colors.success} />
+            <Text style={[styles.autoIndicatorText, { color: colors.success }]}>
+              Auto Mode Active - Manual controls disabled
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Quick Action Buttons */}
@@ -474,6 +423,19 @@ const GateControlScreen = () => {
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
             Quick Actions
           </Text>
+          {autoMode && (
+            <View
+              style={[
+                styles.lockBadge,
+                { backgroundColor: colors.warningLight, marginLeft: 8 },
+              ]}
+            >
+              <Ionicons name="lock-closed" size={12} color={colors.warning} />
+              <Text style={[styles.lockBadgeText, { color: colors.warning }]}>
+                Locked
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.actionRow}>
@@ -483,11 +445,11 @@ const GateControlScreen = () => {
               styles.actionOpen,
               {
                 backgroundColor: colors.success,
-                opacity: gateStatus || isToggling ? 0.5 : 1,
+                opacity: gateStatus || isToggling || autoMode ? 0.5 : 1,
               },
             ]}
             onPress={handleOpenGate}
-            disabled={gateStatus || isToggling}
+            disabled={gateStatus || isToggling || autoMode}
           >
             <FontAwesome5 name="door-open" size={24} color="#FFFFFF" />
             <Text style={styles.actionBtnText}>Open</Text>
@@ -499,16 +461,22 @@ const GateControlScreen = () => {
               styles.actionClose,
               {
                 backgroundColor: colors.danger,
-                opacity: !gateStatus || isToggling ? 0.5 : 1,
+                opacity: !gateStatus || isToggling || autoMode ? 0.5 : 1,
               },
             ]}
             onPress={handleCloseGate}
-            disabled={!gateStatus || isToggling}
+            disabled={!gateStatus || isToggling || autoMode}
           >
             <FontAwesome5 name="door-closed" size={24} color="#FFFFFF" />
             <Text style={styles.actionBtnText}>Close</Text>
           </TouchableOpacity>
         </View>
+
+        {autoMode && (
+          <Text style={[styles.lockedMessage, { color: colors.warning }]}>
+            🔒 Manual gate controls are locked while Auto Mode is ON
+          </Text>
+        )}
       </View>
 
       {/* Auto Feed Dispensing Section */}
@@ -596,7 +564,7 @@ const GateControlScreen = () => {
             </View>
           </View>
 
-          {/* ✅ NEW: Dispenses per Day */}
+          {/* Dispenses per Day */}
           <View style={[styles.settingRow, { borderColor: colors.border }]}>
             <Text style={[styles.settingLabel, { color: colors.text }]}>
               Dispenses per Day
@@ -652,7 +620,6 @@ const GateControlScreen = () => {
 
           {/* Progress */}
           <View style={styles.progressContainer}>
-            {/* Feed Progress */}
             <View style={styles.progressHeader}>
               <Text style={[styles.progressLabel, { color: colors.textMuted }]}>
                 Feed Progress
@@ -677,7 +644,6 @@ const GateControlScreen = () => {
               {progress.toFixed(0)}% of daily target
             </Text>
 
-            {/* Dispense Progress */}
             <View style={[styles.progressHeader, { marginTop: 10 }]}>
               <Text style={[styles.progressLabel, { color: colors.textMuted }]}>
                 Dispense Progress
@@ -721,17 +687,18 @@ const GateControlScreen = () => {
           </TouchableOpacity>
 
           {autoMode && (
-            <Text style={[styles.autoNote, { color: colors.warning }]}>
-              ⚠️ Auto mode is ON. Manual dispense is disabled.
-            </Text>
-          )}
-
-          {autoMode && nextDispenseTime && (
-            <Text
-              style={[styles.nextDispenseText, { color: colors.textMuted }]}
-            >
-              ⏰ Next dispense at: {nextDispenseTime.toLocaleTimeString()}
-            </Text>
+            <>
+              <Text style={[styles.autoNote, { color: colors.warning }]}>
+                ⚠️ Auto mode is ON. Manual dispense is disabled.
+              </Text>
+              {nextDispenseTime && (
+                <Text
+                  style={[styles.nextDispenseText, { color: colors.textMuted }]}
+                >
+                  ⏰ Next dispense at: {nextDispenseTime.toLocaleTimeString()}
+                </Text>
+              )}
+            </>
           )}
         </View>
       </View>
@@ -868,6 +835,40 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: "#FFFFFF",
+  },
+  disabledBtn: {
+    opacity: 0.5,
+  },
+  autoIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 8,
+  },
+  autoIndicatorText: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 6,
+  },
+  lockBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  lockBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+  lockedMessage: {
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 8,
+    fontStyle: "italic",
   },
   section: {
     paddingHorizontal: 16,
