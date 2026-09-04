@@ -19,22 +19,8 @@ import {
   View,
 } from "react-native";
 import api from "../../api/client";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth, User } from "../../context/AuthContext";
 import { useTheme } from "../../hooks/useTheme";
-
-interface UserProfile {
-  id: number;
-  username: string;
-  name: string;
-  full_name?: string;
-  role: string;
-  email?: string;
-  phone?: string;
-  farm_name?: string;
-  avatar?: string | null;
-  status?: string;
-  source?: string;
-}
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -52,54 +38,77 @@ function SettingsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Profile states - initialize with user from AuthContext
+  // Profile states
   const [isEditing, setIsEditing] = useState(false);
-  const [profile, setProfile] = useState<UserProfile>({
-    id: user?.id || 0,
-    username: user?.username || "guest",
-    name: user?.full_name || user?.username || "Guest User",
-    full_name: user?.full_name || "",
-    role: user?.role || "viewer",
-    email: user?.email || "",
-    phone: user?.phone || "",
-    farm_name: user?.farm_name || "",
-    avatar: null,
-    status: user?.status || "active",
-    source: user?.source || "unknown",
-  });
-  const [editedProfile, setEditedProfile] = useState<UserProfile>(profile);
+  const [profile, setProfile] = useState<User | null>(null);
+  const [editedProfile, setEditedProfile] = useState<User | null>(null);
   const [tempAvatar, setTempAvatar] = useState<string | null>(null);
 
   // Settings states
   const [notifications, setNotifications] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  // Load saved data on mount
+  // ✅ Update profile when user changes (login/logout)
   useEffect(() => {
-    loadSavedData();
-    fetchSettings();
-    fetchUserProfile();
+    if (user) {
+      // Set profile from user data
+      const userProfile: User = {
+        id: user.id || 0,
+        username: user.username || "guest",
+        name: user.full_name || user.name || user.username || "Guest User",
+        full_name: user.full_name || user.name || "",
+        role: user.role || "viewer",
+        email: user.email || "",
+        phone: user.phone || "",
+        farm_name: user.farm_name || "",
+        avatar: user.avatar || null,
+        status: user.status || "active",
+        source: user.source || "unknown",
+      };
+      setProfile(userProfile);
+      setEditedProfile(userProfile);
+    } else {
+      // Reset profile if no user
+      setProfile(null);
+      setEditedProfile(null);
+    }
+  }, [user]); // ✅ Depend on user changes
+
+  // Load saved data on mount and when user changes
+  useEffect(() => {
+    if (user) {
+      loadSavedData();
+      fetchSettings();
+      fetchUserProfile();
+    }
   }, [user]);
 
   const loadSavedData = async () => {
     try {
+      // Load profile from storage
       const savedProfile = await AsyncStorage.getItem(STORAGE_KEYS.PROFILE);
       if (savedProfile) {
         const parsedProfile = JSON.parse(savedProfile);
-        setProfile(parsedProfile);
-        setEditedProfile(parsedProfile);
-      } else if (user) {
-        // If no saved profile, use user from AuthContext
-        const userProfile: UserProfile = {
+        // Only use saved profile if it matches the current user
+        if (parsedProfile.id === user?.id) {
+          setProfile(parsedProfile);
+          setEditedProfile(parsedProfile);
+          return;
+        }
+      }
+
+      // If no saved profile or different user, use user from AuthContext
+      if (user) {
+        const userProfile: User = {
           id: user.id || 0,
           username: user.username || "guest",
-          name: user.full_name || user.username || "Guest User",
-          full_name: user.full_name || "",
+          name: user.full_name || user.name || user.username || "Guest User",
+          full_name: user.full_name || user.name || "",
           role: user.role || "viewer",
           email: user.email || "",
           phone: user.phone || "",
           farm_name: user.farm_name || "",
-          avatar: null,
+          avatar: user.avatar || null,
           status: user.status || "active",
           source: user.source || "unknown",
         };
@@ -111,6 +120,7 @@ function SettingsScreen() {
         );
       }
 
+      // Load settings
       const savedNotifications = await AsyncStorage.getItem(
         STORAGE_KEYS.NOTIFICATIONS,
       );
@@ -131,28 +141,28 @@ function SettingsScreen() {
 
   const fetchUserProfile = async () => {
     try {
-      if (!token) return;
+      if (!token || !user) return;
 
       const response = await api.get("/user/profile");
       if (response.data.success) {
         const userData = response.data.data || response.data.user;
-        if (userData) {
-          const updatedProfile: UserProfile = {
-            id: userData.id || profile.id,
-            username: userData.username || profile.username,
+        if (userData && userData.id === user.id) {
+          const updatedProfile: User = {
+            id: userData.id || user.id,
+            username: userData.username || user.username,
             name:
               userData.full_name ||
               userData.name ||
               userData.username ||
-              profile.name,
+              user.name,
             full_name: userData.full_name || userData.name || "",
-            role: userData.role || profile.role,
-            email: userData.email || profile.email,
-            phone: userData.phone || profile.phone,
-            farm_name: userData.farm_name || profile.farm_name,
+            role: userData.role || user.role,
+            email: userData.email || user.email,
+            phone: userData.phone || user.phone,
+            farm_name: userData.farm_name || user.farm_name,
             avatar: userData.avatar || null,
-            status: userData.status || profile.status,
-            source: userData.source || profile.source,
+            status: userData.status || user.status,
+            source: userData.source || user.source,
           };
           setProfile(updatedProfile);
           setEditedProfile(updatedProfile);
@@ -160,6 +170,17 @@ function SettingsScreen() {
             STORAGE_KEYS.PROFILE,
             JSON.stringify(updatedProfile),
           );
+
+          // Also update AuthContext user
+          await updateUser({
+            full_name: updatedProfile.name,
+            name: updatedProfile.name,
+            email: updatedProfile.email,
+            phone: updatedProfile.phone,
+            farm_name: updatedProfile.farm_name,
+            avatar: updatedProfile.avatar,
+            role: updatedProfile.role,
+          });
         }
       }
     } catch (error) {
@@ -189,9 +210,11 @@ function SettingsScreen() {
   };
 
   const handleEditProfile = () => {
-    setEditedProfile(profile);
-    setTempAvatar(profile.avatar || null);
-    setIsEditing(true);
+    if (profile) {
+      setEditedProfile({ ...profile });
+      setTempAvatar(profile.avatar || null);
+      setIsEditing(true);
+    }
   };
 
   const handlePickImage = async () => {
@@ -218,7 +241,9 @@ function SettingsScreen() {
       if (!result.canceled && result.assets[0]) {
         const imageUri = result.assets[0].uri;
         setTempAvatar(imageUri);
-        setEditedProfile({ ...editedProfile, avatar: imageUri });
+        if (editedProfile) {
+          setEditedProfile({ ...editedProfile, avatar: imageUri });
+        }
       }
     } catch (error) {
       console.error("Error picking image:", error);
@@ -226,9 +251,10 @@ function SettingsScreen() {
     }
   };
 
-  // src/screens/Settings/SettingsScreen.tsx - updated handleSaveProfile
   const handleSaveProfile = async () => {
-    if (!editedProfile.name.trim()) {
+    if (!editedProfile) return;
+
+    if (!editedProfile.name?.trim()) {
       Alert.alert("Error", "Name is required");
       return;
     }
@@ -240,7 +266,6 @@ function SettingsScreen() {
     try {
       setLoading(true);
 
-      // Prepare data for API
       const profileData = {
         id: editedProfile.id,
         username: editedProfile.username,
@@ -253,18 +278,15 @@ function SettingsScreen() {
         avatar: editedProfile.avatar,
       };
 
-      // Try to save to API first
       try {
         const response = await api.put("/user/profile", profileData);
         if (response.data.success) {
-          // Update local state
           setProfile(editedProfile);
           await AsyncStorage.setItem(
             STORAGE_KEYS.PROFILE,
             JSON.stringify(editedProfile),
           );
 
-          // Update user in AuthContext
           await updateUser({
             full_name: editedProfile.name,
             name: editedProfile.name,
@@ -281,14 +303,12 @@ function SettingsScreen() {
         }
       } catch (apiError: any) {
         console.log("API error:", apiError.response?.data || apiError.message);
-        // If API fails, save locally
         await AsyncStorage.setItem(
           STORAGE_KEYS.PROFILE,
           JSON.stringify(editedProfile),
         );
         setProfile(editedProfile);
 
-        // Update user in AuthContext even if API fails
         await updateUser({
           full_name: editedProfile.name,
           name: editedProfile.name,
@@ -312,7 +332,9 @@ function SettingsScreen() {
   };
 
   const handleCancelEdit = () => {
-    setEditedProfile(profile);
+    if (profile) {
+      setEditedProfile({ ...profile });
+    }
     setTempAvatar(null);
     setIsEditing(false);
   };
@@ -362,7 +384,6 @@ function SettingsScreen() {
     ]);
   };
 
-  // Get user role display
   const getRoleDisplay = (role: string) => {
     const roleMap: { [key: string]: string } = {
       admin: "Administrator",
@@ -374,22 +395,14 @@ function SettingsScreen() {
     return roleMap[role?.toLowerCase()] || role || "User";
   };
 
-  // Get role color
-  const getRoleColor = (role: string) => {
-    const colorMap: { [key: string]: string } = {
-      admin: "#FF6B6B",
-      staff: "#4ECDC4",
-      viewer: "#45B7D1",
-      super_admin: "#FF4757",
-      farm_manager: "#2ED573",
-    };
-    return colorMap[role?.toLowerCase()] || colors.primary;
-  };
-
-  if (loading) {
+  // ✅ Show loading if no profile or user
+  if (loading || !profile || !user) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textMuted }]}>
+          Loading profile...
+        </Text>
       </View>
     );
   }
@@ -604,164 +617,170 @@ function SettingsScreen() {
             </View>
           </View>
         ) : (
-          <View
-            style={[
-              styles.profileCard,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                flexDirection: "column",
-                alignItems: "center",
-              },
-            ]}
-          >
-            <TouchableOpacity
-              onPress={handlePickImage}
-              style={styles.avatarContainer}
+          editedProfile && (
+            <View
+              style={[
+                styles.profileCard,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  flexDirection: "column",
+                  alignItems: "center",
+                },
+              ]}
             >
-              {tempAvatar || editedProfile.avatar ? (
-                <Image
-                  source={{
-                    uri: tempAvatar || editedProfile.avatar || undefined,
-                  }}
-                  style={styles.avatarImage}
-                />
-              ) : (
-                <View
-                  style={[styles.avatar, { backgroundColor: colors.primary }]}
-                >
-                  <Text style={[styles.avatarText, { color: "#FFFFFF" }]}>
-                    {(editedProfile.name || editedProfile.username || "U")
-                      .charAt(0)
-                      .toUpperCase()}
-                  </Text>
-                </View>
-              )}
-              <View
-                style={[
-                  styles.avatarBadge,
-                  { backgroundColor: colors.primary },
-                ]}
+              <TouchableOpacity
+                onPress={handlePickImage}
+                style={styles.avatarContainer}
               >
-                <Ionicons name="camera" size={12} color="#FFFFFF" />
-              </View>
-            </TouchableOpacity>
-            <Text style={[styles.changePhotoText, { color: colors.primary }]}>
-              Tap to change photo
-            </Text>
-
-            <View style={styles.editForm}>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.background,
-                    color: colors.text,
-                    borderColor: colors.border,
-                  },
-                ]}
-                placeholder="Full Name"
-                placeholderTextColor={colors.textMuted}
-                value={editedProfile.name}
-                onChangeText={(text) =>
-                  setEditedProfile({ ...editedProfile, name: text })
-                }
-              />
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.background,
-                    color: colors.text,
-                    borderColor: colors.border,
-                  },
-                ]}
-                placeholder="Email"
-                placeholderTextColor={colors.textMuted}
-                value={editedProfile.email}
-                onChangeText={(text) =>
-                  setEditedProfile({ ...editedProfile, email: text })
-                }
-                keyboardType="email-address"
-              />
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.background,
-                    color: colors.text,
-                    borderColor: colors.border,
-                  },
-                ]}
-                placeholder="Phone Number"
-                placeholderTextColor={colors.textMuted}
-                value={editedProfile.phone}
-                onChangeText={(text) =>
-                  setEditedProfile({ ...editedProfile, phone: text })
-                }
-                keyboardType="phone-pad"
-              />
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.background,
-                    color: colors.text,
-                    borderColor: colors.border,
-                  },
-                ]}
-                placeholder="Farm Name"
-                placeholderTextColor={colors.textMuted}
-                value={editedProfile.farm_name}
-                onChangeText={(text) =>
-                  setEditedProfile({ ...editedProfile, farm_name: text })
-                }
-              />
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.background,
-                    color: colors.text,
-                    borderColor: colors.border,
-                  },
-                ]}
-                placeholder="Role"
-                placeholderTextColor={colors.textMuted}
-                value={editedProfile.role}
-                onChangeText={(text) =>
-                  setEditedProfile({ ...editedProfile, role: text })
-                }
-              />
-              <View style={styles.editActions}>
-                <TouchableOpacity
-                  style={[styles.cancelButton, { borderColor: colors.border }]}
-                  onPress={handleCancelEdit}
-                >
-                  <Text
-                    style={[
-                      styles.cancelButtonText,
-                      { color: colors.textMuted },
-                    ]}
+                {tempAvatar || editedProfile.avatar ? (
+                  <Image
+                    source={{
+                      uri: tempAvatar || editedProfile.avatar || undefined,
+                    }}
+                    style={styles.avatarImage}
+                  />
+                ) : (
+                  <View
+                    style={[styles.avatar, { backgroundColor: colors.primary }]}
                   >
-                    Cancel
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                    <Text style={[styles.avatarText, { color: "#FFFFFF" }]}>
+                      {(editedProfile.name || editedProfile.username || "U")
+                        .charAt(0)
+                        .toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <View
                   style={[
-                    styles.saveButton,
+                    styles.avatarBadge,
                     { backgroundColor: colors.primary },
                   ]}
-                  onPress={handleSaveProfile}
                 >
-                  <Text style={styles.saveButtonText}>Save</Text>
-                </TouchableOpacity>
+                  <Ionicons name="camera" size={12} color="#FFFFFF" />
+                </View>
+              </TouchableOpacity>
+              <Text style={[styles.changePhotoText, { color: colors.primary }]}>
+                Tap to change photo
+              </Text>
+
+              <View style={styles.editForm}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.background,
+                      color: colors.text,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  placeholder="Full Name"
+                  placeholderTextColor={colors.textMuted}
+                  value={editedProfile.name}
+                  onChangeText={(text) =>
+                    setEditedProfile({ ...editedProfile, name: text })
+                  }
+                />
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.background,
+                      color: colors.text,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  placeholder="Email"
+                  placeholderTextColor={colors.textMuted}
+                  value={editedProfile.email}
+                  onChangeText={(text) =>
+                    setEditedProfile({ ...editedProfile, email: text })
+                  }
+                  keyboardType="email-address"
+                />
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.background,
+                      color: colors.text,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  placeholder="Phone Number"
+                  placeholderTextColor={colors.textMuted}
+                  value={editedProfile.phone}
+                  onChangeText={(text) =>
+                    setEditedProfile({ ...editedProfile, phone: text })
+                  }
+                  keyboardType="phone-pad"
+                />
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.background,
+                      color: colors.text,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  placeholder="Farm Name"
+                  placeholderTextColor={colors.textMuted}
+                  value={editedProfile.farm_name}
+                  onChangeText={(text) =>
+                    setEditedProfile({ ...editedProfile, farm_name: text })
+                  }
+                />
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.background,
+                      color: colors.text,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  placeholder="Role"
+                  placeholderTextColor={colors.textMuted}
+                  value={editedProfile.role}
+                  onChangeText={(text) =>
+                    setEditedProfile({ ...editedProfile, role: text })
+                  }
+                />
+                <View style={styles.editActions}>
+                  <TouchableOpacity
+                    style={[
+                      styles.cancelButton,
+                      { borderColor: colors.border },
+                    ]}
+                    onPress={handleCancelEdit}
+                  >
+                    <Text
+                      style={[
+                        styles.cancelButtonText,
+                        { color: colors.textMuted },
+                      ]}
+                    >
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.saveButton,
+                      { backgroundColor: colors.primary },
+                    ]}
+                    onPress={handleSaveProfile}
+                  >
+                    <Text style={styles.saveButtonText}>Save</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-          </View>
+          )
         )}
       </View>
 
+      {/* Rest of the component remains the same */}
       {/* Preferences Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
@@ -985,6 +1004,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
   },
   header: {
     paddingHorizontal: 20,
