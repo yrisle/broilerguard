@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { automation, dashboard, sensors } from "../../api/endpoints";
+import { dashboard, sensors } from "../../api/endpoints";
 import Card from "../../components/common/Card";
 import LevelIndicator from "../../components/sensors/LevelIndicator";
 import { useTheme } from "../../hooks/useTheme";
@@ -29,18 +29,7 @@ const DashboardScreen = () => {
     waterLevel: 0,
     fanPhysicalStatus: "OFF",
     waterPumpPhysicalStatus: "OFF",
-    feedPhysicalStatus: "OFF",
     lightStatus: "OFF",
-
-    // Automation Status
-    fanStatus: "OFF",
-    waterPump: "OFF",
-    feedStatus: "OFF",
-
-    // Auto mode booleans
-    fanIsAuto: false,
-    pumpIsAuto: false,
-    feedIsAuto: false,
 
     // Chicken Health
     healthyChicks: 0,
@@ -66,60 +55,15 @@ const DashboardScreen = () => {
 
   const fetchDashboard = async () => {
     try {
-      const [sensorRes, statsRes, fanRes, feederRes, pumpRes] =
-        await Promise.all([
-          sensors.getCurrent(),
-          dashboard.getStats(),
-          automation.fan.getStatus(),
-          automation.feeder.getStatus(),
-          automation.pump.getStatus(),
-        ]);
+      const [sensorRes, statsRes] = await Promise.all([
+        sensors.getCurrent(),
+        dashboard.getStats(),
+      ]);
 
-      console.log("📥 Sensor Response:", sensorRes);
-      console.log("📥 Stats Response:", statsRes);
-      console.log("📥 Fan Response:", fanRes);
-      console.log("📥 Feeder Response:", feederRes);
-      console.log("📥 Pump Response:", pumpRes);
-
-      // Extract data properly
       const sensorData = sensorRes.data?.data || sensorRes.data || {};
       const statsData = statsRes.data?.data || statsRes.data || {};
-      const fanData = fanRes.data?.data || fanRes.data || {};
-      const feederData = feederRes.data?.data || feederRes.data || {};
-      const pumpData = pumpRes.data?.data || pumpRes.data || {};
 
-      // Get actual physical status from automation endpoints
-      const fanPhysicalStatus = fanData.status || "OFF";
-      const feederPhysicalStatus = feederData.status || "OFF";
-      // Pump status might be nested in pump object
-      const pumpPhysicalStatus =
-        pumpData.pump?.status || pumpData.status || "OFF";
-
-      // Get auto mode settings
-      const fanIsAuto = fanData.settings?.auto_mode ?? false;
-      const feedIsAuto = feederData.settings?.auto_mode ?? false;
-      const pumpIsAuto = pumpData.settings?.auto_mode ?? false;
-
-      console.log("🔧 Fan Status:", {
-        physical: fanPhysicalStatus,
-        auto: fanIsAuto,
-      });
-      console.log("🔧 Feeder Status:", {
-        physical: feederPhysicalStatus,
-        auto: feedIsAuto,
-      });
-      console.log("🔧 Pump Status:", {
-        physical: pumpPhysicalStatus,
-        auto: pumpIsAuto,
-      });
-
-      // Determine display status for dashboard
-      const getDisplayStatus = (isAuto: boolean, physicalStatus: string) => {
-        if (isAuto) {
-          return "AUTO";
-        }
-        return physicalStatus;
-      };
+      console.log("📥 Dashboard Data:", { sensorData, statsData });
 
       setStats({
         // Environmental Conditions - from sensor_readings
@@ -127,20 +71,9 @@ const DashboardScreen = () => {
         humidity: sensorData.humidity || 0,
         feedLevel: sensorData.feed_level || 0,
         waterLevel: sensorData.water_level || 0,
-        fanPhysicalStatus: fanPhysicalStatus,
-        waterPumpPhysicalStatus: pumpPhysicalStatus,
-        feedPhysicalStatus: feederPhysicalStatus,
+        fanPhysicalStatus: sensorData.fan_status || "OFF",
+        waterPumpPhysicalStatus: sensorData.water_pump || "OFF",
         lightStatus: sensorData.light_status || "OFF",
-
-        // Automation Status
-        fanStatus: getDisplayStatus(fanIsAuto, fanPhysicalStatus),
-        waterPump: getDisplayStatus(pumpIsAuto, pumpPhysicalStatus),
-        feedStatus: getDisplayStatus(feedIsAuto, feederPhysicalStatus),
-
-        // Auto mode booleans
-        fanIsAuto: fanIsAuto,
-        pumpIsAuto: pumpIsAuto,
-        feedIsAuto: feedIsAuto,
 
         // Chicken Health - from detection_logs
         healthyChicks: statsData.healthy_chicks || 0,
@@ -158,7 +91,6 @@ const DashboardScreen = () => {
         error instanceof Error ? error.message : "Unable to reach the server.";
 
       console.warn("Dashboard data unavailable:", message);
-      console.error("❌ Full error:", error);
       setErrorMessage(
         "Unable to reach the server. Showing the latest available values.",
       );
@@ -178,16 +110,6 @@ const DashboardScreen = () => {
   const onRefresh = () => {
     setRefreshing(true);
     fetchDashboard();
-  };
-
-  const getStatusColor = (status: string, colors: any) => {
-    if (status === "AUTO") return colors.warning;
-    return status === "ON" ? colors.success : colors.danger;
-  };
-
-  const getStatusBgColor = (status: string, colors: any) => {
-    if (status === "AUTO") return colors.warningLight;
-    return status === "ON" ? colors.successLight : colors.dangerLight;
   };
 
   if (loading) {
@@ -251,7 +173,9 @@ const DashboardScreen = () => {
         </View>
       ) : null}
 
-      {/* ENVIRONMENTAL CONDITIONS */}
+      {/* ============================================
+      ENVIRONMENTAL CONDITIONS - From sensor_readings
+      ============================================ */}
       <View style={styles.section}>
         <View
           style={{
@@ -300,7 +224,9 @@ const DashboardScreen = () => {
         </View>
       </View>
 
-      {/* RESOURCE LEVELS */}
+      {/* ============================================
+      RESOURCE LEVELS
+      ============================================ */}
       <View style={styles.section}>
         <View
           style={{
@@ -339,192 +265,9 @@ const DashboardScreen = () => {
         </Card>
       </View>
 
-      {/* AUTOMATION STATUS */}
-      <View style={styles.section}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            marginBottom: 12,
-          }}
-        >
-          <Icon
-            name="settings-outline"
-            size={20}
-            color={colors.textSecondary}
-            style={{ marginRight: 8 }}
-          />
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-            Automation Status
-          </Text>
-        </View>
-
-        <View style={styles.automationRow}>
-          {/* FAN */}
-          <TouchableOpacity
-            style={styles.automationCardWrapper}
-            activeOpacity={0.7}
-            onPress={() => handleNavigate("/fan-control")}
-          >
-            <Card style={styles.automationCard}>
-              <View style={styles.automationItem}>
-                <Icon name="options-outline" size={24} color={colors.primary} />
-                <View style={styles.automationInfo}>
-                  <Text
-                    style={[
-                      styles.automationLabel,
-                      { color: colors.primaryDark },
-                    ]}
-                  >
-                    Fan
-                  </Text>
-                  <View
-                    style={[
-                      styles.statusIndicator,
-                      {
-                        backgroundColor: getStatusBgColor(
-                          stats.fanStatus,
-                          colors,
-                        ),
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.statusText,
-                        {
-                          color: getStatusColor(stats.fanStatus, colors),
-                        },
-                      ]}
-                    >
-                      {stats.fanStatus}
-                    </Text>
-                  </View>
-                  <Text
-                    style={[styles.statusSubtext, { color: colors.textMuted }]}
-                  >
-                    {stats.fanIsAuto
-                      ? "🤖 Auto Mode"
-                      : stats.fanPhysicalStatus === "ON"
-                        ? "👤 Manual (ON)"
-                        : "👤 Manual (OFF)"}
-                  </Text>
-                </View>
-              </View>
-            </Card>
-          </TouchableOpacity>
-
-          {/* WATER */}
-          <TouchableOpacity
-            style={styles.automationCardWrapper}
-            activeOpacity={0.7}
-            onPress={() => handleNavigate("/water-pump")}
-          >
-            <Card style={styles.automationCard}>
-              <View style={styles.automationItem}>
-                <Icon name="water" size={24} color={colors.info} />
-                <View style={styles.automationInfo}>
-                  <Text
-                    style={[
-                      styles.automationLabel,
-                      { color: colors.primaryDark },
-                    ]}
-                  >
-                    Water
-                  </Text>
-                  <View
-                    style={[
-                      styles.statusIndicator,
-                      {
-                        backgroundColor: getStatusBgColor(
-                          stats.waterPump,
-                          colors,
-                        ),
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.statusText,
-                        {
-                          color: getStatusColor(stats.waterPump, colors),
-                        },
-                      ]}
-                    >
-                      {stats.waterPump}
-                    </Text>
-                  </View>
-                  <Text
-                    style={[styles.statusSubtext, { color: colors.textMuted }]}
-                  >
-                    {stats.pumpIsAuto
-                      ? "🤖 Auto Mode"
-                      : stats.waterPumpPhysicalStatus === "ON"
-                        ? "👤 Manual (ON)"
-                        : "👤 Manual (OFF)"}
-                  </Text>
-                </View>
-              </View>
-            </Card>
-          </TouchableOpacity>
-
-          {/* FEEDER */}
-          <TouchableOpacity
-            style={styles.automationCardWrapper}
-            activeOpacity={0.7}
-            onPress={() => handleNavigate("/feed-dispenser")}
-          >
-            <Card style={styles.automationCard}>
-              <View style={styles.automationItem}>
-                <Icon name="fast-food" size={24} color={colors.primary} />
-                <View style={styles.automationInfo}>
-                  <Text
-                    style={[
-                      styles.automationLabel,
-                      { color: colors.primaryDark },
-                    ]}
-                  >
-                    Feeder
-                  </Text>
-                  <View
-                    style={[
-                      styles.statusIndicator,
-                      {
-                        backgroundColor: getStatusBgColor(
-                          stats.feedStatus,
-                          colors,
-                        ),
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.statusText,
-                        {
-                          color: getStatusColor(stats.feedStatus, colors),
-                        },
-                      ]}
-                    >
-                      {stats.feedStatus}
-                    </Text>
-                  </View>
-                  <Text
-                    style={[styles.statusSubtext, { color: colors.textMuted }]}
-                  >
-                    {stats.feedIsAuto
-                      ? "🤖 Auto Mode"
-                      : stats.feedPhysicalStatus === "ON"
-                        ? "👤 Manual (ON)"
-                        : "👤 Manual (OFF)"}
-                  </Text>
-                </View>
-              </View>
-            </Card>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* CHICKEN HEALTH */}
+      {/* ============================================
+      CHICKEN HEALTH - From detection_logs
+      ============================================ */}
       <View style={styles.section}>
         <View
           style={{
@@ -580,7 +323,9 @@ const DashboardScreen = () => {
         </Card>
       </View>
 
-      {/* QUICK ACTIONS */}
+      {/* ============================================
+      QUICK ACTIONS
+      ============================================ */}
       <View style={styles.section}>
         <View
           style={{
@@ -691,52 +436,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: "600", marginBottom: 0 },
   row: { flexDirection: "row", justifyContent: "space-between" },
   halfCard: { flex: 1, marginHorizontal: 4 },
-
-  automationRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 6,
-  },
-  automationCardWrapper: {
-    flex: 1,
-    maxWidth: "33.33%",
-  },
-  automationCard: {
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    minHeight: 120,
-    justifyContent: "center",
-  },
-  automationItem: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 2,
-  },
-  automationInfo: {
-    alignItems: "center",
-    marginTop: 4,
-  },
-  automationLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    marginBottom: 2,
-  },
-  statusIndicator: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 2,
-    minWidth: 50,
-    alignItems: "center",
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  statusSubtext: {
-    fontSize: 9,
-    marginTop: 2,
-  },
   tempContainer: {
     alignItems: "center",
     paddingVertical: 8,
