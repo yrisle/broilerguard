@@ -6,6 +6,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -15,12 +16,14 @@ import {
 } from "react-native";
 import { notifications, sensors } from "../../api/endpoints";
 import Card from "../../components/common/Card";
+import { useAuth } from "../../context/AuthContext";
 import { useAutomation } from "../../context/AutomationContext";
 import { useTheme } from "../../hooks/useTheme";
 
 const DashboardScreen = () => {
   const { colors } = useTheme();
   const router = useRouter();
+  const { user, logout } = useAuth();
   const { fanAutoMode, gateAutoMode, pumpAutoMode, lightAutoMode } =
     useAutomation();
   const [stats, setStats] = useState({
@@ -54,12 +57,49 @@ const DashboardScreen = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [notificationCount, setNotificationCount] = useState(0);
 
+  // Get greeting based on time of day
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
+    return "Good Evening";
+  };
+
+  // Get user display name
+  const getUserDisplayName = () => {
+    if (user?.full_name) return user.full_name;
+    if (user?.name) return user.name;
+    if (user?.username) return user.username;
+    return "Admin";
+  };
+
   const handleNavigate = (routeName: string) => {
     try {
       router.push(routeName as never);
     } catch {
       setErrorMessage("Navigation is unavailable right now. Please try again.");
     }
+  };
+
+  const handleLogout = () => {
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await logout();
+          } catch (error) {
+            console.error("Logout error:", error);
+            Alert.alert("Error", "Failed to logout. Please try again.");
+          }
+        },
+      },
+    ]);
   };
 
   // Fetch notification count
@@ -184,7 +224,7 @@ const DashboardScreen = () => {
       <View style={styles.header}>
         <View>
           <Text style={[styles.greeting, { color: colors.text }]}>
-            Good Morning, Admin!
+            {getGreeting()}, {getUserDisplayName()}!
           </Text>
           <Text style={[styles.date, { color: colors.textMuted }]}>
             {new Date().toLocaleDateString("en-US", {
@@ -194,25 +234,46 @@ const DashboardScreen = () => {
               day: "numeric",
             })}
           </Text>
-        </View>
-        <TouchableOpacity
-          style={styles.notificationBtn}
-          onPress={() => handleNavigate("/notifications")}
-        >
-          <Icon name="notifications-outline" size={24} color={colors.text} />
-          {notificationCount > 0 && (
-            <View
-              style={[
-                styles.notificationBadge,
-                { backgroundColor: colors.danger },
-              ]}
-            >
-              <Text style={styles.badgeText}>
-                {notificationCount > 99 ? "99+" : notificationCount}
+          {user?.role && (
+            <View style={styles.roleBadge}>
+              <Text style={[styles.roleText, { color: colors.textMuted }]}>
+                {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
               </Text>
             </View>
           )}
-        </TouchableOpacity>
+        </View>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.notificationBtn}
+            onPress={() => handleNavigate("/notifications")}
+          >
+            <Icon name="notifications-outline" size={24} color={colors.text} />
+            {notificationCount > 0 && (
+              <View
+                style={[
+                  styles.notificationBadge,
+                  { backgroundColor: colors.danger },
+                ]}
+              >
+                <Text style={styles.badgeText}>
+                  {notificationCount > 99 ? "99+" : notificationCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Logout Button */}
+          <TouchableOpacity
+            style={[styles.logoutBtn, { borderColor: colors.border }]}
+            onPress={handleLogout}
+          >
+            <Icon
+              name="log-out-outline"
+              size={22}
+              color={colors.danger || "#FF4444"}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {errorMessage ? (
@@ -578,13 +639,30 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 8,
   },
   greeting: { fontSize: 20, fontWeight: "700" },
   date: { fontSize: 13, marginTop: 2 },
+  roleBadge: {
+    marginTop: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    borderRadius: 12,
+    backgroundColor: "rgba(0,0,0,0.05)",
+    alignSelf: "flex-start",
+  },
+  roleText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   notificationBtn: { position: "relative", padding: 8 },
   notificationBadge: {
     position: "absolute",
@@ -598,6 +676,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   badgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700" },
+  logoutBtn: {
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginLeft: 4,
+  },
   section: { paddingHorizontal: 16, marginTop: 16 },
   errorBanner: {
     marginHorizontal: 16,
