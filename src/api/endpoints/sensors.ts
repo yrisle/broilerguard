@@ -1,26 +1,20 @@
 // src/api/endpoints/sensors.ts
-import api from "../client";
+import api, { esp32Api } from "../client";
 
 export const sensors = {
-  // Get all sensor data from ESP32
-  getCurrent: () => api.get("/sensor"),
+  // Get current data from ESP32 (real-time)
+  getCurrent: () => esp32Api.get("/sensor"),
 
-  getTemperature: () => api.get("/sensor"),
-  getHumidity: () => api.get("/sensor"),
-  getFeed: () => api.get("/sensor"),
-  getWater: () => api.get("/sensor"),
-  getChickenStatus: () => api.get("/sensor"),
+  // Get historical data from database
+  getTemperature: (period: string = "24h") =>
+    api.get(`/sensors/temperature?period=${period}`),
 
-  // Light Control
-  getLightStatus: () => api.get("/sensor"),
-  controlLight: (data: { status: string }) =>
-    api.get(`/light_${data.status.toLowerCase()}`),
-  setLightBrightness: (data: { brightness: number }) =>
-    api.post("/light/brightness", data),
-  getLightSchedule: () => api.get("/light/schedule"),
-  updateLightSchedule: (data: {
-    onTime: string;
-    offTime: string;
-    enabled: boolean;
-  }) => api.post("/light/schedule", data),
+  getHumidity: (period: string = "24h") =>
+    api.get(`/sensors/humidity?period=${period}`),
+
+  getFeed: () => api.get("/sensors/feed"),
+
+  getWater: () => api.get("/sensors/water"),
+
+  getChickenStatus: () => api.get("/sensors/chicken"),
 };

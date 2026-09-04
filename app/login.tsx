@@ -1,5 +1,4 @@
 // app/login.tsx
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -11,14 +10,15 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/hooks/useTheme";
 
 export default function LoginScreen() {
   const { colors } = useTheme();
+  const { login, isLoading } = useAuth();
   const router = useRouter();
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("admin");
-  const [loading, setLoading] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -26,27 +26,10 @@ export default function LoginScreen() {
       return;
     }
 
-    setLoading(true);
-
     try {
-      // ✅ Local validation only (no API call)
-      if (username === "admin" && password === "admin") {
-        // Save login state
-        await AsyncStorage.setItem("auth_token", "dummy_token");
-        await AsyncStorage.setItem(
-          "user",
-          JSON.stringify({ username: "admin" }),
-        );
-
-        // Navigate to home
-        router.replace("/(tabs)/home");
-      } else {
-        Alert.alert("Error", "Invalid username or password");
-      }
-    } catch (error) {
-      Alert.alert("Error", "Login failed. Please try again.");
-    } finally {
-      setLoading(false);
+      await login(username.trim(), password.trim());
+    } catch (error: any) {
+      Alert.alert("Login Failed", error.message || "Invalid credentials");
     }
   };
 
@@ -96,12 +79,12 @@ export default function LoginScreen() {
           style={[
             styles.loginBtn,
             { backgroundColor: colors.primary },
-            loading && styles.loginBtnDisabled,
+            isLoading && styles.loginBtnDisabled,
           ]}
           onPress={handleLogin}
-          disabled={loading}
+          disabled={isLoading}
         >
-          {loading ? (
+          {isLoading ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <Text style={styles.loginBtnText}>Login</Text>
@@ -109,7 +92,7 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         <Text style={[styles.footerText, { color: colors.textMuted }]}>
-          Default: admin / admin
+          Use your registered account
         </Text>
       </View>
     </View>
