@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { dashboard, sensors } from "../../api/endpoints";
+import { automation, dashboard, sensors } from "../../api/endpoints";
 import Card from "../../components/common/Card";
 import LevelIndicator from "../../components/sensors/LevelIndicator";
 import { useTheme } from "../../hooks/useTheme";
@@ -20,6 +20,8 @@ import { useTheme } from "../../hooks/useTheme";
 const DashboardScreen = () => {
   const { colors } = useTheme();
   const router = useRouter();
+  // src/screens/Main/DashboardScreen.tsx
+
   const [stats, setStats] = useState({
     // Environmental Conditions
     temperature: 0,
@@ -28,12 +30,13 @@ const DashboardScreen = () => {
     waterLevel: 0,
     fanPhysicalStatus: "OFF",
     waterPumpPhysicalStatus: "OFF",
+    feedPhysicalStatus: "OFF", // <-- ADD THIS
     lightStatus: "OFF",
 
-    // Automation Status (shows reverse of auto mode)
-    fanStatus: "OFF", // ON = Manual, OFF = Auto
-    waterPump: "OFF", // ON = Manual, OFF = Auto
-    feedStatus: "OFF", // ON = Manual, OFF = Auto
+    // Automation Status
+    fanStatus: "OFF",
+    waterPump: "OFF",
+    feedStatus: "OFF",
 
     // Auto mode booleans
     fanIsAuto: false,
@@ -64,15 +67,48 @@ const DashboardScreen = () => {
 
   const fetchDashboard = async () => {
     try {
-      const [sensorRes, statsRes] = await Promise.all([
-        sensors.getCurrent(),
-        dashboard.getStats(),
-      ]);
+      // Get all data in parallel
+      const [sensorRes, statsRes, fanRes, feederRes, pumpRes] =
+        await Promise.all([
+          sensors.getCurrent(),
+          dashboard.getStats(),
+          automation.fan.getStatus(),
+          automation.feeder.getStatus(),
+          automation.pump.getStatus(),
+        ]);
 
-      const sensorData = sensorRes.data.data || {};
-      const statsData = statsRes.data.data || {};
+      const sensorData = sensorRes.data?.data || {};
+      const statsData = statsRes.data?.data || {};
+      const fanData = fanRes.data?.data || {};
+      const feederData = feederRes.data?.data || {};
+      const pumpData = pumpRes.data?.data || {};
 
-      console.log("📥 Dashboard Data:", { sensorData, statsData });
+      console.log("📥 Dashboard Data:", {
+        sensorData,
+        statsData,
+        fanData,
+        feederData,
+        pumpData,
+      });
+
+      // Get actual physical status from automation endpoints
+      const fanPhysicalStatus = fanData.status || "OFF";
+      const feederPhysicalStatus = feederData.status || "OFF";
+      const pumpPhysicalStatus =
+        pumpData.pump?.status || pumpData.status || "OFF";
+
+      // Get auto mode settings
+      const fanIsAuto = fanData.settings?.auto_mode ?? false;
+      const feedIsAuto = feederData.settings?.auto_mode ?? false;
+      const pumpIsAuto = pumpData.settings?.auto_mode ?? false;
+
+      // Determine display status for dashboard
+      const getDisplayStatus = (isAuto: boolean, physicalStatus: string) => {
+        if (isAuto) {
+          return "AUTO";
+        }
+        return physicalStatus;
+      };
 
       setStats({
         // Environmental Conditions - from sensor_readings
@@ -80,19 +116,20 @@ const DashboardScreen = () => {
         humidity: sensorData.humidity || 0,
         feedLevel: sensorData.feed_level || 0,
         waterLevel: sensorData.water_level || 0,
-        fanPhysicalStatus: sensorData.fan_status || "OFF",
-        waterPumpPhysicalStatus: sensorData.water_pump || "OFF",
+        fanPhysicalStatus: fanPhysicalStatus,
+        waterPumpPhysicalStatus: pumpPhysicalStatus,
+        feedPhysicalStatus: feederPhysicalStatus,
         lightStatus: sensorData.light_status || "OFF",
 
-        // Automation Status - reverse logic from auto mode
-        fanStatus: statsData.fan_auto_status || "OFF",
-        waterPump: statsData.pump_auto_status || "OFF",
-        feedStatus: statsData.feed_auto_status || "OFF",
+        // Automation Status - display status based on mode
+        fanStatus: getDisplayStatus(fanIsAuto, fanPhysicalStatus),
+        waterPump: getDisplayStatus(pumpIsAuto, pumpPhysicalStatus),
+        feedStatus: getDisplayStatus(feedIsAuto, feederPhysicalStatus),
 
         // Auto mode booleans
-        fanIsAuto: statsData.fan_is_auto || false,
-        pumpIsAuto: statsData.pump_is_auto || false,
-        feedIsAuto: statsData.feed_is_auto || false,
+        fanIsAuto: fanIsAuto,
+        pumpIsAuto: pumpIsAuto,
+        feedIsAuto: feedIsAuto,
 
         // Chicken Health - from detection_logs
         healthyChicks: statsData.healthy_chicks || 0,
@@ -131,11 +168,15 @@ const DashboardScreen = () => {
     fetchDashboard();
   };
 
+  // src/screens/Main/DashboardScreen.tsx
+
   const getStatusColor = (status: string, colors: any) => {
+    if (status === "AUTO") return colors.warning;
     return status === "ON" ? colors.success : colors.danger;
   };
 
   const getStatusBgColor = (status: string, colors: any) => {
+    if (status === "AUTO") return colors.warningLight;
     return status === "ON" ? colors.successLight : colors.dangerLight;
   };
 
@@ -326,6 +367,8 @@ const DashboardScreen = () => {
 
         <View style={styles.automationRow}>
           {/* ===== FAN ===== */}
+          // src/screens/Main/DashboardScreen.tsx
+          {/* ===== FAN ===== */}
           <TouchableOpacity
             style={styles.automationCardWrapper}
             activeOpacity={0.7}
@@ -368,13 +411,16 @@ const DashboardScreen = () => {
                   <Text
                     style={[styles.statusSubtext, { color: colors.textMuted }]}
                   >
-                    {stats.fanIsAuto ? "🤖 Auto Mode" : "👤 Manual Mode"}
+                    {stats.fanIsAuto
+                      ? "🤖 Auto Mode"
+                      : stats.fanPhysicalStatus === "ON"
+                        ? "👤 Manual (ON)"
+                        : "👤 Manual (OFF)"}
                   </Text>
                 </View>
               </View>
             </Card>
           </TouchableOpacity>
-
           {/* ===== WATER ===== */}
           <TouchableOpacity
             style={styles.automationCardWrapper}
@@ -418,13 +464,16 @@ const DashboardScreen = () => {
                   <Text
                     style={[styles.statusSubtext, { color: colors.textMuted }]}
                   >
-                    {stats.pumpIsAuto ? "🤖 Auto Mode" : "👤 Manual Mode"}
+                    {stats.pumpIsAuto
+                      ? "🤖 Auto Mode"
+                      : stats.waterPumpPhysicalStatus === "ON"
+                        ? "👤 Manual (ON)"
+                        : "👤 Manual (OFF)"}
                   </Text>
                 </View>
               </View>
             </Card>
           </TouchableOpacity>
-
           {/* ===== FEEDER ===== */}
           <TouchableOpacity
             style={styles.automationCardWrapper}
@@ -468,7 +517,11 @@ const DashboardScreen = () => {
                   <Text
                     style={[styles.statusSubtext, { color: colors.textMuted }]}
                   >
-                    {stats.feedIsAuto ? "🤖 Auto Mode" : "👤 Manual Mode"}
+                    {stats.feedIsAuto
+                      ? "🤖 Auto Mode"
+                      : stats.feedPhysicalStatus === "ON"
+                        ? "👤 Manual (ON)"
+                        : "👤 Manual (OFF)"}
                   </Text>
                 </View>
               </View>
