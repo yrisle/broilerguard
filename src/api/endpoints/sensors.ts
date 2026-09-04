@@ -17,4 +17,17 @@ export const sensors = {
   getWater: () => api.get("/sensors/water"),
 
   getChickenStatus: () => api.get("/sensors/chicken"),
+
+  // Light Control
+  getLightStatus: () => esp32Api.get("/sensor"),
+  controlLight: (data: { status: string }) =>
+    esp32Api.get(`/light_${data.status.toLowerCase()}`),
+  setLightBrightness: (data: { brightness: number }) =>
+    esp32Api.post("/light/brightness", data),
+  getLightSchedule: () => esp32Api.get("/light/schedule"),
+  updateLightSchedule: (data: {
+    onTime: string;
+    offTime: string;
+    enabled: boolean;
+  }) => esp32Api.post("/light/schedule", data),
 };

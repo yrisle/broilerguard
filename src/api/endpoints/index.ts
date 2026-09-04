@@ -1,8 +1,8 @@
 // src/api/endpoints/index.ts
-import api from "../client";
+import api, { esp32Api } from "../client";
 
 // ============================================
-// AUTH ENDPOINTS
+// AUTH ENDPOINTS - Database
 // ============================================
 export const auth = {
   login: (username: string, password: string) =>
@@ -14,7 +14,7 @@ export const auth = {
 };
 
 // ============================================
-// DASHBOARD ENDPOINTS
+// DASHBOARD ENDPOINTS - Database
 // ============================================
 export const dashboard = {
   getStats: () => api.get("/dashboard/stats.php"),
@@ -30,80 +30,91 @@ export const dashboard = {
 };
 
 // ============================================
-// SENSORS ENDPOINTS
+// SENSORS ENDPOINTS - ESP32 for real-time, Database for history
 // ============================================
 export const sensors = {
-  getCurrent: () => api.get("/sensor"), // ESP32 endpoint
+  // Real-time data from ESP32
+  getCurrent: () => esp32Api.get("/sensor"),
 
-  getTemperature: () => api.get("/sensor"),
-  getHumidity: () => api.get("/sensor"),
-  getFeed: () => api.get("/sensor"),
-  getWater: () => api.get("/sensor"),
-  getChickenStatus: () => api.get("/sensor"),
+  // Historical data from database
+  getTemperature: (period: string = "24h") =>
+    api.get(`/sensors/temperature?period=${period}`),
+
+  getHumidity: (period: string = "24h") =>
+    api.get(`/sensors/humidity?period=${period}`),
+
+  getFeed: () => api.get("/sensors/feed"),
+
+  getWater: () => api.get("/sensors/water"),
+
+  getChickenStatus: () => api.get("/sensors/chicken"),
 };
 
 // ============================================
-// AUTOMATION ENDPOINTS
+// AUTOMATION ENDPOINTS - ESP32
 // ============================================
 export const automation = {
   // Fan Control
   fan: {
-    getStatus: () => api.get("/sensor"),
-    toggle: (status: "ON" | "OFF") => api.get(`/fan_${status.toLowerCase()}`),
+    getStatus: () => esp32Api.get("/sensor"),
+    toggle: (status: "ON" | "OFF") =>
+      esp32Api.get(`/fan_${status.toLowerCase()}`),
     updateSettings: (settings: {
       auto_mode: boolean;
       temp_on: number;
       temp_off: number;
-    }) => api.post("/fan/settings", settings),
-    resetOverride: () => api.post("/fan/reset"),
+    }) => esp32Api.post("/fan/settings", settings),
+    resetOverride: () => esp32Api.post("/fan/reset"),
   },
 
   // Feed Dispenser
   feeder: {
-    getStatus: () => api.get("/sensor"),
-    dispense: (amount: number) => api.get("/dynamo_on"),
-    refill: (amount: number) => api.get("/dynamo_on"),
+    getStatus: () => esp32Api.get("/sensor"),
+    dispense: (amount: number) => esp32Api.get("/dynamo_on"),
+    refill: (amount: number) => esp32Api.get("/dynamo_on"),
     updateSchedules: (schedules: any[]) =>
-      api.post("/feeder/schedules", schedules),
-    toggleAuto: (enabled: boolean) => api.post("/feeder/auto", { enabled }),
+      esp32Api.post("/feeder/schedules", schedules),
+    toggleAuto: (enabled: boolean) =>
+      esp32Api.post("/feeder/auto", { enabled }),
   },
 
-  // Water Pump - FIXED
+  // Water Pump
   pump: {
-    getStatus: () => api.get("/sensor"),
+    getStatus: () => esp32Api.get("/sensor"),
     toggle: (status: "ON" | "OFF") => {
       if (status === "ON") {
-        return api.get("/pump_on");
+        return esp32Api.get("/pump_on");
       } else {
-        return api.get("/pump_off");
+        return esp32Api.get("/pump_off");
       }
     },
-    release: (duration: number) => api.get("/pump_on"),
+    release: (duration: number) => esp32Api.get("/pump_on"),
     updateSchedules: (schedules: any[]) =>
-      api.post("/pump/schedules", schedules),
-    toggleAuto: (enabled: boolean) => api.post("/pump/auto", { enabled }),
-    resetOverride: () => api.post("/pump/reset"),
+      esp32Api.post("/pump/schedules", schedules),
+    toggleAuto: (enabled: boolean) => esp32Api.post("/pump/auto", { enabled }),
+    resetOverride: () => esp32Api.post("/pump/reset"),
   },
 
   // Light Control
   light: {
-    getStatus: () => api.get("/sensor"),
-    toggle: (status: "ON" | "OFF") => api.get(`/light_${status.toLowerCase()}`),
+    getStatus: () => esp32Api.get("/sensor"),
+    toggle: (status: "ON" | "OFF") =>
+      esp32Api.get(`/light_${status.toLowerCase()}`),
   },
 
-  // 🚪 GATE CONTROL
+  // Gate Control
   gate: {
-    getStatus: () => api.get("/sensor"),
-    open: () => api.get("/gate_open"),
-    close: () => api.get("/gate_close"),
+    getStatus: () => esp32Api.get("/sensor"),
+    open: () => esp32Api.get("/gate_open"),
+    close: () => esp32Api.get("/gate_close"),
     toggle: async () => {
       try {
-        const response = await api.get("/sensor");
+        const response = await esp32Api.get("/sensor");
         const isOpen = response.data.gate === 1;
         if (isOpen) {
-          return await api.get("/gate_close");
+          return await esp32Api.get("/gate_close");
         } else {
-          return await api.get("/gate_open");
+          return await esp32Api.get("/gate_open");
         }
       } catch (error) {
         throw error;
@@ -113,7 +124,7 @@ export const automation = {
 };
 
 // ============================================
-// NOTIFICATIONS ENDPOINTS
+// NOTIFICATIONS ENDPOINTS - Database
 // ============================================
 export const notifications = {
   getAll: (limit: number = 50) => api.get(`/notifications.php?limit=${limit}`),
@@ -138,7 +149,7 @@ export const notifications = {
 };
 
 // ============================================
-// SETTINGS ENDPOINTS
+// SETTINGS ENDPOINTS - Database
 // ============================================
 export const settings = {
   get: () => api.get("/settings.php"),
