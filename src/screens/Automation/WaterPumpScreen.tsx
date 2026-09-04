@@ -76,7 +76,6 @@ function WaterPumpScreen() {
       console.log("🔄 Toggling pump to:", newStatus);
       await automation.pump.toggle(newStatus);
       setPumpStatus(newStatus);
-      Alert.alert("Success", `Pump turned ${newStatus}`);
       fetchData(); // Refresh to get updated status
     } catch (error: any) {
       console.error("❌ Toggle error:", error);
@@ -92,7 +91,6 @@ function WaterPumpScreen() {
       await automation.pump.release(duration);
 
       const amount = (duration * 0.5).toFixed(1);
-      Alert.alert("Success", `Released ${amount} L of water`);
       fetchData();
     } catch (error: any) {
       console.error("❌ Water release error:", error);

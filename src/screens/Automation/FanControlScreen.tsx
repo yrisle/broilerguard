@@ -86,7 +86,6 @@ function FanControlScreen() {
       console.log("🔄 Toggling fan to:", newStatus);
       await automation.fan.toggle(newStatus);
       setFanStatus(newStatus);
-      Alert.alert("Success", `Fan turned ${newStatus}`);
       fetchData(); // Refresh to get updated status
     } catch (error: any) {
       console.error("❌ Toggle error:", error);
@@ -105,7 +104,6 @@ function FanControlScreen() {
         temp_off: settings.temp_off,
       });
       setSettings({ ...settings, auto_mode: newMode });
-      Alert.alert("Success", `Auto mode ${newMode ? "enabled" : "disabled"}`);
       fetchData();
     } catch (error: any) {
       console.error("❌ Toggle auto mode error:", error);

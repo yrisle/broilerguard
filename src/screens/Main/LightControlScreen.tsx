@@ -11,7 +11,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { automation } from "../../api/endpoints";
 import { useTheme } from "../../hooks/useTheme";
@@ -61,7 +61,6 @@ const LightControlScreen = () => {
       console.log("🔄 Toggling light to:", newStatus);
       await automation.light.toggle(newStatus);
       setLightStatus(newStatus);
-      Alert.alert("Success", `Light turned ${newStatus}`);
       fetchData();
     } catch (error: any) {
       console.error("❌ Toggle error:", error);

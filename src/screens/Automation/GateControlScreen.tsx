@@ -63,7 +63,6 @@ const GateControlScreen = () => {
       console.log("🔄 Opening gate...");
       await automation.gate.open();
       setGateStatus(true);
-      Alert.alert("Success", "Gate opened!");
       await fetchData();
     } catch (error: any) {
       console.error("❌ Open gate error:", error);
@@ -81,7 +80,6 @@ const GateControlScreen = () => {
       console.log("🔄 Closing gate...");
       await automation.gate.close();
       setGateStatus(false);
-      Alert.alert("Success", "Gate closed!");
       await fetchData();
     } catch (error: any) {
       console.error("❌ Close gate error:", error);
