@@ -25,13 +25,21 @@ const GateControlScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
+  // ✅ Feed Settings
   const [autoMode, setAutoMode] = useState(false);
   const [feedAmount, setFeedAmount] = useState("0.5");
+  const [feedTimes, setFeedTimes] = useState<string[]>([
+    "08:00",
+    "12:00",
+    "16:00",
+    "20:00",
+  ]);
+  const [newTime, setNewTime] = useState("");
+
+  // ✅ Tracking
   const [feedDispensed, setFeedDispensed] = useState(0);
-  const [feedTarget, setFeedTarget] = useState("5.0");
-  const [dispensesPerDay, setDispensesPerDay] = useState("4");
-  const [isAutoDispensing, setIsAutoDispensing] = useState(false);
   const [dispenseCount, setDispenseCount] = useState(0);
+  const [isAutoDispensing, setIsAutoDispensing] = useState(false);
   const [nextDispenseTime, setNextDispenseTime] = useState<Date | null>(null);
 
   const intervalRef = useRef<number | null>(null);
@@ -65,6 +73,9 @@ const GateControlScreen = () => {
     fetchData();
   };
 
+  // ============================================
+  // MANUAL GATE CONTROL
+  // ============================================
   const handleOpenGate = async () => {
     if (isToggling || autoMode) return;
     setIsToggling(true);
@@ -115,6 +126,39 @@ const GateControlScreen = () => {
     }
   };
 
+  // ============================================
+  // TIME MANAGEMENT
+  // ============================================
+  const addTime = () => {
+    if (!newTime.trim()) {
+      Alert.alert("Error", "Please enter a time");
+      return;
+    }
+    // Validate time format HH:MM
+    if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(newTime.trim())) {
+      Alert.alert("Error", "Invalid time format. Use HH:MM (e.g., 08:00)");
+      return;
+    }
+    if (feedTimes.includes(newTime.trim())) {
+      Alert.alert("Error", "Time already exists");
+      return;
+    }
+    const sorted = [...feedTimes, newTime.trim()].sort();
+    setFeedTimes(sorted);
+    setNewTime("");
+  };
+
+  const removeTime = (time: string) => {
+    if (feedTimes.length <= 1) {
+      Alert.alert("Error", "You need at least one time");
+      return;
+    }
+    setFeedTimes(feedTimes.filter((t) => t !== time));
+  };
+
+  // ============================================
+  // AUTO FEED DISPENSING
+  // ============================================
   const handleDispenseFeed = async () => {
     if (isAutoDispensing) return;
     setIsAutoDispensing(true);
@@ -136,41 +180,22 @@ const GateControlScreen = () => {
       console.log(
         `✅ Dispensed ${amount} kg. Total today: ${newTotal.toFixed(2)} kg`,
       );
-      console.log(
-        `📊 Dispenses today: ${dispenseCount + 1}/${dispensesPerDay}`,
-      );
 
-      const intervalSeconds = getInterval();
-      const nextTime = new Date(Date.now() + intervalSeconds * 1000);
-      setNextDispenseTime(nextTime);
+      // Find next dispense time
+      findNextDispenseTime();
 
-      const target = parseFloat(feedTarget) || 5.0;
-      const maxDispenses = parseInt(dispensesPerDay) || 4;
-
-      if (newTotal >= target || dispenseCount + 1 >= maxDispenses) {
-        let message = "";
-        if (newTotal >= target) {
-          message = `Daily feed target of ${target} kg has been reached!`;
-        } else if (dispenseCount + 1 >= maxDispenses) {
-          message = `Maximum ${maxDispenses} dispenses per day has been reached!`;
-        }
-
+      // Check daily target (optional, you can set a target if needed)
+      const target = 5.0; // You can make this configurable
+      if (newTotal >= target) {
         Alert.alert(
-          "✅ Daily Limit Reached",
-          `${message}\n\nTotal dispensed: ${newTotal.toFixed(2)} kg\nDispenses: ${dispenseCount + 1}/${maxDispenses}`,
+          "✅ Daily Target Reached",
+          `Daily feed target of ${target} kg has been reached!`,
           [{ text: "OK" }],
         );
-        if (autoMode) {
-          setAutoMode(false);
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-          }
-        }
       } else {
         Alert.alert(
           "Success",
-          `Dispensed ${amount} kg of feed. (${newTotal.toFixed(2)}/${target} kg, ${dispenseCount + 1}/${maxDispenses} dispenses)`,
+          `Dispensed ${amount} kg of feed. (${newTotal.toFixed(2)} kg total today)`,
           [{ text: "OK" }],
         );
       }
@@ -184,30 +209,70 @@ const GateControlScreen = () => {
     }
   };
 
+  // ============================================
+  // FIND NEXT DISPENSE TIME
+  // ============================================
+  const findNextDispenseTime = () => {
+    if (feedTimes.length === 0) return;
+
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+
+    // Sort times and find next
+    const sortedTimes = [...feedTimes].sort();
+    let nextTime: string | null = null;
+
+    for (const time of sortedTimes) {
+      const [hours, minutes] = time.split(":").map(Number);
+      const timeMinutes = hours * 60 + minutes;
+      if (timeMinutes > currentTime) {
+        nextTime = time;
+        break;
+      }
+    }
+
+    // If no time found, use the first time tomorrow
+    if (!nextTime && sortedTimes.length > 0) {
+      nextTime = sortedTimes[0];
+      // Set to tomorrow
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const [hours, minutes] = nextTime.split(":").map(Number);
+      tomorrow.setHours(hours, minutes, 0, 0);
+      setNextDispenseTime(tomorrow);
+      return;
+    }
+
+    if (nextTime) {
+      const [hours, minutes] = nextTime.split(":").map(Number);
+      const nextDate = new Date(now);
+      nextDate.setHours(hours, minutes, 0, 0);
+      setNextDispenseTime(nextDate);
+    }
+  };
+
+  // ============================================
+  // AUTO MODE - Scheduled Dispensing
+  // ============================================
   const toggleAutoMode = () => {
     const newMode = !autoMode;
     setAutoMode(newMode);
 
     if (newMode) {
+      // Reset daily counter
       setFeedDispensed(0);
       setDispenseCount(0);
 
-      const maxDispenses = parseInt(dispensesPerDay) || 4;
+      findNextDispenseTime();
+
       Alert.alert(
         "🤖 Auto Mode Enabled",
-        `Feed will be dispensed automatically ${maxDispenses} times per day.\n\n` +
-          `Amount per dispense: ${feedAmount} kg\n` +
-          `Daily target: ${feedTarget} kg\n` +
-          `Dispenses per day: ${maxDispenses}\n\n` +
-          `🔒 Manual gate controls are now disabled.`,
+        `Feed will be dispensed automatically at the following times:\n\n${feedTimes.map((t) => `🕐 ${t}`).join("\n")}\n\nAmount per dispense: ${feedAmount} kg\n\n🔒 Manual gate controls are now disabled.`,
         [{ text: "OK" }],
       );
 
-      setTimeout(() => {
-        if (autoMode) {
-          handleDispenseFeed();
-        }
-      }, 5000);
+      // Start checking for scheduled times
+      startScheduler();
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -220,58 +285,48 @@ const GateControlScreen = () => {
     }
   };
 
-  const getInterval = () => {
-    const count = parseInt(dispensesPerDay) || 4;
-    return Math.floor(86400 / count);
-  };
-
-  useEffect(() => {
+  // ============================================
+  // SCHEDULER - Check every minute
+  // ============================================
+  const startScheduler = () => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
 
-    if (autoMode && !isAutoDispensing) {
-      const target = parseFloat(feedTarget) || 5.0;
-      const maxDispenses = parseInt(dispensesPerDay) || 4;
+    intervalRef.current = setInterval(() => {
+      if (!autoMode || isAutoDispensing) return;
 
-      if (feedDispensed >= target || dispenseCount >= maxDispenses) {
-        setAutoMode(false);
-        let message = "";
-        if (feedDispensed >= target) {
-          message = `Daily feed target of ${target} kg has been completed.`;
-        } else if (dispenseCount >= maxDispenses) {
-          message = `Maximum ${maxDispenses} dispenses per day has been completed.`;
+      const now = new Date();
+      const currentTime = now.getHours() * 60 + now.getMinutes();
+
+      // Check if current time matches any scheduled time
+      for (const time of feedTimes) {
+        const [hours, minutes] = time.split(":").map(Number);
+        const timeMinutes = hours * 60 + minutes;
+
+        // Check if it's time to dispense (within the last minute)
+        if (Math.abs(currentTime - timeMinutes) <= 1) {
+          console.log(`⏰ Scheduled dispense at ${time}`);
+          handleDispenseFeed();
+          break;
         }
-        Alert.alert(
-          "✅ Daily Limit Reached",
-          `${message}\n\nTotal dispensed: ${feedDispensed.toFixed(2)} kg\nDispenses: ${dispenseCount}/${maxDispenses}`,
-          [{ text: "OK" }],
-        );
-        return;
       }
 
-      const intervalSeconds = getInterval();
-      const intervalMs = intervalSeconds * 1000;
+      // Update next dispense time
+      findNextDispenseTime();
+    }, 60000); // Check every minute
+  };
 
-      console.log(
-        `⏰ Auto mode: Dispensing every ${intervalSeconds} seconds (${dispensesPerDay} times/day)`,
-      );
-
-      intervalRef.current = setInterval(() => {
-        if (!autoMode || isAutoDispensing) return;
-        handleDispenseFeed();
-      }, intervalMs);
+  // Update scheduler when feed times change
+  useEffect(() => {
+    if (autoMode) {
+      startScheduler();
+      findNextDispenseTime();
     }
+  }, [feedTimes]);
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [autoMode, feedDispensed, feedTarget, feedAmount, dispensesPerDay]);
-
+  // Reset daily counter at midnight
   useEffect(() => {
     const checkMidnight = () => {
       const now = new Date();
@@ -302,10 +357,8 @@ const GateControlScreen = () => {
     );
   }
 
-  const target = parseFloat(feedTarget) || 5.0;
-  const maxDispenses = parseInt(dispensesPerDay) || 4;
+  const target = 5.0; // Daily target (optional)
   const progress = Math.min((feedDispensed / target) * 100, 100);
-  const dispenseProgress = Math.min((dispenseCount / maxDispenses) * 100, 100);
 
   return (
     <ScrollView
@@ -366,7 +419,7 @@ const GateControlScreen = () => {
           {gateStatus ? "🔓 Unlocked" : "🔒 Locked"}
         </Text>
 
-        {/* ✅ Toggle Button - Disabled when auto mode is ON */}
+        {/* Toggle Button - Disabled when auto mode is ON */}
         <TouchableOpacity
           style={[
             styles.toggleBtn,
@@ -389,7 +442,7 @@ const GateControlScreen = () => {
           </Text>
         </TouchableOpacity>
 
-        {/* ✅ Auto Mode Indicator */}
+        {/* Auto Mode Indicator */}
         {autoMode && (
           <View
             style={[
@@ -525,7 +578,7 @@ const GateControlScreen = () => {
               </View>
               <Text style={[styles.autoDesc, { color: colors.textMuted }]}>
                 {autoMode
-                  ? `✅ Auto dispensing is ON (${dispensesPerDay}x/day)`
+                  ? `✅ Auto dispensing is ON (${feedTimes.length} scheduled times)`
                   : "⏸️ Auto dispensing is OFF"}
               </Text>
             </View>
@@ -564,68 +617,113 @@ const GateControlScreen = () => {
             </View>
           </View>
 
-          {/* Dispenses per Day */}
-          <View style={[styles.settingRow, { borderColor: colors.border }]}>
-            <Text style={[styles.settingLabel, { color: colors.text }]}>
-              Dispenses per Day
+          {/* Schedule Times */}
+          <View style={styles.scheduleContainer}>
+            <Text style={[styles.scheduleLabel, { color: colors.text }]}>
+              Scheduled Times
             </Text>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
+
+            {/* Add Time Input */}
+            <View style={styles.addTimeRow}>
               <TextInput
                 style={[
-                  styles.amountInput,
+                  styles.timeInput,
                   {
                     backgroundColor: colors.background,
                     borderColor: colors.border,
                     color: colors.text,
-                    width: 70,
                   },
                 ]}
-                value={dispensesPerDay}
-                onChangeText={setDispensesPerDay}
-                keyboardType="numeric"
-                editable={true}
+                value={newTime}
+                onChangeText={setNewTime}
+                placeholder="HH:MM"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="numbers-and-punctuation"
+                maxLength={5}
+                editable={!autoMode}
               />
-              <Text style={[styles.settingValue, { color: colors.textMuted }]}>
-                times
-              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.addTimeBtn,
+                  {
+                    backgroundColor: colors.primary,
+                    opacity: autoMode ? 0.5 : 1,
+                  },
+                ]}
+                onPress={addTime}
+                disabled={autoMode}
+              >
+                <Text style={styles.addTimeBtnText}>Add</Text>
+              </TouchableOpacity>
             </View>
+
+            {/* Time List */}
+            <View style={styles.timeList}>
+              {feedTimes.map((time, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.timeItem,
+                    {
+                      backgroundColor: colors.backgroundSecondary,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Ionicons
+                      name="time-outline"
+                      size={16}
+                      color={colors.text}
+                    />
+                    <Text style={[styles.timeItemText, { color: colors.text }]}>
+                      {time}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => removeTime(time)}
+                    disabled={autoMode}
+                    style={{ opacity: autoMode ? 0.5 : 1 }}
+                  >
+                    <Ionicons
+                      name="close-circle"
+                      size={20}
+                      color={autoMode ? colors.textMuted : colors.danger}
+                    />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+
+            {autoMode && (
+              <Text style={[styles.scheduleNote, { color: colors.warning }]}>
+                ⚠️ Schedule is locked while Auto Mode is ON
+              </Text>
+            )}
           </View>
 
-          {/* Daily Target */}
-          <View style={[styles.settingRow, { borderColor: colors.border }]}>
-            <Text style={[styles.settingLabel, { color: colors.text }]}>
-              Daily Target
-            </Text>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <TextInput
-                style={[
-                  styles.amountInput,
-                  {
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                    color: colors.text,
-                    width: 70,
-                  },
-                ]}
-                value={feedTarget}
-                onChangeText={setFeedTarget}
-                keyboardType="numeric"
-                editable={true}
-              />
-              <Text style={[styles.settingValue, { color: colors.textMuted }]}>
-                kg
+          {/* Next Dispense Time */}
+          {autoMode && nextDispenseTime && (
+            <View style={styles.nextDispenseContainer}>
+              <Ionicons name="alarm-outline" size={20} color={colors.primary} />
+              <Text style={[styles.nextDispenseText, { color: colors.text }]}>
+                Next dispense at:{" "}
+                {nextDispenseTime.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </Text>
             </View>
-          </View>
+          )}
 
           {/* Progress */}
           <View style={styles.progressContainer}>
             <View style={styles.progressHeader}>
               <Text style={[styles.progressLabel, { color: colors.textMuted }]}>
-                Feed Progress
+                Today's Dispensed
               </Text>
               <Text style={[styles.progressText, { color: colors.text }]}>
-                {feedDispensed.toFixed(2)} / {target} kg
+                {feedDispensed.toFixed(2)} kg
               </Text>
             </View>
             <View style={styles.progressBar}>
@@ -641,31 +739,10 @@ const GateControlScreen = () => {
               />
             </View>
             <Text style={[styles.progressPercent, { color: colors.textMuted }]}>
-              {progress.toFixed(0)}% of daily target
+              {progress.toFixed(0)}% of daily target (5.0 kg)
             </Text>
-
-            <View style={[styles.progressHeader, { marginTop: 10 }]}>
-              <Text style={[styles.progressLabel, { color: colors.textMuted }]}>
-                Dispense Progress
-              </Text>
-              <Text style={[styles.progressText, { color: colors.text }]}>
-                {dispenseCount} / {maxDispenses} times
-              </Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${Math.min(dispenseProgress, 100)}%`,
-                    backgroundColor:
-                      dispenseProgress >= 100 ? colors.success : colors.info,
-                  },
-                ]}
-              />
-            </View>
-            <Text style={[styles.progressPercent, { color: colors.textMuted }]}>
-              {dispenseProgress.toFixed(0)}% of daily dispenses
+            <Text style={[styles.dispenseCount, { color: colors.textMuted }]}>
+              {dispenseCount} dispenses today
             </Text>
           </View>
 
@@ -687,18 +764,9 @@ const GateControlScreen = () => {
           </TouchableOpacity>
 
           {autoMode && (
-            <>
-              <Text style={[styles.autoNote, { color: colors.warning }]}>
-                ⚠️ Auto mode is ON. Manual dispense is disabled.
-              </Text>
-              {nextDispenseTime && (
-                <Text
-                  style={[styles.nextDispenseText, { color: colors.textMuted }]}
-                >
-                  ⏰ Next dispense at: {nextDispenseTime.toLocaleTimeString()}
-                </Text>
-              )}
-            </>
+            <Text style={[styles.autoNote, { color: colors.warning }]}>
+              ⚠️ Auto mode is ON. Manual dispense is disabled.
+            </Text>
           )}
         </View>
       </View>
@@ -942,6 +1010,79 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 14,
   },
+  scheduleContainer: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#E0E0E0",
+  },
+  scheduleLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  addTimeRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 10,
+  },
+  timeInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    textAlign: "center",
+  },
+  addTimeBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    justifyContent: "center",
+  },
+  addTimeBtnText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  timeList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  timeItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 6,
+  },
+  timeItemText: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  scheduleNote: {
+    fontSize: 11,
+    marginTop: 6,
+    fontStyle: "italic",
+  },
+  nextDispenseContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+    padding: 8,
+    backgroundColor: "#F0F8FF",
+    borderRadius: 8,
+  },
+  nextDispenseText: {
+    fontSize: 13,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
   progressContainer: {
     marginTop: 12,
     paddingTop: 12,
@@ -975,6 +1116,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: "right",
   },
+  dispenseCount: {
+    fontSize: 11,
+    marginTop: 2,
+    textAlign: "right",
+  },
   dispenseBtn: {
     borderRadius: 12,
     paddingVertical: 14,
@@ -989,11 +1135,6 @@ const styles = StyleSheet.create({
   autoNote: {
     fontSize: 12,
     marginTop: 8,
-    textAlign: "center",
-  },
-  nextDispenseText: {
-    fontSize: 12,
-    marginTop: 6,
     textAlign: "center",
   },
   positionCard: {
