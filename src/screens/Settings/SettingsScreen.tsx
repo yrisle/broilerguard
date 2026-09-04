@@ -26,10 +26,14 @@ interface UserProfile {
   id: number;
   username: string;
   name: string;
+  full_name?: string;
   role: string;
   email?: string;
   phone?: string;
+  farm_name?: string;
   avatar?: string | null;
+  status?: string;
+  source?: string;
 }
 
 // Storage keys
@@ -41,23 +45,27 @@ const STORAGE_KEYS = {
 
 function SettingsScreen() {
   const { colors } = useTheme();
-  const { logout, user } = useAuth();
+  const { logout, user, token, updateUser } = useAuth();
   const router = useRouter();
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Profile states
+  // Profile states - initialize with user from AuthContext
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState<UserProfile>({
-    id: 1,
-    username: "admin",
-    name: "Admin User",
-    role: "Farm Administrator",
-    email: "admin@broilerguard.com",
-    phone: "+63 912 345 6789",
+    id: user?.id || 0,
+    username: user?.username || "guest",
+    name: user?.full_name || user?.username || "Guest User",
+    full_name: user?.full_name || "",
+    role: user?.role || "viewer",
+    email: user?.email || "",
+    phone: user?.phone || "",
+    farm_name: user?.farm_name || "",
     avatar: null,
+    status: user?.status || "active",
+    source: user?.source || "unknown",
   });
   const [editedProfile, setEditedProfile] = useState<UserProfile>(profile);
   const [tempAvatar, setTempAvatar] = useState<string | null>(null);
@@ -70,7 +78,8 @@ function SettingsScreen() {
   useEffect(() => {
     loadSavedData();
     fetchSettings();
-  }, []);
+    fetchUserProfile();
+  }, [user]);
 
   const loadSavedData = async () => {
     try {
@@ -79,6 +88,27 @@ function SettingsScreen() {
         const parsedProfile = JSON.parse(savedProfile);
         setProfile(parsedProfile);
         setEditedProfile(parsedProfile);
+      } else if (user) {
+        // If no saved profile, use user from AuthContext
+        const userProfile: UserProfile = {
+          id: user.id || 0,
+          username: user.username || "guest",
+          name: user.full_name || user.username || "Guest User",
+          full_name: user.full_name || "",
+          role: user.role || "viewer",
+          email: user.email || "",
+          phone: user.phone || "",
+          farm_name: user.farm_name || "",
+          avatar: null,
+          status: user.status || "active",
+          source: user.source || "unknown",
+        };
+        setProfile(userProfile);
+        setEditedProfile(userProfile);
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.PROFILE,
+          JSON.stringify(userProfile),
+        );
       }
 
       const savedNotifications = await AsyncStorage.getItem(
@@ -99,6 +129,44 @@ function SettingsScreen() {
     }
   };
 
+  const fetchUserProfile = async () => {
+    try {
+      if (!token) return;
+
+      const response = await api.get("/user/profile");
+      if (response.data.success) {
+        const userData = response.data.data || response.data.user;
+        if (userData) {
+          const updatedProfile: UserProfile = {
+            id: userData.id || profile.id,
+            username: userData.username || profile.username,
+            name:
+              userData.full_name ||
+              userData.name ||
+              userData.username ||
+              profile.name,
+            full_name: userData.full_name || userData.name || "",
+            role: userData.role || profile.role,
+            email: userData.email || profile.email,
+            phone: userData.phone || profile.phone,
+            farm_name: userData.farm_name || profile.farm_name,
+            avatar: userData.avatar || null,
+            status: userData.status || profile.status,
+            source: userData.source || profile.source,
+          };
+          setProfile(updatedProfile);
+          setEditedProfile(updatedProfile);
+          await AsyncStorage.setItem(
+            STORAGE_KEYS.PROFILE,
+            JSON.stringify(updatedProfile),
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
+  };
+
   const fetchSettings = async () => {
     try {
       const response = await api.get("/settings");
@@ -116,6 +184,7 @@ function SettingsScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchSettings();
+    fetchUserProfile();
     loadSavedData();
   };
 
@@ -157,6 +226,7 @@ function SettingsScreen() {
     }
   };
 
+  // src/screens/Settings/SettingsScreen.tsx - updated handleSaveProfile
   const handleSaveProfile = async () => {
     if (!editedProfile.name.trim()) {
       Alert.alert("Error", "Name is required");
@@ -169,25 +239,70 @@ function SettingsScreen() {
 
     try {
       setLoading(true);
-      await AsyncStorage.setItem(
-        STORAGE_KEYS.PROFILE,
-        JSON.stringify(editedProfile),
-      );
-      setProfile(editedProfile);
-      setIsEditing(false);
-      setTempAvatar(null);
 
+      // Prepare data for API
+      const profileData = {
+        id: editedProfile.id,
+        username: editedProfile.username,
+        full_name: editedProfile.name,
+        name: editedProfile.name,
+        email: editedProfile.email,
+        phone: editedProfile.phone,
+        role: editedProfile.role,
+        farm_name: editedProfile.farm_name,
+        avatar: editedProfile.avatar,
+      };
+
+      // Try to save to API first
       try {
-        const response = await api.put("/user/profile", editedProfile);
+        const response = await api.put("/user/profile", profileData);
         if (response.data.success) {
+          // Update local state
+          setProfile(editedProfile);
+          await AsyncStorage.setItem(
+            STORAGE_KEYS.PROFILE,
+            JSON.stringify(editedProfile),
+          );
+
+          // Update user in AuthContext
+          await updateUser({
+            full_name: editedProfile.name,
+            name: editedProfile.name,
+            email: editedProfile.email,
+            phone: editedProfile.phone,
+            farm_name: editedProfile.farm_name,
+            avatar: editedProfile.avatar,
+          });
+
+          setIsEditing(false);
+          setTempAvatar(null);
           Alert.alert("Success", "Profile updated successfully!");
           return;
         }
-      } catch (apiError) {
-        console.log("API not available, saved locally");
-      }
+      } catch (apiError: any) {
+        console.log("API error:", apiError.response?.data || apiError.message);
+        // If API fails, save locally
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.PROFILE,
+          JSON.stringify(editedProfile),
+        );
+        setProfile(editedProfile);
 
-      Alert.alert("Success", "Profile saved successfully!");
+        // Update user in AuthContext even if API fails
+        await updateUser({
+          full_name: editedProfile.name,
+          name: editedProfile.name,
+          email: editedProfile.email,
+          phone: editedProfile.phone,
+          farm_name: editedProfile.farm_name,
+          avatar: editedProfile.avatar,
+        });
+
+        setIsEditing(false);
+        setTempAvatar(null);
+        Alert.alert("Success", "Profile saved locally! Will sync when online.");
+        return;
+      }
     } catch (error) {
       console.error("Error updating profile:", error);
       Alert.alert("Error", "Failed to update profile. Please try again.");
@@ -218,7 +333,6 @@ function SettingsScreen() {
     }
   };
 
-  // ✅ FIXED LOGOUT FUNCTION - no router.replace here, just call logout
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
       {
@@ -231,15 +345,9 @@ function SettingsScreen() {
         onPress: async () => {
           try {
             setIsLoggingOut(true);
-
-            // ✅ Call logout from AuthContext - it handles navigation
             await logout();
-
-            // ✅ AuthContext will handle navigation to login
           } catch (error) {
             console.error("Logout error:", error);
-
-            // ✅ Force logout if AuthContext fails
             try {
               await AsyncStorage.multiRemove(["auth_token", "user"]);
               router.replace("/login");
@@ -252,6 +360,30 @@ function SettingsScreen() {
         },
       },
     ]);
+  };
+
+  // Get user role display
+  const getRoleDisplay = (role: string) => {
+    const roleMap: { [key: string]: string } = {
+      admin: "Administrator",
+      staff: "Staff",
+      viewer: "Viewer",
+      super_admin: "Super Admin",
+      farm_manager: "Farm Manager",
+    };
+    return roleMap[role?.toLowerCase()] || role || "User";
+  };
+
+  // Get role color
+  const getRoleColor = (role: string) => {
+    const colorMap: { [key: string]: string } = {
+      admin: "#FF6B6B",
+      staff: "#4ECDC4",
+      viewer: "#45B7D1",
+      super_admin: "#FF4757",
+      farm_manager: "#2ED573",
+    };
+    return colorMap[role?.toLowerCase()] || colors.primary;
   };
 
   if (loading) {
@@ -333,7 +465,9 @@ function SettingsScreen() {
                   style={[styles.avatar, { backgroundColor: colors.primary }]}
                 >
                   <Text style={[styles.avatarText, { color: "#FFFFFF" }]}>
-                    {profile.name.charAt(0).toUpperCase()}
+                    {(profile.name || profile.username || "U")
+                      .charAt(0)
+                      .toUpperCase()}
                   </Text>
                 </View>
               )}
@@ -348,47 +482,123 @@ function SettingsScreen() {
             </TouchableOpacity>
             <View style={styles.profileInfo}>
               <Text style={[styles.profileName, { color: colors.text }]}>
-                {profile.name}
+                {profile.name || profile.username}
               </Text>
               <Text style={[styles.profileRole, { color: colors.textMuted }]}>
-                {profile.role}
+                {getRoleDisplay(profile.role)}
               </Text>
+              {profile.farm_name && (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginTop: 2,
+                  }}
+                >
+                  <Ionicons
+                    name="business-outline"
+                    size={14}
+                    color={colors.textMuted}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text
+                    style={[styles.profileFarm, { color: colors.textMuted }]}
+                  >
+                    {profile.farm_name}
+                  </Text>
+                </View>
+              )}
+              {profile.email && (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginTop: 2,
+                  }}
+                >
+                  <Ionicons
+                    name="mail-outline"
+                    size={14}
+                    color={colors.textMuted}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text
+                    style={[styles.profileEmail, { color: colors.textMuted }]}
+                  >
+                    {profile.email}
+                  </Text>
+                </View>
+              )}
+              {profile.phone && (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginTop: 2,
+                  }}
+                >
+                  <Ionicons
+                    name="call-outline"
+                    size={14}
+                    color={colors.textMuted}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text
+                    style={[styles.profilePhone, { color: colors.textMuted }]}
+                  >
+                    {profile.phone}
+                  </Text>
+                </View>
+              )}
               <View
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
-                  marginTop: 2,
+                  marginTop: 4,
                 }}
               >
-                <Ionicons
-                  name="mail-outline"
-                  size={14}
-                  color={colors.textMuted}
-                  style={{ marginRight: 4 }}
-                />
-                <Text
-                  style={[styles.profileEmail, { color: colors.textMuted }]}
+                <View
+                  style={[
+                    styles.statusBadge,
+                    {
+                      backgroundColor:
+                        profile.status === "active"
+                          ? "#d4edda"
+                          : profile.status === "pending"
+                            ? "#fff3cd"
+                            : "#f8d7da",
+                    },
+                  ]}
                 >
-                  {profile.email}
-                </Text>
-              </View>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginTop: 2,
-                }}
-              >
-                <Ionicons
-                  name="call-outline"
-                  size={14}
-                  color={colors.textMuted}
-                  style={{ marginRight: 4 }}
-                />
+                  <Text
+                    style={[
+                      styles.statusText,
+                      {
+                        color:
+                          profile.status === "active"
+                            ? "#155724"
+                            : profile.status === "pending"
+                              ? "#856404"
+                              : "#721c24",
+                      },
+                    ]}
+                  >
+                    {profile.status?.toUpperCase() || "ACTIVE"}
+                  </Text>
+                </View>
                 <Text
-                  style={[styles.profilePhone, { color: colors.textMuted }]}
+                  style={[
+                    styles.profileSource,
+                    { color: colors.textMuted, marginLeft: 8 },
+                  ]}
                 >
-                  {profile.phone}
+                  {profile.source === "user_accounts"
+                    ? "📱 App User"
+                    : profile.source === "admins"
+                      ? "👑 Admin"
+                      : profile.source === "users"
+                        ? "💻 System User"
+                        : "👤 User"}
                 </Text>
               </View>
             </View>
@@ -421,7 +631,9 @@ function SettingsScreen() {
                   style={[styles.avatar, { backgroundColor: colors.primary }]}
                 >
                   <Text style={[styles.avatarText, { color: "#FFFFFF" }]}>
-                    {editedProfile.name.charAt(0).toUpperCase()}
+                    {(editedProfile.name || editedProfile.username || "U")
+                      .charAt(0)
+                      .toUpperCase()}
                   </Text>
                 </View>
               )}
@@ -488,6 +700,22 @@ function SettingsScreen() {
                   setEditedProfile({ ...editedProfile, phone: text })
                 }
                 keyboardType="phone-pad"
+              />
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.background,
+                    color: colors.text,
+                    borderColor: colors.border,
+                  },
+                ]}
+                placeholder="Farm Name"
+                placeholderTextColor={colors.textMuted}
+                value={editedProfile.farm_name}
+                onChangeText={(text) =>
+                  setEditedProfile({ ...editedProfile, farm_name: text })
+                }
               />
               <TextInput
                 style={[
@@ -619,7 +847,7 @@ function SettingsScreen() {
         </View>
       </View>
 
-      {/* ✅ LOGOUT SECTION */}
+      {/* Logout Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -670,7 +898,9 @@ function SettingsScreen() {
                 {isLoggingOut ? "Logging out..." : "Logout"}
               </Text>
               <Text style={[styles.logoutDesc, { color: colors.textMuted }]}>
-                {isLoggingOut ? "Please wait..." : "Sign out from your account"}
+                {isLoggingOut
+                  ? "Please wait..."
+                  : `Sign out from ${profile.username || "your"} account`}
               </Text>
             </View>
             {!isLoggingOut && (
@@ -846,6 +1076,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
+  profileFarm: {
+    fontSize: 13,
+    marginLeft: 2,
+  },
   profileEmail: {
     fontSize: 13,
     marginLeft: 2,
@@ -853,6 +1087,18 @@ const styles = StyleSheet.create({
   profilePhone: {
     fontSize: 13,
     marginLeft: 2,
+  },
+  profileSource: {
+    fontSize: 11,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: "700",
   },
   editForm: {
     flex: 1,

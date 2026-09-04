@@ -4,23 +4,44 @@ import { useRouter } from "expo-router";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import api from "../api/client";
 
+// Export User interface para magamit sa ibang files
+export interface User {
+  id: number;
+  username: string;
+  email?: string;
+  full_name?: string;
+  name?: string;
+  role: string;
+  phone?: string;
+  farm_name?: string;
+  avatar?: string | null;
+  status?: string;
+  source?: string; // 'users' | 'user_accounts' | 'admins'
+}
+
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
-  user: any;
+  user: User | null;
+  token: string | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   validateToken: () => Promise<boolean>;
+  updateUser: (userData: Partial<User>) => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// ✅ EXPORT AuthContext para magamit ng useAuth
+export const AuthContext = createContext<AuthContextType | undefined>(
+  undefined,
+);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -29,28 +50,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const validateToken = async (): Promise<boolean> => {
     try {
-      const token = await AsyncStorage.getItem("auth_token");
-      if (!token) {
+      const storedToken = await AsyncStorage.getItem("auth_token");
+      if (!storedToken) {
         setIsAuthenticated(false);
         setIsLoading(false);
         return false;
       }
 
+      setToken(storedToken);
+
       try {
         const response = await api.get("/auth/validate.php");
         if (response.data.success) {
+          const userData = response.data.user || response.data.data;
+          if (userData) {
+            const formattedUser: User = {
+              id: userData.id || 0,
+              username: userData.username || "guest",
+              email: userData.email || "",
+              full_name:
+                userData.full_name ||
+                userData.name ||
+                userData.username ||
+                "Guest User",
+              name:
+                userData.name ||
+                userData.full_name ||
+                userData.username ||
+                "Guest User",
+              role: userData.role || "viewer",
+              phone: userData.phone || "",
+              farm_name: userData.farm_name || "",
+              avatar: userData.avatar || null,
+              status: userData.status || "active",
+              source: userData.source || "unknown",
+            };
+            setUser(formattedUser);
+            await AsyncStorage.setItem("user", JSON.stringify(formattedUser));
+          }
           setIsAuthenticated(true);
-          setUser(response.data.user);
           setIsLoading(false);
           return true;
         } else {
           await AsyncStorage.removeItem("auth_token");
+          await AsyncStorage.removeItem("user");
+          setToken(null);
+          setUser(null);
           setIsAuthenticated(false);
           setIsLoading(false);
           return false;
         }
       } catch (error) {
         await AsyncStorage.removeItem("auth_token");
+        await AsyncStorage.removeItem("user");
+        setToken(null);
+        setUser(null);
         setIsAuthenticated(false);
         setIsLoading(false);
         return false;
@@ -71,11 +125,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       });
 
       if (response.data.success) {
-        const { token, user } = response.data;
-        await AsyncStorage.setItem("auth_token", token);
-        await AsyncStorage.setItem("user", JSON.stringify(user));
+        const { token: authToken, user: userData } = response.data;
+
+        // Format user data
+        const formattedUser: User = {
+          id: userData.id || 0,
+          username: userData.username || username,
+          email: userData.email || "",
+          full_name:
+            userData.full_name ||
+            userData.name ||
+            userData.username ||
+            username,
+          name:
+            userData.name ||
+            userData.full_name ||
+            userData.username ||
+            username,
+          role: userData.role || "viewer",
+          phone: userData.phone || "",
+          farm_name: userData.farm_name || "",
+          avatar: userData.avatar || null,
+          status: userData.status || "active",
+          source: userData.source || "unknown",
+        };
+
+        await AsyncStorage.setItem("auth_token", authToken);
+        await AsyncStorage.setItem("user", JSON.stringify(formattedUser));
+
+        setToken(authToken);
+        setUser(formattedUser);
         setIsAuthenticated(true);
-        setUser(user);
         router.replace("/(tabs)/home");
       } else {
         throw new Error(response.data.message || "Login failed");
@@ -91,29 +171,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const logout = async () => {
     try {
+      // Try to call logout API
       await api.post("/auth/logout.php");
-      await AsyncStorage.multiRemove(["auth_token", "user"]);
-      setIsAuthenticated(false);
-      setUser(null);
-      router.replace("/login");
     } catch (error) {
-      console.error("Logout error:", error);
+      console.error("Logout API error:", error);
+    } finally {
+      // Always clear local storage and state
       await AsyncStorage.multiRemove(["auth_token", "user"]);
-      setIsAuthenticated(false);
+      setToken(null);
       setUser(null);
+      setIsAuthenticated(false);
       router.replace("/login");
+    }
+  };
+
+  const updateUser = async (userData: Partial<User>) => {
+    try {
+      if (user) {
+        const updatedUser = { ...user, ...userData };
+        setUser(updatedUser);
+        await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      console.error("Error updating user:", error);
     }
   };
 
   return (
     <AuthContext.Provider
-      value={{ isAuthenticated, isLoading, user, login, logout, validateToken }}
+      value={{
+        isAuthenticated,
+        isLoading,
+        user,
+        token,
+        login,
+        logout,
+        validateToken,
+        updateUser,
+      }}
     >
       {children}
     </AuthContext.Provider>
   );
 };
 
+// Export useAuth hook directly from here
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
