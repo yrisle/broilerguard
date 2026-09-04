@@ -1,4 +1,5 @@
 // src/screens/Main/DashboardScreen.tsx
+
 import { FontAwesome5 } from "@expo/vector-icons";
 import Icon from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -20,8 +21,6 @@ import { useTheme } from "../../hooks/useTheme";
 const DashboardScreen = () => {
   const { colors } = useTheme();
   const router = useRouter();
-  // src/screens/Main/DashboardScreen.tsx
-
   const [stats, setStats] = useState({
     // Environmental Conditions
     temperature: 0,
@@ -30,7 +29,7 @@ const DashboardScreen = () => {
     waterLevel: 0,
     fanPhysicalStatus: "OFF",
     waterPumpPhysicalStatus: "OFF",
-    feedPhysicalStatus: "OFF", // <-- ADD THIS
+    feedPhysicalStatus: "OFF",
     lightStatus: "OFF",
 
     // Automation Status
@@ -67,7 +66,6 @@ const DashboardScreen = () => {
 
   const fetchDashboard = async () => {
     try {
-      // Get all data in parallel
       const [sensorRes, statsRes, fanRes, feederRes, pumpRes] =
         await Promise.all([
           sensors.getCurrent(),
@@ -77,23 +75,23 @@ const DashboardScreen = () => {
           automation.pump.getStatus(),
         ]);
 
-      const sensorData = sensorRes.data?.data || {};
-      const statsData = statsRes.data?.data || {};
-      const fanData = fanRes.data?.data || {};
-      const feederData = feederRes.data?.data || {};
-      const pumpData = pumpRes.data?.data || {};
+      console.log("📥 Sensor Response:", sensorRes);
+      console.log("📥 Stats Response:", statsRes);
+      console.log("📥 Fan Response:", fanRes);
+      console.log("📥 Feeder Response:", feederRes);
+      console.log("📥 Pump Response:", pumpRes);
 
-      console.log("📥 Dashboard Data:", {
-        sensorData,
-        statsData,
-        fanData,
-        feederData,
-        pumpData,
-      });
+      // Extract data properly
+      const sensorData = sensorRes.data?.data || sensorRes.data || {};
+      const statsData = statsRes.data?.data || statsRes.data || {};
+      const fanData = fanRes.data?.data || fanRes.data || {};
+      const feederData = feederRes.data?.data || feederRes.data || {};
+      const pumpData = pumpRes.data?.data || pumpRes.data || {};
 
       // Get actual physical status from automation endpoints
       const fanPhysicalStatus = fanData.status || "OFF";
       const feederPhysicalStatus = feederData.status || "OFF";
+      // Pump status might be nested in pump object
       const pumpPhysicalStatus =
         pumpData.pump?.status || pumpData.status || "OFF";
 
@@ -101,6 +99,19 @@ const DashboardScreen = () => {
       const fanIsAuto = fanData.settings?.auto_mode ?? false;
       const feedIsAuto = feederData.settings?.auto_mode ?? false;
       const pumpIsAuto = pumpData.settings?.auto_mode ?? false;
+
+      console.log("🔧 Fan Status:", {
+        physical: fanPhysicalStatus,
+        auto: fanIsAuto,
+      });
+      console.log("🔧 Feeder Status:", {
+        physical: feederPhysicalStatus,
+        auto: feedIsAuto,
+      });
+      console.log("🔧 Pump Status:", {
+        physical: pumpPhysicalStatus,
+        auto: pumpIsAuto,
+      });
 
       // Determine display status for dashboard
       const getDisplayStatus = (isAuto: boolean, physicalStatus: string) => {
@@ -121,7 +132,7 @@ const DashboardScreen = () => {
         feedPhysicalStatus: feederPhysicalStatus,
         lightStatus: sensorData.light_status || "OFF",
 
-        // Automation Status - display status based on mode
+        // Automation Status
         fanStatus: getDisplayStatus(fanIsAuto, fanPhysicalStatus),
         waterPump: getDisplayStatus(pumpIsAuto, pumpPhysicalStatus),
         feedStatus: getDisplayStatus(feedIsAuto, feederPhysicalStatus),
@@ -147,6 +158,7 @@ const DashboardScreen = () => {
         error instanceof Error ? error.message : "Unable to reach the server.";
 
       console.warn("Dashboard data unavailable:", message);
+      console.error("❌ Full error:", error);
       setErrorMessage(
         "Unable to reach the server. Showing the latest available values.",
       );
@@ -168,8 +180,6 @@ const DashboardScreen = () => {
     fetchDashboard();
   };
 
-  // src/screens/Main/DashboardScreen.tsx
-
   const getStatusColor = (status: string, colors: any) => {
     if (status === "AUTO") return colors.warning;
     return status === "ON" ? colors.success : colors.danger;
@@ -178,15 +188,6 @@ const DashboardScreen = () => {
   const getStatusBgColor = (status: string, colors: any) => {
     if (status === "AUTO") return colors.warningLight;
     return status === "ON" ? colors.successLight : colors.dangerLight;
-  };
-
-  // Get status label text
-  const getStatusLabel = (isAuto: boolean, status: string) => {
-    if (isAuto) {
-      return "Auto Mode";
-    } else {
-      return status === "ON" ? "Manual Mode" : "Auto Mode";
-    }
   };
 
   if (loading) {
@@ -250,9 +251,7 @@ const DashboardScreen = () => {
         </View>
       ) : null}
 
-      {/* ============================================
-      ENVIRONMENTAL CONDITIONS - From sensor_readings
-      ============================================ */}
+      {/* ENVIRONMENTAL CONDITIONS */}
       <View style={styles.section}>
         <View
           style={{
@@ -301,9 +300,7 @@ const DashboardScreen = () => {
         </View>
       </View>
 
-      {/* ============================================
-      RESOURCE LEVELS
-      ============================================ */}
+      {/* RESOURCE LEVELS */}
       <View style={styles.section}>
         <View
           style={{
@@ -342,10 +339,7 @@ const DashboardScreen = () => {
         </Card>
       </View>
 
-      {/* ============================================
-      AUTOMATION STATUS - Reverse Logic
-      ON = Manual Mode, OFF = Auto Mode
-      ============================================ */}
+      {/* AUTOMATION STATUS */}
       <View style={styles.section}>
         <View
           style={{
@@ -366,9 +360,7 @@ const DashboardScreen = () => {
         </View>
 
         <View style={styles.automationRow}>
-          {/* ===== FAN ===== */}
-          // src/screens/Main/DashboardScreen.tsx
-          {/* ===== FAN ===== */}
+          {/* FAN */}
           <TouchableOpacity
             style={styles.automationCardWrapper}
             activeOpacity={0.7}
@@ -421,7 +413,8 @@ const DashboardScreen = () => {
               </View>
             </Card>
           </TouchableOpacity>
-          {/* ===== WATER ===== */}
+
+          {/* WATER */}
           <TouchableOpacity
             style={styles.automationCardWrapper}
             activeOpacity={0.7}
@@ -474,7 +467,8 @@ const DashboardScreen = () => {
               </View>
             </Card>
           </TouchableOpacity>
-          {/* ===== FEEDER ===== */}
+
+          {/* FEEDER */}
           <TouchableOpacity
             style={styles.automationCardWrapper}
             activeOpacity={0.7}
@@ -530,9 +524,7 @@ const DashboardScreen = () => {
         </View>
       </View>
 
-      {/* ============================================
-      CHICKEN HEALTH - From detection_logs
-      ============================================ */}
+      {/* CHICKEN HEALTH */}
       <View style={styles.section}>
         <View
           style={{
@@ -588,9 +580,7 @@ const DashboardScreen = () => {
         </Card>
       </View>
 
-      {/* ============================================
-      QUICK ACTIONS
-      ============================================ */}
+      {/* QUICK ACTIONS */}
       <View style={styles.section}>
         <View
           style={{
