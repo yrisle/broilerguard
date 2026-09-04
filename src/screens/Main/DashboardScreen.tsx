@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { sensors } from "../../api/endpoints";
+import { notifications, sensors } from "../../api/endpoints";
 import Card from "../../components/common/Card";
 import { useTheme } from "../../hooks/useTheme";
 
@@ -24,8 +24,8 @@ const DashboardScreen = () => {
     // Environmental Conditions
     temperature: 0,
     humidity: 0,
-    feedLevel: 50, // Default value
-    waterLevel: 60, // Default value
+    feedLevel: 50,
+    waterLevel: 60,
     fanPhysicalStatus: "OFF",
     waterPumpPhysicalStatus: "OFF",
     lightStatus: "OFF",
@@ -36,7 +36,7 @@ const DashboardScreen = () => {
     waterPump: "OFF",
     lightStatusDisplay: "OFF",
 
-    // Chicken Health (if available)
+    // Chicken Health
     healthyChicks: 0,
     weakChicks: 0,
     unhealthyChicks: 0,
@@ -49,12 +49,27 @@ const DashboardScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [notificationCount, setNotificationCount] = useState(0);
 
   const handleNavigate = (routeName: string) => {
     try {
       router.push(routeName as never);
     } catch {
       setErrorMessage("Navigation is unavailable right now. Please try again.");
+    }
+  };
+
+  // Fetch notification count
+  const fetchNotificationCount = async () => {
+    try {
+      const response = await notifications.getAll(1);
+      if (response.data.success) {
+        const unread = response.data.data.unread || 0;
+        setNotificationCount(unread);
+        console.log("📥 Notification count:", unread);
+      }
+    } catch (error) {
+      console.log("Error fetching notification count:", error);
     }
   };
 
@@ -68,7 +83,7 @@ const DashboardScreen = () => {
 
       console.log("📥 ESP32 Data:", sensorData);
 
-      // Get fan status
+      // Get device status
       const fanStatus = sensorData.fan === 1 ? "ON" : "OFF";
       const pumpStatus = sensorData.pump === 1 ? "ON" : "OFF";
       const lightStatus = sensorData.light === 1 ? "ON" : "OFF";
@@ -78,8 +93,8 @@ const DashboardScreen = () => {
         // Environmental Conditions - from ESP32
         temperature: sensorData.temperature || 0,
         humidity: sensorData.humidity || 0,
-        feedLevel: 50, // Simulate kung walang feed sensor
-        waterLevel: 60, // Simulate kung walang water sensor
+        feedLevel: 50,
+        waterLevel: 60,
         fanPhysicalStatus: fanStatus,
         waterPumpPhysicalStatus: pumpStatus,
         lightStatus: lightStatus,
@@ -101,6 +116,9 @@ const DashboardScreen = () => {
         waterConsumed: 0,
       });
       setErrorMessage(null);
+
+      // Fetch notification count after dashboard data
+      await fetchNotificationCount();
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unable to reach ESP32.";
@@ -171,14 +189,18 @@ const DashboardScreen = () => {
           onPress={() => handleNavigate("/notifications")}
         >
           <Icon name="notifications-outline" size={24} color={colors.text} />
-          <View
-            style={[
-              styles.notificationBadge,
-              { backgroundColor: colors.danger },
-            ]}
-          >
-            <Text style={styles.badgeText}>3</Text>
-          </View>
+          {notificationCount > 0 && (
+            <View
+              style={[
+                styles.notificationBadge,
+                { backgroundColor: colors.danger },
+              ]}
+            >
+              <Text style={styles.badgeText}>
+                {notificationCount > 99 ? "99+" : notificationCount}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -546,15 +568,16 @@ const styles = StyleSheet.create({
   notificationBtn: { position: "relative", padding: 8 },
   notificationBadge: {
     position: "absolute",
-    top: 4,
-    right: 4,
+    top: 0,
+    right: 0,
     borderRadius: 10,
-    width: 18,
+    minWidth: 18,
     height: 18,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 4,
   },
-  badgeText: { color: "#282121", fontSize: 10, fontWeight: "700" },
+  badgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700" },
   section: { paddingHorizontal: 16, marginTop: 16 },
   errorBanner: {
     marginHorizontal: 16,

@@ -11,25 +11,35 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import api from "../../api/client";
+import { notifications } from "../../api/endpoints";
 import { useTheme } from "../../hooks/useTheme";
 
 function NotificationsScreen() {
   const { colors } = useTheme();
-  const [notifications, setNotifications] = useState([]);
+  const [notificationsList, setNotificationsList] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchNotifications = async () => {
     try {
-      const response = await api.get("/notifications?limit=50");
+      console.log("📥 Fetching notifications...");
+      const response = await notifications.getAll(50);
+      console.log("📥 Response:", response.data);
+
       if (response.data.success) {
-        setNotifications(response.data.data.notifications);
-        setUnreadCount(response.data.data.unread);
+        setNotificationsList(response.data.data.notifications || []);
+        setUnreadCount(response.data.data.unread || 0);
+      } else {
+        console.log("❌ API returned success: false", response.data.message);
+        // Use sample data if API fails
+        setNotificationsList([]);
+        setUnreadCount(0);
       }
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
+    } catch (error: any) {
+      console.error("❌ Error fetching notifications:", error.message);
+      setNotificationsList([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -45,20 +55,33 @@ function NotificationsScreen() {
     fetchNotifications();
   };
 
+  // ✅ Fix: Mark as read and remove from list immediately
   const markAsRead = async (id: string) => {
     try {
-      await api.post("/notifications", { action: "mark_read", id });
-      fetchNotifications();
+      console.log("📤 Marking notification as read:", id);
+      await notifications.markRead(id);
+
+      // ✅ Update local state immediately - remove the notification
+      setNotificationsList((prev) => prev.filter((item) => item.id !== id));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
+      console.error("❌ Failed to mark as read:", error);
       Alert.alert("Error", "Failed to mark as read");
     }
   };
 
   const markAllRead = async () => {
     try {
-      await api.post("/notifications", { action: "mark_all_read" });
-      fetchNotifications();
+      console.log("📤 Marking all as read...");
+      await notifications.markAllRead();
+
+      // ✅ Update local state immediately
+      setNotificationsList((prev) =>
+        prev.map((item) => ({ ...item, read: 1 })),
+      );
+      setUnreadCount(0);
     } catch (error) {
+      console.error("❌ Failed to mark all as read:", error);
       Alert.alert("Error", "Failed to mark all as read");
     }
   };
@@ -71,9 +94,18 @@ function NotificationsScreen() {
         style: "destructive",
         onPress: async () => {
           try {
-            await api.post("/notifications", { action: "delete", id });
-            fetchNotifications();
+            console.log("📤 Deleting notification:", id);
+            await notifications.delete(id);
+
+            // ✅ Update local state immediately
+            setNotificationsList((prev) =>
+              prev.filter((item) => item.id !== id),
+            );
+            if (unreadCount > 0) {
+              setUnreadCount((prev) => Math.max(0, prev - 1));
+            }
           } catch (error) {
+            console.error("❌ Failed to delete:", error);
             Alert.alert("Error", "Failed to delete");
           }
         },
@@ -126,6 +158,13 @@ function NotificationsScreen() {
           <Text style={[styles.title, { color: colors.text }]}>
             Notifications
           </Text>
+          {unreadCount > 0 && (
+            <View
+              style={[styles.countBadge, { backgroundColor: colors.danger }]}
+            >
+              <Text style={styles.countBadgeText}>{unreadCount}</Text>
+            </View>
+          )}
         </View>
         {unreadCount > 0 && (
           <TouchableOpacity
@@ -144,11 +183,11 @@ function NotificationsScreen() {
 
       {unreadCount > 0 && (
         <Text style={[styles.unreadText, { color: colors.textMuted }]}>
-          {unreadCount} unread notifications
+          {unreadCount} unread notification{unreadCount > 1 ? "s" : ""}
         </Text>
       )}
 
-      {notifications.length === 0 ? (
+      {notificationsList.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons
             name="notifications-off-outline"
@@ -163,7 +202,7 @@ function NotificationsScreen() {
           </Text>
         </View>
       ) : (
-        notifications.map((item: any, index: number) => (
+        notificationsList.map((item: any, index: number) => (
           <TouchableOpacity
             key={index}
             style={[
@@ -172,12 +211,19 @@ function NotificationsScreen() {
                 backgroundColor: colors.card,
                 borderColor: colors.border,
               },
-              !item.read && [
+              // ✅ Highlight unread notifications with left border
+              item.read === 0 && [
                 styles.notifUnread,
                 { borderLeftColor: colors.primary },
               ],
             ]}
-            onPress={() => markAsRead(item.id)}
+            onPress={() => {
+              // ✅ Mark as read when tapped
+              if (item.read === 0) {
+                markAsRead(item.id);
+              }
+            }}
+            activeOpacity={0.7}
           >
             <View
               style={[
@@ -188,9 +234,25 @@ function NotificationsScreen() {
               {getTypeIcon(item.type)}
             </View>
             <View style={styles.notifContent}>
-              <Text style={[styles.notifTitle, { color: colors.text }]}>
-                {item.title}
-              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text style={[styles.notifTitle, { color: colors.text }]}>
+                  {item.title}
+                </Text>
+                {item.read === 0 && (
+                  <View
+                    style={[
+                      styles.unreadDot,
+                      { backgroundColor: colors.primary },
+                    ]}
+                  />
+                )}
+              </View>
               <Text style={[styles.notifMessage, { color: colors.textMuted }]}>
                 {item.message}
               </Text>
@@ -230,10 +292,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 20,
+    paddingBottom: 8,
   },
   title: {
     fontSize: 24,
     fontWeight: "800",
+  },
+  countBadge: {
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginLeft: 8,
+    minWidth: 24,
+    alignItems: "center",
+  },
+  countBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
   },
   markAllBtn: {
     paddingHorizontal: 12,
@@ -247,7 +323,7 @@ const styles = StyleSheet.create({
   unreadText: {
     fontSize: 14,
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 4,
     paddingBottom: 12,
   },
   notifCard: {
@@ -292,6 +368,11 @@ const styles = StyleSheet.create({
   notifDelete: {
     padding: 8,
     marginLeft: 4,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   emptyState: {
     alignItems: "center",
