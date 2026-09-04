@@ -312,24 +312,21 @@ function FanControlScreen() {
         >
           {fanStatus === "ON" ? "RUNNING" : "OFF"}
         </Text>
-
+        // src/screens/Automation/FanControlScreen.tsx // ✅ I-update ang toggle
+        button - dapat pwedeng i-click ang OFF kahit ON ang status
         <TouchableOpacity
           style={[
             styles.toggleBtn,
             fanStatus === "ON"
               ? [styles.toggleOn, { backgroundColor: colors.danger }]
               : [styles.toggleOff, { backgroundColor: colors.success }],
-            settings.auto_mode && styles.disabledBtn,
           ]}
           onPress={toggleFan}
-          disabled={fanStatus === "ON" || settings.auto_mode}
+          // ❌ REMOVE: disabled={fanStatus === "ON"}
+          // ✅ Always enabled para pwedeng i-click ang OFF
         >
           <Text style={styles.toggleBtnText}>
-            {settings.auto_mode
-              ? "🔒 Auto Mode ON"
-              : fanStatus === "ON"
-                ? "Turn OFF"
-                : "Turn ON"}
+            {fanStatus === "ON" ? "Turn OFF" : "Turn ON"}
           </Text>
         </TouchableOpacity>
       </View>

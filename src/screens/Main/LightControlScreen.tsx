@@ -420,24 +420,21 @@ const LightControlScreen = () => {
         >
           {lightStatus === "ON" ? "ON" : "OFF"}
         </Text>
-
+        // src/screens/Main/LightControlScreen.tsx // ✅ I-update ang toggle
+        button - dapat pwedeng i-click ang OFF kahit ON ang status
         <TouchableOpacity
           style={[
             styles.toggleBtn,
             lightStatus === "ON"
               ? [styles.toggleOn, { backgroundColor: colors.danger }]
               : [styles.toggleOff, { backgroundColor: colors.success }],
-            autoMode && styles.disabledBtn,
           ]}
           onPress={toggleLight}
-          disabled={lightStatus === "ON" || autoMode}
+          // ❌ REMOVE: disabled={lightStatus === "ON"}
+          // ✅ Always enabled para pwedeng i-click ang OFF
         >
           <Text style={styles.toggleBtnText}>
-            {autoMode
-              ? "🔒 Auto Mode ON"
-              : lightStatus === "ON"
-                ? "Turn OFF"
-                : "Turn ON"}
+            {lightStatus === "ON" ? "Turn OFF" : "Turn ON"}
           </Text>
         </TouchableOpacity>
       </View>

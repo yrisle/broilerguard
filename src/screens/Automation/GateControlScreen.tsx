@@ -561,7 +561,6 @@ const GateControlScreen = () => {
             color={gateStatus ? colors.success : colors.danger}
           />
         </View>
-
         <Text style={[styles.gateStatusLabel, { color: colors.textMuted }]}>
           Gate is
         </Text>
@@ -575,11 +574,11 @@ const GateControlScreen = () => {
         >
           {gateStatus ? "OPEN" : "CLOSED"}
         </Text>
-
         <Text style={[styles.gatePosition, { color: colors.textMuted }]}>
           {gateStatus ? "🔓 Unlocked" : "🔒 Locked"}
         </Text>
-
+        // src/screens/Automation/GateControlScreen.tsx // ✅ I-update ang
+        toggle button - dapat pwedeng i-click ang Close kahit OPEN ang status
         <TouchableOpacity
           style={[
             styles.toggleBtn,
@@ -590,6 +589,7 @@ const GateControlScreen = () => {
           ]}
           onPress={handleToggleGate}
           disabled={isToggling || autoMode}
+          // ❌ REMOVE: disabled={isToggling || autoMode || gateStatus}
         >
           <Text style={styles.toggleBtnText}>
             {isToggling
@@ -601,7 +601,6 @@ const GateControlScreen = () => {
                   : "Open Gate"}
           </Text>
         </TouchableOpacity>
-
         {autoMode && (
           <View
             style={[

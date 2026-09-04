@@ -306,24 +306,21 @@ function WaterPumpScreen() {
         >
           {pumpStatus === "ON" ? "RUNNING" : "STOPPED"}
         </Text>
-
+        // src/screens/Automation/WaterPumpScreen.tsx // ✅ I-update ang toggle
+        button - dapat pwedeng i-click ang OFF kahit ON ang status
         <TouchableOpacity
           style={[
             styles.toggleBtn,
             pumpStatus === "ON"
               ? [styles.toggleOn, { backgroundColor: colors.danger }]
               : [styles.toggleOff, { backgroundColor: colors.success }],
-            autoMode && styles.disabledBtn,
           ]}
           onPress={togglePump}
-          disabled={pumpStatus === "ON" || autoMode}
+          // ❌ REMOVE: disabled={pumpStatus === "ON"}
+          // ✅ Always enabled para pwedeng i-click ang OFF
         >
           <Text style={styles.toggleBtnText}>
-            {autoMode
-              ? "🔒 Auto Mode ON"
-              : pumpStatus === "ON"
-                ? "Stop Pump"
-                : "Start Pump"}
+            {pumpStatus === "ON" ? "Stop Pump" : "Start Pump"}
           </Text>
         </TouchableOpacity>
       </View>
