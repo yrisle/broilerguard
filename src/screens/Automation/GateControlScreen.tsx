@@ -25,12 +25,17 @@ const GateControlScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
+  // ✅ Feed Settings
   const [autoMode, setAutoMode] = useState(false);
-  const [feedAmount, setFeedAmount] = useState("0.5");
+  const [feedAmount, setFeedAmount] = useState("0.5"); // kg per dispense
+  const [feedTarget, setFeedTarget] = useState("5.0"); // target kg per day
+  const [dispensesPerDay, setDispensesPerDay] = useState("4"); // ✅ NEW: number of dispenses per day
+
+  // ✅ Tracking
   const [feedDispensed, setFeedDispensed] = useState(0);
-  const [feedTarget, setFeedTarget] = useState("5.0");
-  const [isAutoDispensing, setIsAutoDispensing] = useState(false);
   const [dispenseCount, setDispenseCount] = useState(0);
+  const [isAutoDispensing, setIsAutoDispensing] = useState(false);
+  const [nextDispenseTime, setNextDispenseTime] = useState<Date | null>(null);
 
   const intervalRef = useRef<number | null>(null);
 
@@ -127,12 +132,18 @@ const GateControlScreen = () => {
       const amount = parseFloat(feedAmount) || 0.5;
       console.log(`🔄 Dispensing ${amount} kg of feed...`);
 
+      // Open gate to dispense feed
       await automation.gate.open();
       setGateStatus(true);
+
+      // Simulate dispensing time (3 seconds)
       await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      // Close gate after dispensing
       await automation.gate.close();
       setGateStatus(false);
 
+      // Update stats
       const newTotal = feedDispensed + amount;
       setFeedDispensed(parseFloat(newTotal.toFixed(2)));
       setDispenseCount((prev) => prev + 1);
@@ -140,21 +151,43 @@ const GateControlScreen = () => {
       console.log(
         `✅ Dispensed ${amount} kg. Total today: ${newTotal.toFixed(2)} kg`,
       );
+      console.log(
+        `📊 Dispenses today: ${dispenseCount + 1}/${dispensesPerDay}`,
+      );
 
+      // Calculate next dispense time
+      const intervalSeconds = getInterval();
+      const nextTime = new Date(Date.now() + intervalSeconds * 1000);
+      setNextDispenseTime(nextTime);
+
+      // Check if target reached
       const target = parseFloat(feedTarget) || 5.0;
-      if (newTotal >= target) {
+      const maxDispenses = parseInt(dispensesPerDay) || 4;
+
+      if (newTotal >= target || dispenseCount + 1 >= maxDispenses) {
+        let message = "";
+        if (newTotal >= target) {
+          message = `Daily feed target of ${target} kg has been reached!`;
+        } else if (dispenseCount + 1 >= maxDispenses) {
+          message = `Maximum ${maxDispenses} dispenses per day has been reached!`;
+        }
+
         Alert.alert(
-          "✅ Feed Target Reached",
-          `Daily feed target of ${target} kg has been reached!`,
+          "✅ Daily Limit Reached",
+          `${message}\n\nTotal dispensed: ${newTotal.toFixed(2)} kg\nDispenses: ${dispenseCount + 1}/${maxDispenses}`,
           [{ text: "OK" }],
         );
         if (autoMode) {
           setAutoMode(false);
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
         }
       } else {
         Alert.alert(
           "Success",
-          `Dispensed ${amount} kg of feed. (${newTotal.toFixed(2)}/${target} kg today)`,
+          `Dispensed ${amount} kg of feed. (${newTotal.toFixed(2)}/${target} kg, ${dispenseCount + 1}/${maxDispenses} dispenses)`,
           [{ text: "OK" }],
         );
       }
@@ -169,31 +202,54 @@ const GateControlScreen = () => {
   };
 
   // ============================================
-  // AUTO MODE
+  // AUTO MODE - Scheduled Dispensing
   // ============================================
   const toggleAutoMode = () => {
     const newMode = !autoMode;
     setAutoMode(newMode);
 
     if (newMode) {
+      // Reset daily counter when auto mode is enabled
       setFeedDispensed(0);
       setDispenseCount(0);
+
+      const maxDispenses = parseInt(dispensesPerDay) || 4;
       Alert.alert(
         "🤖 Auto Mode Enabled",
-        `Feed will be dispensed automatically in ${feedAmount} kg batches until the daily target of ${feedTarget} kg is reached.`,
+        `Feed will be dispensed automatically ${maxDispenses} times per day.\n\n` +
+          `Amount per dispense: ${feedAmount} kg\n` +
+          `Daily target: ${feedTarget} kg\n` +
+          `Dispenses per day: ${maxDispenses}`,
         [{ text: "OK" }],
       );
+
+      // Start the first dispense after 5 seconds
+      setTimeout(() => {
+        if (autoMode) {
+          handleDispenseFeed();
+        }
+      }, 5000);
     } else {
+      // Clear interval when auto mode is turned off
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      setNextDispenseTime(null);
       Alert.alert("Auto Mode Disabled", "Manual control restored.", [
         { text: "OK" },
       ]);
     }
   };
 
+  // ✅ Calculate interval based on dispenses per day
+  const getInterval = () => {
+    const count = parseInt(dispensesPerDay) || 4;
+    // 24 hours = 86400 seconds
+    return Math.floor(86400 / count);
+  };
+
+  // ✅ Auto dispense timer - based on dispenses per day
   useEffect(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -202,39 +258,79 @@ const GateControlScreen = () => {
 
     if (autoMode && !isAutoDispensing) {
       const target = parseFloat(feedTarget) || 5.0;
+      const maxDispenses = parseInt(dispensesPerDay) || 4;
 
-      if (feedDispensed >= target) {
+      // Check if target or max dispenses reached
+      if (feedDispensed >= target || dispenseCount >= maxDispenses) {
         setAutoMode(false);
+        let message = "";
+        if (feedDispensed >= target) {
+          message = `Daily feed target of ${target} kg has been completed.`;
+        } else if (dispenseCount >= maxDispenses) {
+          message = `Maximum ${maxDispenses} dispenses per day has been completed.`;
+        }
         Alert.alert(
-          "✅ Target Reached",
-          `Daily feed target of ${target} kg has been completed. Auto mode turned off.`,
+          "✅ Daily Limit Reached",
+          `${message}\n\nTotal dispensed: ${feedDispensed.toFixed(2)} kg\nDispenses: ${dispenseCount}/${maxDispenses}`,
           [{ text: "OK" }],
         );
         return;
       }
 
+      // Calculate interval in seconds
+      const intervalSeconds = getInterval();
+      const intervalMs = intervalSeconds * 1000;
+
+      console.log(
+        `⏰ Auto mode: Dispensing every ${intervalSeconds} seconds (${dispensesPerDay} times/day)`,
+      );
+      console.log(
+        `📊 Progress: ${feedDispensed.toFixed(2)}/${target} kg, ${dispenseCount}/${maxDispenses} dispenses`,
+      );
+
+      // ✅ Set interval based on dispenses per day
       intervalRef.current = setInterval(() => {
         if (!autoMode || isAutoDispensing) return;
 
         const amount = parseFloat(feedAmount) || 0.5;
         const newTotal = feedDispensed + amount;
+        const maxDisp = parseInt(dispensesPerDay) || 4;
 
-        if (newTotal > target) {
-          const remaining = target - feedDispensed;
-          if (remaining > 0) {
-            setFeedDispensed(target);
-            setDispenseCount((prev) => prev + 1);
-            setAutoMode(false);
-            Alert.alert(
-              "✅ Target Reached",
-              `Daily feed target of ${target} kg has been completed. Auto mode turned off.`,
-              [{ text: "OK" }],
-            );
+        // Check if adding this amount will exceed target or max dispenses
+        if (newTotal > target || dispenseCount + 1 > maxDisp) {
+          // If target reached but still have dispenses left, adjust
+          if (newTotal > target && dispenseCount + 1 <= maxDisp) {
+            // Dispense just enough to reach target
+            const remaining = target - feedDispensed;
+            if (remaining > 0) {
+              // We need to handle this differently - for now, just dispense
+              handleDispenseFeed();
+            }
           }
+          // Auto turn off when limits reached
+          setAutoMode(false);
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+
+          let message = "";
+          if (feedDispensed >= target) {
+            message = `Daily feed target of ${target} kg has been completed.`;
+          } else if (dispenseCount >= maxDisp) {
+            message = `Maximum ${maxDisp} dispenses per day has been completed.`;
+          }
+
+          Alert.alert(
+            "✅ Daily Limit Reached",
+            `${message}\n\nTotal dispensed: ${feedDispensed.toFixed(2)} kg\nDispenses: ${dispenseCount}/${maxDisp}`,
+            [{ text: "OK" }],
+          );
         } else {
+          // Normal dispense
           handleDispenseFeed();
         }
-      }, 10000);
+      }, intervalMs);
     }
 
     return () => {
@@ -243,19 +339,25 @@ const GateControlScreen = () => {
         intervalRef.current = null;
       }
     };
-  }, [autoMode, feedDispensed, feedTarget, feedAmount]);
+  }, [autoMode, feedDispensed, feedTarget, feedAmount, dispensesPerDay]);
 
+  // Reset daily counter at midnight
   useEffect(() => {
     const checkMidnight = () => {
       const now = new Date();
-      if (now.getHours() === 0 && now.getMinutes() === 0) {
+      if (
+        now.getHours() === 0 &&
+        now.getMinutes() === 0 &&
+        now.getSeconds() < 10
+      ) {
         setFeedDispensed(0);
         setDispenseCount(0);
+        setNextDispenseTime(null);
         console.log("🔄 Daily feed counter reset");
       }
     };
 
-    const interval = setInterval(checkMidnight, 60000);
+    const interval = setInterval(checkMidnight, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -271,7 +373,9 @@ const GateControlScreen = () => {
   }
 
   const target = parseFloat(feedTarget) || 5.0;
+  const maxDispenses = parseInt(dispensesPerDay) || 4;
   const progress = Math.min((feedDispensed / target) * 100, 100);
+  const dispenseProgress = Math.min((dispenseCount / maxDispenses) * 100, 100);
 
   return (
     <ScrollView
@@ -453,7 +557,7 @@ const GateControlScreen = () => {
               </View>
               <Text style={[styles.autoDesc, { color: colors.textMuted }]}>
                 {autoMode
-                  ? "✅ Auto dispensing is ON"
+                  ? `✅ Auto dispensing is ON (${dispensesPerDay}x/day)`
                   : "⏸️ Auto dispensing is OFF"}
               </Text>
             </View>
@@ -465,7 +569,7 @@ const GateControlScreen = () => {
             />
           </View>
 
-          {/* Amount per Dispense - Always editable */}
+          {/* Amount per Dispense */}
           <View style={[styles.settingRow, { borderColor: colors.border }]}>
             <Text style={[styles.settingLabel, { color: colors.text }]}>
               Amount per Dispense
@@ -492,7 +596,34 @@ const GateControlScreen = () => {
             </View>
           </View>
 
-          {/* Daily Target - Always editable */}
+          {/* ✅ NEW: Dispenses per Day */}
+          <View style={[styles.settingRow, { borderColor: colors.border }]}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>
+              Dispenses per Day
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <TextInput
+                style={[
+                  styles.amountInput,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                    color: colors.text,
+                    width: 70,
+                  },
+                ]}
+                value={dispensesPerDay}
+                onChangeText={setDispensesPerDay}
+                keyboardType="numeric"
+                editable={true}
+              />
+              <Text style={[styles.settingValue, { color: colors.textMuted }]}>
+                times
+              </Text>
+            </View>
+          </View>
+
+          {/* Daily Target */}
           <View style={[styles.settingRow, { borderColor: colors.border }]}>
             <Text style={[styles.settingLabel, { color: colors.text }]}>
               Daily Target
@@ -521,9 +652,10 @@ const GateControlScreen = () => {
 
           {/* Progress */}
           <View style={styles.progressContainer}>
+            {/* Feed Progress */}
             <View style={styles.progressHeader}>
               <Text style={[styles.progressLabel, { color: colors.textMuted }]}>
-                Progress Today
+                Feed Progress
               </Text>
               <Text style={[styles.progressText, { color: colors.text }]}>
                 {feedDispensed.toFixed(2)} / {target} kg
@@ -542,10 +674,32 @@ const GateControlScreen = () => {
               />
             </View>
             <Text style={[styles.progressPercent, { color: colors.textMuted }]}>
-              {progress.toFixed(0)}% complete
+              {progress.toFixed(0)}% of daily target
             </Text>
-            <Text style={[styles.dispenseCount, { color: colors.textMuted }]}>
-              {dispenseCount} dispenses today
+
+            {/* Dispense Progress */}
+            <View style={[styles.progressHeader, { marginTop: 10 }]}>
+              <Text style={[styles.progressLabel, { color: colors.textMuted }]}>
+                Dispense Progress
+              </Text>
+              <Text style={[styles.progressText, { color: colors.text }]}>
+                {dispenseCount} / {maxDispenses} times
+              </Text>
+            </View>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${Math.min(dispenseProgress, 100)}%`,
+                    backgroundColor:
+                      dispenseProgress >= 100 ? colors.success : colors.info,
+                  },
+                ]}
+              />
+            </View>
+            <Text style={[styles.progressPercent, { color: colors.textMuted }]}>
+              {dispenseProgress.toFixed(0)}% of daily dispenses
             </Text>
           </View>
 
@@ -569,6 +723,14 @@ const GateControlScreen = () => {
           {autoMode && (
             <Text style={[styles.autoNote, { color: colors.warning }]}>
               ⚠️ Auto mode is ON. Manual dispense is disabled.
+            </Text>
+          )}
+
+          {autoMode && nextDispenseTime && (
+            <Text
+              style={[styles.nextDispenseText, { color: colors.textMuted }]}
+            >
+              ⏰ Next dispense at: {nextDispenseTime.toLocaleTimeString()}
             </Text>
           )}
         </View>
@@ -812,11 +974,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: "right",
   },
-  dispenseCount: {
-    fontSize: 11,
-    marginTop: 2,
-    textAlign: "right",
-  },
   dispenseBtn: {
     borderRadius: 12,
     paddingVertical: 14,
@@ -831,6 +988,11 @@ const styles = StyleSheet.create({
   autoNote: {
     fontSize: 12,
     marginTop: 8,
+    textAlign: "center",
+  },
+  nextDispenseText: {
+    fontSize: 12,
+    marginTop: 6,
     textAlign: "center",
   },
   positionCard: {
