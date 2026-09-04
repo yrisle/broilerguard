@@ -25,7 +25,7 @@ const GateControlScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
-  // ✅ Feed Settings
+  // Feed Settings
   const [autoMode, setAutoMode] = useState(false);
   const [feedAmount, setFeedAmount] = useState("0.5");
   const [feedTimes, setFeedTimes] = useState<string[]>([
@@ -35,9 +35,8 @@ const GateControlScreen = () => {
     "8:00 PM",
   ]);
   const [newTime, setNewTime] = useState("");
-  const [newPeriod, setNewPeriod] = useState<"AM" | "PM">("AM");
 
-  // ✅ Tracking
+  // Tracking
   const [feedDispensed, setFeedDispensed] = useState(0);
   const [dispenseCount, setDispenseCount] = useState(0);
   const [isAutoDispensing, setIsAutoDispensing] = useState(false);
@@ -48,7 +47,6 @@ const GateControlScreen = () => {
   // ============================================
   // TIME CONVERSION FUNCTIONS
   // ============================================
-  // Convert 12-hour format to 24-hour format
   const convertTo24Hour = (timeStr: string): string => {
     const parts = timeStr.split(" ");
     if (parts.length !== 2) return timeStr;
@@ -66,10 +64,11 @@ const GateControlScreen = () => {
     return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
   };
 
-  // Convert 24-hour format to 12-hour format
-  const convertTo12Hour = (timeStr: string): string => {
-    const [hours, minutes] = timeStr.split(":").map(Number);
-    const period = hours >= 12 ? "PM" : "AM";
+  const formatTimeDisplay = (
+    hours: number,
+    minutes: number,
+    period: string,
+  ): string => {
     const hour12 = hours % 12 || 12;
     return `${hour12}:${minutes.toString().padStart(2, "0")} ${period}`;
   };
@@ -77,26 +76,23 @@ const GateControlScreen = () => {
   const parseTimeInput = (
     input: string,
   ): { hours: number; minutes: number; period: string } | null => {
-    // Check if input matches patterns like "8:00 AM", "8:00am", "8am"
     const patterns = [
-      /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i, // 8:00 AM
-      /^(\d{1,2}):(\d{2})(AM|PM)$/i, // 8:00AM
-      /^(\d{1,2})\s*(AM|PM)$/i, // 8 AM
-      /^(\d{1,2})(AM|PM)$/i, // 8AM
+      /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i,
+      /^(\d{1,2}):(\d{2})(AM|PM)$/i,
+      /^(\d{1,2})\s*(AM|PM)$/i,
+      /^(\d{1,2})(AM|PM)$/i,
     ];
 
     for (const pattern of patterns) {
       const match = input.match(pattern);
       if (match) {
         if (match.length === 4) {
-          // Format: 8:00 AM
           return {
             hours: parseInt(match[1]),
             minutes: parseInt(match[2]),
             period: match[3].toUpperCase(),
           };
         } else if (match.length === 3) {
-          // Format: 8 AM
           return {
             hours: parseInt(match[1]),
             minutes: 0,
@@ -106,15 +102,6 @@ const GateControlScreen = () => {
       }
     }
     return null;
-  };
-
-  const formatTimeDisplay = (
-    hours: number,
-    minutes: number,
-    period: string,
-  ): string => {
-    const hour12 = hours % 12 || 12;
-    return `${hour12}:${minutes.toString().padStart(2, "0")} ${period}`;
   };
 
   const fetchData = async () => {
@@ -233,9 +220,7 @@ const GateControlScreen = () => {
       return;
     }
 
-    // Sort times
     const allTimes = [...feedTimes, formattedTime];
-    // Sort by converting to 24-hour format
     allTimes.sort((a, b) => {
       const a24 = convertTo24Hour(a);
       const b24 = convertTo24Hour(b);
@@ -244,7 +229,6 @@ const GateControlScreen = () => {
 
     setFeedTimes(allTimes);
     setNewTime("");
-    setNewPeriod("AM");
   };
 
   const removeTime = (time: string) => {
@@ -280,10 +264,8 @@ const GateControlScreen = () => {
         `✅ Dispensed ${amount} kg. Total today: ${newTotal.toFixed(2)} kg`,
       );
 
-      // Find next dispense time
       findNextDispenseTime();
 
-      // Check daily target (optional)
       const target = 5.0;
       if (newTotal >= target) {
         Alert.alert(
@@ -317,7 +299,6 @@ const GateControlScreen = () => {
     const now = new Date();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    // Convert all times to minutes and sort
     const timeMinutes = feedTimes.map((time) => {
       const time24 = convertTo24Hour(time);
       const [hours, minutes] = time24.split(":").map(Number);
@@ -340,23 +321,24 @@ const GateControlScreen = () => {
       }
     }
 
-    // If no time found, use the first time tomorrow
     if (!nextTime && timeMinutes.length > 0) {
       nextTime = timeMinutes[0].time;
       const [hours, minutes] = convertTo24Hour(nextTime).split(":").map(Number);
       nextDate.setDate(nextDate.getDate() + 1);
       nextDate.setHours(hours, minutes, 0, 0);
       setNextDispenseTime(nextDate);
+      console.log(`⏰ Next dispense tomorrow at ${nextTime}`);
       return;
     }
 
     if (nextTime) {
       setNextDispenseTime(nextDate);
+      console.log(`⏰ Next dispense at ${nextDate.toLocaleTimeString()}`);
     }
   };
 
   // ============================================
-  // AUTO MODE - Scheduled Dispensing
+  // AUTO MODE
   // ============================================
   const toggleAutoMode = () => {
     const newMode = !autoMode;
@@ -388,7 +370,7 @@ const GateControlScreen = () => {
   };
 
   // ============================================
-  // SCHEDULER - Check every minute
+  // SCHEDULER - Check every 30 seconds
   // ============================================
   const startScheduler = () => {
     if (intervalRef.current) {
@@ -401,23 +383,58 @@ const GateControlScreen = () => {
 
       const now = new Date();
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const currentSeconds = now.getSeconds();
 
-      // Check if current time matches any scheduled time
+      console.log(`⏰ Checking schedule at ${now.toLocaleTimeString()}`);
+
       for (const time of feedTimes) {
         const time24 = convertTo24Hour(time);
         const [hours, minutes] = time24.split(":").map(Number);
         const timeMinutes = hours * 60 + minutes;
 
-        if (Math.abs(currentMinutes - timeMinutes) <= 1) {
-          console.log(`⏰ Scheduled dispense at ${time}`);
+        const timeDiff = Math.abs(
+          currentMinutes * 60 + currentSeconds - timeMinutes * 60,
+        );
+        if (timeDiff <= 30) {
+          console.log(`⏰ Scheduled dispense at ${time} - Triggering now!`);
           handleDispenseFeed();
           break;
         }
       }
 
-      // Update next dispense time
       findNextDispenseTime();
-    }, 60000); // Check every minute
+    }, 30000);
+  };
+
+  // ============================================
+  // CHECK AND DISPENSE - Manual trigger
+  // ============================================
+  const checkAndDispense = () => {
+    if (!autoMode || isAutoDispensing) {
+      Alert.alert("Info", "Auto mode must be ON to check schedule.");
+      return;
+    }
+
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    for (const time of feedTimes) {
+      const time24 = convertTo24Hour(time);
+      const [hours, minutes] = time24.split(":").map(Number);
+      const timeMinutes = hours * 60 + minutes;
+
+      if (Math.abs(currentMinutes - timeMinutes) <= 5) {
+        console.log(`⏰ Manual check: Time ${time} matched! Dispensing...`);
+        handleDispenseFeed();
+        return;
+      }
+    }
+
+    Alert.alert(
+      "Info",
+      `No scheduled time matches current time.\nCurrent time: ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
+      [{ text: "OK" }],
+    );
   };
 
   // Update scheduler when feed times change
@@ -723,7 +740,6 @@ const GateControlScreen = () => {
               Scheduled Times (12-hour format)
             </Text>
 
-            {/* Add Time Input */}
             <View style={styles.addTimeRow}>
               <TextInput
                 style={[
@@ -756,7 +772,6 @@ const GateControlScreen = () => {
               </TouchableOpacity>
             </View>
 
-            {/* Time List */}
             <View style={styles.timeList}>
               {feedTimes.map((time, index) => (
                 <View
@@ -849,22 +864,41 @@ const GateControlScreen = () => {
             </Text>
           </View>
 
-          {/* Manual Dispense Button */}
-          <TouchableOpacity
-            style={[
-              styles.dispenseBtn,
-              {
-                backgroundColor: colors.primary,
-                opacity: isAutoDispensing || autoMode ? 0.5 : 1,
-              },
-            ]}
-            onPress={handleDispenseFeed}
-            disabled={isAutoDispensing || autoMode}
-          >
-            <Text style={styles.dispenseBtnText}>
-              {isAutoDispensing ? "Dispensing..." : "Dispense Feed Now"}
-            </Text>
-          </TouchableOpacity>
+          {/* Buttons Row */}
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[
+                styles.dispenseBtn,
+                {
+                  backgroundColor: colors.primary,
+                  opacity: isAutoDispensing || autoMode ? 0.5 : 1,
+                  flex: 1,
+                },
+              ]}
+              onPress={handleDispenseFeed}
+              disabled={isAutoDispensing || autoMode}
+            >
+              <Text style={styles.dispenseBtnText}>
+                {isAutoDispensing ? "Dispensing..." : "Dispense Now"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.checkBtn,
+                {
+                  backgroundColor: colors.info,
+                  opacity: autoMode ? 1 : 0.5,
+                  flex: 1,
+                },
+              ]}
+              onPress={checkAndDispense}
+              disabled={!autoMode}
+            >
+              <Ionicons name="refresh-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.checkBtnText}>Check Schedule</Text>
+            </TouchableOpacity>
+          </View>
 
           {autoMode && (
             <Text style={[styles.autoNote, { color: colors.warning }]}>
@@ -1228,16 +1262,34 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textAlign: "right",
   },
+  buttonRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 12,
+  },
   dispenseBtn: {
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
-    marginTop: 12,
+    justifyContent: "center",
   },
   dispenseBtnText: {
     fontSize: 16,
     fontWeight: "700",
     color: "#FFFFFF",
+  },
+  checkBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  checkBtnText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
   },
   autoNote: {
     fontSize: 12,
