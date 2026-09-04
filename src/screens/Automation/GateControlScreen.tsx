@@ -2,16 +2,18 @@
 
 import { FontAwesome5 } from "@expo/vector-icons";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { automation } from "../../api/endpoints";
 import { useTheme } from "../../hooks/useTheme";
@@ -22,6 +24,18 @@ const GateControlScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
+
+  // ✅ Automation States
+  const [autoMode, setAutoMode] = useState(false);
+  const [feedAmount, setFeedAmount] = useState("0.5"); // kg per dispense
+  const [feedDispensed, setFeedDispensed] = useState(0); // total dispensed today
+  const [feedTarget, setFeedTarget] = useState("5.0"); // target kg per day
+  const [isAutoDispensing, setIsAutoDispensing] = useState(false);
+  const [dispenseCount, setDispenseCount] = useState(0);
+
+  // ✅ Use ref for interval
+  const intervalRef = useRef<number | null>(null);
+  const autoDispenseRef = useRef<boolean>(false);
 
   const fetchData = async () => {
     try {
@@ -55,6 +69,9 @@ const GateControlScreen = () => {
     fetchData();
   };
 
+  // ============================================
+  // MANUAL GATE CONTROL
+  // ============================================
   const handleOpenGate = async () => {
     if (isToggling) return;
     setIsToggling(true);
@@ -96,7 +113,6 @@ const GateControlScreen = () => {
     try {
       console.log("🔄 Toggling gate...");
       await automation.gate.toggle();
-      // Fetch updated status
       await fetchData();
     } catch (error: any) {
       console.error("❌ Toggle gate error:", error);
@@ -105,6 +121,170 @@ const GateControlScreen = () => {
       setIsToggling(false);
     }
   };
+
+  // ============================================
+  // AUTO FEED DISPENSING
+  // ============================================
+  const handleDispenseFeed = async () => {
+    if (isAutoDispensing) return;
+    setIsAutoDispensing(true);
+
+    try {
+      const amount = parseFloat(feedAmount) || 0.5;
+      console.log(`🔄 Dispensing ${amount} kg of feed...`);
+
+      // Open gate to dispense feed
+      await automation.gate.open();
+      setGateStatus(true);
+
+      // Simulate dispensing time (3 seconds)
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      // Close gate after dispensing
+      await automation.gate.close();
+      setGateStatus(false);
+
+      // Update stats
+      const newTotal = feedDispensed + amount;
+      setFeedDispensed(parseFloat(newTotal.toFixed(2)));
+      setDispenseCount((prev) => prev + 1);
+
+      console.log(
+        `✅ Dispensed ${amount} kg. Total today: ${newTotal.toFixed(2)} kg`,
+      );
+
+      // Check if target reached
+      const target = parseFloat(feedTarget) || 5.0;
+      if (newTotal >= target) {
+        Alert.alert(
+          "✅ Feed Target Reached",
+          `Daily feed target of ${target} kg has been reached!`,
+          [{ text: "OK" }],
+        );
+        // Auto turn off auto mode when target is reached
+        if (autoMode) {
+          setAutoMode(false);
+        }
+      } else {
+        Alert.alert(
+          "Success",
+          `Dispensed ${amount} kg of feed. (${newTotal.toFixed(2)}/${target} kg today)`,
+          [{ text: "OK" }],
+        );
+      }
+
+      await fetchData();
+    } catch (error: any) {
+      console.error("❌ Dispense error:", error);
+      Alert.alert("Error", "Failed to dispense feed. Please try again.");
+    } finally {
+      setIsAutoDispensing(false);
+    }
+  };
+
+  // ============================================
+  // AUTO MODE - Continuous Dispensing (Fixed)
+  // ============================================
+  const toggleAutoMode = () => {
+    const newMode = !autoMode;
+    setAutoMode(newMode);
+
+    if (newMode) {
+      // Reset daily counter when auto mode is enabled
+      setFeedDispensed(0);
+      setDispenseCount(0);
+      Alert.alert(
+        "🤖 Auto Mode Enabled",
+        `Feed will be dispensed automatically in ${feedAmount} kg batches until the daily target of ${feedTarget} kg is reached.`,
+        [{ text: "OK" }],
+      );
+    } else {
+      // Clear interval when auto mode is turned off
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      autoDispenseRef.current = false;
+      Alert.alert("Auto Mode Disabled", "Manual control restored.", [
+        { text: "OK" },
+      ]);
+    }
+  };
+
+  // ✅ Auto dispense timer - FIXED with proper TypeScript
+  useEffect(() => {
+    // Clear any existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    if (autoMode && !isAutoDispensing) {
+      const target = parseFloat(feedTarget) || 5.0;
+
+      // Check if target already reached
+      if (feedDispensed >= target) {
+        setAutoMode(false);
+        Alert.alert(
+          "✅ Target Reached",
+          `Daily feed target of ${target} kg has been completed. Auto mode turned off.`,
+          [{ text: "OK" }],
+        );
+        return;
+      }
+
+      // ✅ Set interval with proper type
+      intervalRef.current = setInterval(() => {
+        if (!autoMode || isAutoDispensing) return;
+
+        const amount = parseFloat(feedAmount) || 0.5;
+        const newTotal = feedDispensed + amount;
+
+        // Check if adding this amount will exceed target
+        if (newTotal > target) {
+          // Adjust amount to exactly hit target
+          const remaining = target - feedDispensed;
+          if (remaining > 0) {
+            // Dispense the remaining amount
+            setFeedDispensed(target);
+            setDispenseCount((prev) => prev + 1);
+            setAutoMode(false);
+            Alert.alert(
+              "✅ Target Reached",
+              `Daily feed target of ${target} kg has been completed. Auto mode turned off.`,
+              [{ text: "OK" }],
+            );
+          }
+        } else {
+          // Dispense the normal amount
+          handleDispenseFeed();
+        }
+      }, 10000); // 10 seconds interval
+    }
+
+    // Cleanup
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [autoMode, feedDispensed, feedTarget, feedAmount]);
+
+  // Reset daily counter at midnight (simulated by checking time)
+  useEffect(() => {
+    const checkMidnight = () => {
+      const now = new Date();
+      if (now.getHours() === 0 && now.getMinutes() === 0) {
+        setFeedDispensed(0);
+        setDispenseCount(0);
+        console.log("🔄 Daily feed counter reset");
+      }
+    };
+
+    const interval = setInterval(checkMidnight, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, []);
 
   if (loading) {
     return (
@@ -116,6 +296,9 @@ const GateControlScreen = () => {
       </View>
     );
   }
+
+  const target = parseFloat(feedTarget) || 5.0;
+  const progress = Math.min((feedDispensed / target) * 100, 100);
 
   return (
     <ScrollView
@@ -133,15 +316,17 @@ const GateControlScreen = () => {
             style={{ marginRight: 12 }}
           />
           <Text style={[styles.title, { color: colors.text }]}>
-            Gate Control
+            Gate & Feed Control
           </Text>
         </View>
         <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-          Open and close the poultry house gate
+          Control gate and automated feed dispensing
         </Text>
       </View>
 
-      {/* Gate Status Card */}
+      {/* ============================================
+      GATE STATUS CARD
+      ============================================ */}
       <View style={[styles.statusCard, { backgroundColor: colors.card }]}>
         <View
           style={[
@@ -176,7 +361,6 @@ const GateControlScreen = () => {
           {gateStatus ? "🔓 Unlocked" : "🔒 Locked"}
         </Text>
 
-        {/* Toggle Button */}
         <TouchableOpacity
           style={[
             styles.toggleBtn,
@@ -197,7 +381,9 @@ const GateControlScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Quick Action Buttons */}
+      {/* ============================================
+      QUICK ACTION BUTTONS
+      ============================================ */}
       <View style={styles.section}>
         <View
           style={{
@@ -252,6 +438,175 @@ const GateControlScreen = () => {
         </View>
       </View>
 
+      {/* ============================================
+      AUTO FEED DISPENSING SECTION
+      ============================================ */}
+      <View style={styles.section}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons
+            name="rocket-outline"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Auto Feed Dispensing
+          </Text>
+        </View>
+
+        <View
+          style={[
+            styles.autoCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: autoMode ? colors.success : colors.border,
+              borderWidth: autoMode ? 2 : 1,
+            },
+          ]}
+        >
+          {/* Auto Mode Toggle */}
+          <View style={styles.autoRow}>
+            <View>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Ionicons
+                  name={autoMode ? "checkmark-circle" : "time-outline"}
+                  size={20}
+                  color={autoMode ? colors.success : colors.textMuted}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={[styles.autoLabel, { color: colors.text }]}>
+                  Auto Mode
+                </Text>
+              </View>
+              <Text style={[styles.autoDesc, { color: colors.textMuted }]}>
+                {autoMode
+                  ? "✅ Auto dispensing is ON"
+                  : "⏸️ Auto dispensing is OFF"}
+              </Text>
+            </View>
+            <Switch
+              value={autoMode}
+              onValueChange={toggleAutoMode}
+              trackColor={{ false: "#E0D5C0", true: colors.primary }}
+              thumbColor={autoMode ? "#FFFFFF" : "#f4f3f4"}
+            />
+          </View>
+
+          {/* Feed Amount Setting */}
+          <View style={[styles.settingRow, { borderColor: colors.border }]}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>
+              Amount per Dispense
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <TextInput
+                style={[
+                  styles.amountInput,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                    color: colors.text,
+                    width: 70,
+                  },
+                ]}
+                value={feedAmount}
+                onChangeText={setFeedAmount}
+                keyboardType="numeric"
+                editable={!autoMode}
+              />
+              <Text style={[styles.settingValue, { color: colors.textMuted }]}>
+                kg
+              </Text>
+            </View>
+          </View>
+
+          {/* Daily Target Setting */}
+          <View style={[styles.settingRow, { borderColor: colors.border }]}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>
+              Daily Target
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <TextInput
+                style={[
+                  styles.amountInput,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                    color: colors.text,
+                    width: 70,
+                  },
+                ]}
+                value={feedTarget}
+                onChangeText={setFeedTarget}
+                keyboardType="numeric"
+                editable={!autoMode}
+              />
+              <Text style={[styles.settingValue, { color: colors.textMuted }]}>
+                kg
+              </Text>
+            </View>
+          </View>
+
+          {/* Progress */}
+          <View style={styles.progressContainer}>
+            <View style={styles.progressHeader}>
+              <Text style={[styles.progressLabel, { color: colors.textMuted }]}>
+                Progress Today
+              </Text>
+              <Text style={[styles.progressText, { color: colors.text }]}>
+                {feedDispensed.toFixed(2)} / {target} kg
+              </Text>
+            </View>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${Math.min(progress, 100)}%`,
+                    backgroundColor:
+                      progress >= 100 ? colors.success : colors.primary,
+                  },
+                ]}
+              />
+            </View>
+            <Text style={[styles.progressPercent, { color: colors.textMuted }]}>
+              {progress.toFixed(0)}% complete
+            </Text>
+            <Text style={[styles.dispenseCount, { color: colors.textMuted }]}>
+              {dispenseCount} dispenses today
+            </Text>
+          </View>
+
+          {/* Manual Dispense Button */}
+          <TouchableOpacity
+            style={[
+              styles.dispenseBtn,
+              {
+                backgroundColor: colors.primary,
+                opacity: isAutoDispensing || autoMode ? 0.5 : 1,
+              },
+            ]}
+            onPress={handleDispenseFeed}
+            disabled={isAutoDispensing || autoMode}
+          >
+            <Text style={styles.dispenseBtnText}>
+              {isAutoDispensing ? "Dispensing..." : "Dispense Feed Now"}
+            </Text>
+          </TouchableOpacity>
+
+          {autoMode && (
+            <Text style={[styles.autoNote, { color: colors.warning }]}>
+              ⚠️ Auto mode is ON. Manual dispense is disabled.
+            </Text>
+          )}
+        </View>
+      </View>
+
       {/* Gate Position Indicator */}
       <View style={styles.section}>
         <View
@@ -301,62 +656,6 @@ const GateControlScreen = () => {
             </Text>
             <Text style={[styles.positionLabel, { color: colors.textMuted }]}>
               Open
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Info Section */}
-      <View style={styles.section}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            marginBottom: 12,
-          }}
-        >
-          <Ionicons
-            name="information-circle-outline"
-            size={20}
-            color={colors.textSecondary}
-            style={{ marginRight: 8 }}
-          />
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-            Gate Information
-          </Text>
-        </View>
-
-        <View
-          style={[
-            styles.infoCard,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
-              Status
-            </Text>
-            <Text style={[styles.infoValue, { color: colors.text }]}>
-              {gateStatus ? "Open" : "Closed"}
-            </Text>
-          </View>
-          <View style={[styles.infoRow, { borderColor: colors.border }]}>
-            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
-              Mode
-            </Text>
-            <Text style={[styles.infoValue, { color: colors.text }]}>
-              Manual
-            </Text>
-          </View>
-          <View style={[styles.infoRow, { borderColor: colors.border }]}>
-            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
-              Control
-            </Text>
-            <Text style={[styles.infoValue, { color: colors.text }]}>
-              Servo Motor
             </Text>
           </View>
         </View>
@@ -469,6 +768,104 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#FFFFFF",
+  },
+  // Auto Feed Styles
+  autoCard: {
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+  },
+  autoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
+  autoLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  autoDesc: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  settingRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  settingLabel: {
+    fontSize: 14,
+  },
+  settingValue: {
+    fontSize: 14,
+    marginLeft: 6,
+  },
+  amountInput: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderRadius: 6,
+    textAlign: "center",
+    fontSize: 14,
+  },
+  progressContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E0E0E0",
+  },
+  progressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  progressLabel: {
+    fontSize: 13,
+  },
+  progressText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  progressBar: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#E0E0E0",
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  progressPercent: {
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: "right",
+  },
+  dispenseCount: {
+    fontSize: 11,
+    marginTop: 2,
+    textAlign: "right",
+  },
+  dispenseBtn: {
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 12,
+  },
+  dispenseBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  autoNote: {
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: "center",
   },
   positionCard: {
     borderRadius: 12,
