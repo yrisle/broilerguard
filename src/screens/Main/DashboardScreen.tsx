@@ -15,11 +15,14 @@ import {
 } from "react-native";
 import { notifications, sensors } from "../../api/endpoints";
 import Card from "../../components/common/Card";
+import { useAutomation } from "../../context/AutomationContext";
 import { useTheme } from "../../hooks/useTheme";
 
 const DashboardScreen = () => {
   const { colors } = useTheme();
   const router = useRouter();
+  const { fanAutoMode, gateAutoMode, pumpAutoMode, lightAutoMode } =
+    useAutomation();
   const [stats, setStats] = useState({
     // Environmental Conditions
     temperature: 0,
@@ -145,12 +148,20 @@ const DashboardScreen = () => {
     fetchDashboard();
   };
 
+  // Helper function para sa device status
+  const getDeviceStatus = (physicalStatus: string, autoMode: boolean) => {
+    if (autoMode) return "AUTO";
+    return physicalStatus;
+  };
+
   const getStatusColor = (status: string, colors: any) => {
+    if (status === "AUTO") return colors.info;
     if (status === "OPEN") return colors.success;
     return status === "ON" ? colors.success : colors.danger;
   };
 
   const getStatusBgColor = (status: string, colors: any) => {
+    if (status === "AUTO") return colors.infoLight;
     if (status === "OPEN") return colors.successLight;
     return status === "ON" ? colors.successLight : colors.dangerLight;
   };
@@ -272,7 +283,7 @@ const DashboardScreen = () => {
       </View>
 
       {/* ============================================
-      DEVICE STATUS - ESP32 Devices
+      DEVICE STATUS - ESP32 Devices with Auto Mode Indicator
       ============================================ */}
       <View style={styles.section}>
         <View
@@ -314,7 +325,7 @@ const DashboardScreen = () => {
                       styles.statusIndicator,
                       {
                         backgroundColor: getStatusBgColor(
-                          stats.fanStatus,
+                          getDeviceStatus(stats.fanStatus, fanAutoMode),
                           colors,
                         ),
                       },
@@ -324,11 +335,14 @@ const DashboardScreen = () => {
                       style={[
                         styles.statusText,
                         {
-                          color: getStatusColor(stats.fanStatus, colors),
+                          color: getStatusColor(
+                            getDeviceStatus(stats.fanStatus, fanAutoMode),
+                            colors,
+                          ),
                         },
                       ]}
                     >
-                      {stats.fanStatus}
+                      {getDeviceStatus(stats.fanStatus, fanAutoMode)}
                     </Text>
                   </View>
                 </View>
@@ -356,7 +370,7 @@ const DashboardScreen = () => {
                       styles.statusIndicator,
                       {
                         backgroundColor: getStatusBgColor(
-                          stats.waterPump,
+                          getDeviceStatus(stats.waterPump, pumpAutoMode),
                           colors,
                         ),
                       },
@@ -366,11 +380,14 @@ const DashboardScreen = () => {
                       style={[
                         styles.statusText,
                         {
-                          color: getStatusColor(stats.waterPump, colors),
+                          color: getStatusColor(
+                            getDeviceStatus(stats.waterPump, pumpAutoMode),
+                            colors,
+                          ),
                         },
                       ]}
                     >
-                      {stats.waterPump}
+                      {getDeviceStatus(stats.waterPump, pumpAutoMode)}
                     </Text>
                   </View>
                 </View>
@@ -398,7 +415,7 @@ const DashboardScreen = () => {
                       styles.statusIndicator,
                       {
                         backgroundColor: getStatusBgColor(
-                          stats.lightStatus,
+                          getDeviceStatus(stats.lightStatus, lightAutoMode),
                           colors,
                         ),
                       },
@@ -408,11 +425,14 @@ const DashboardScreen = () => {
                       style={[
                         styles.statusText,
                         {
-                          color: getStatusColor(stats.lightStatus, colors),
+                          color: getStatusColor(
+                            getDeviceStatus(stats.lightStatus, lightAutoMode),
+                            colors,
+                          ),
                         },
                       ]}
                     >
-                      {stats.lightStatus}
+                      {getDeviceStatus(stats.lightStatus, lightAutoMode)}
                     </Text>
                   </View>
                 </View>
@@ -445,10 +465,10 @@ const DashboardScreen = () => {
                     style={[
                       styles.statusIndicator,
                       {
-                        backgroundColor:
-                          stats.gateStatus === "OPEN"
-                            ? colors.successLight
-                            : colors.dangerLight,
+                        backgroundColor: getStatusBgColor(
+                          getDeviceStatus(stats.gateStatus, gateAutoMode),
+                          colors,
+                        ),
                       },
                     ]}
                   >
@@ -456,14 +476,14 @@ const DashboardScreen = () => {
                       style={[
                         styles.statusText,
                         {
-                          color:
-                            stats.gateStatus === "OPEN"
-                              ? colors.success
-                              : colors.danger,
+                          color: getStatusColor(
+                            getDeviceStatus(stats.gateStatus, gateAutoMode),
+                            colors,
+                          ),
                         },
                       ]}
                     >
-                      {stats.gateStatus}
+                      {getDeviceStatus(stats.gateStatus, gateAutoMode)}
                     </Text>
                   </View>
                 </View>

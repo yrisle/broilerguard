@@ -182,6 +182,8 @@ const LightControlScreen = () => {
   // TOGGLE LIGHT
   // ============================================
   const toggleLight = async () => {
+    if (lightAutoMode) return; // Block manual control when auto mode is on
+
     const newStatus = lightStatus === "ON" ? "OFF" : "ON";
     try {
       console.log("🔄 Toggling light to:", newStatus);
@@ -204,7 +206,7 @@ const LightControlScreen = () => {
     if (newMode) {
       Alert.alert(
         "🤖 Auto Mode Enabled",
-        `Light will turn ON at ${onTime} and OFF at ${offTime}.`,
+        `Light will turn ON at ${onTime} and OFF at ${offTime}.\n\n🔒 Manual controls are now disabled.`,
         [{ text: "OK" }],
       );
       await automationScheduler.startLightScheduler();
@@ -372,13 +374,33 @@ const LightControlScreen = () => {
             lightStatus === "ON"
               ? [styles.toggleOn, { backgroundColor: colors.danger }]
               : [styles.toggleOff, { backgroundColor: colors.success }],
+            lightAutoMode && styles.disabledBtn,
           ]}
           onPress={toggleLight}
+          disabled={lightAutoMode}
         >
           <Text style={styles.toggleBtnText}>
-            {lightStatus === "ON" ? "Turn OFF" : "Turn ON"}
+            {lightAutoMode
+              ? "🔒 Auto Mode ON"
+              : lightStatus === "ON"
+                ? "Turn OFF"
+                : "Turn ON"}
           </Text>
         </TouchableOpacity>
+
+        {lightAutoMode && (
+          <View
+            style={[
+              styles.autoIndicator,
+              { backgroundColor: colors.successLight },
+            ]}
+          >
+            <Ionicons name="lock-closed" size={14} color={colors.success} />
+            <Text style={[styles.autoIndicatorText, { color: colors.success }]}>
+              Auto Mode Active - Manual control disabled
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Auto Mode Section */}
@@ -512,6 +534,19 @@ const LightControlScreen = () => {
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
             Quick Actions
           </Text>
+          {lightAutoMode && (
+            <View
+              style={[
+                styles.lockBadge,
+                { backgroundColor: colors.warningLight, marginLeft: 8 },
+              ]}
+            >
+              <Ionicons name="lock-closed" size={12} color={colors.warning} />
+              <Text style={[styles.lockBadgeText, { color: colors.warning }]}>
+                Locked
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.actionRow}>
@@ -521,13 +556,13 @@ const LightControlScreen = () => {
               styles.actionOn,
               {
                 backgroundColor: colors.success,
-                opacity: lightStatus === "ON" ? 0.5 : 1,
+                opacity: lightStatus === "ON" || lightAutoMode ? 0.5 : 1,
               },
             ]}
             onPress={() => {
-              if (lightStatus !== "ON") toggleLight();
+              if (lightStatus !== "ON" && !lightAutoMode) toggleLight();
             }}
-            disabled={lightStatus === "ON"}
+            disabled={lightStatus === "ON" || lightAutoMode}
           >
             <Ionicons name="power" size={24} color="#FFFFFF" />
             <Text style={styles.actionBtnText}>Turn ON</Text>
@@ -539,18 +574,24 @@ const LightControlScreen = () => {
               styles.actionOff,
               {
                 backgroundColor: colors.danger,
-                opacity: lightStatus === "OFF" ? 0.5 : 1,
+                opacity: lightStatus === "OFF" || lightAutoMode ? 0.5 : 1,
               },
             ]}
             onPress={() => {
-              if (lightStatus !== "OFF") toggleLight();
+              if (lightStatus !== "OFF" && !lightAutoMode) toggleLight();
             }}
-            disabled={lightStatus === "OFF"}
+            disabled={lightStatus === "OFF" || lightAutoMode}
           >
             <Ionicons name="power-outline" size={24} color="#FFFFFF" />
             <Text style={styles.actionBtnText}>Turn OFF</Text>
           </TouchableOpacity>
         </View>
+
+        {lightAutoMode && (
+          <Text style={[styles.lockedMessage, { color: colors.warning }]}>
+            🔒 Manual light controls are locked while Auto Mode is ON
+          </Text>
+        )}
       </View>
 
       <View style={styles.footer} />
@@ -662,6 +703,40 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: "#FFFFFF",
+  },
+  disabledBtn: {
+    opacity: 0.5,
+  },
+  autoIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 8,
+  },
+  autoIndicatorText: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 6,
+  },
+  lockBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  lockBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+  lockedMessage: {
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 8,
+    fontStyle: "italic",
   },
   autoCard: {
     borderRadius: 12,

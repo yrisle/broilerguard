@@ -157,6 +157,8 @@ function FanControlScreen() {
   // TOGGLE FAN
   // ============================================
   const toggleFan = async () => {
+    if (fanAutoMode) return; // Block manual control when auto mode is on
+
     const newStatus = fanStatus === "ON" ? "OFF" : "ON";
     try {
       console.log("🔄 Toggling fan to:", newStatus);
@@ -179,7 +181,7 @@ function FanControlScreen() {
     if (newMode) {
       Alert.alert(
         "🤖 Auto Mode Enabled",
-        `Fan will turn ON when temperature reaches ${settings.temp_on}°C and OFF when it drops below ${settings.temp_off}°C.`,
+        `Fan will turn ON when temperature reaches ${settings.temp_on}°C and OFF when it drops below ${settings.temp_off}°C.\n\n🔒 Manual controls are now disabled.`,
         [{ text: "OK" }],
       );
       await automationScheduler.startFanScheduler();
@@ -321,13 +323,33 @@ function FanControlScreen() {
             fanStatus === "ON"
               ? [styles.toggleOn, { backgroundColor: colors.danger }]
               : [styles.toggleOff, { backgroundColor: colors.success }],
+            fanAutoMode && styles.disabledBtn,
           ]}
           onPress={toggleFan}
+          disabled={fanAutoMode}
         >
           <Text style={styles.toggleBtnText}>
-            {fanStatus === "ON" ? "Turn OFF" : "Turn ON"}
+            {fanAutoMode
+              ? "🔒 Auto Mode ON"
+              : fanStatus === "ON"
+                ? "Turn OFF"
+                : "Turn ON"}
           </Text>
         </TouchableOpacity>
+
+        {fanAutoMode && (
+          <View
+            style={[
+              styles.autoIndicator,
+              { backgroundColor: colors.successLight },
+            ]}
+          >
+            <Ionicons name="lock-closed" size={14} color={colors.success} />
+            <Text style={[styles.autoIndicatorText, { color: colors.success }]}>
+              Auto Mode Active - Manual control disabled
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Automation Settings */}
@@ -655,6 +677,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#FFFFFF",
+  },
+  disabledBtn: {
+    opacity: 0.5,
+  },
+  autoIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 8,
+  },
+  autoIndicatorText: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 6,
   },
   section: {
     paddingHorizontal: 16,

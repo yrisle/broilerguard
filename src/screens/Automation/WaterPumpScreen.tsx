@@ -139,6 +139,8 @@ function WaterPumpScreen() {
   // TOGGLE PUMP
   // ============================================
   const togglePump = async () => {
+    if (pumpAutoMode) return; // Block manual control when auto mode is on
+
     const newStatus = pumpStatus === "ON" ? "OFF" : "ON";
     try {
       console.log("🔄 Toggling pump to:", newStatus);
@@ -155,6 +157,8 @@ function WaterPumpScreen() {
   // MANUAL WATER RELEASE
   // ============================================
   const handleWaterRelease = async (duration: number) => {
+    if (pumpAutoMode) return; // Block manual release when auto mode is on
+
     try {
       console.log("🔄 Releasing water for:", duration, "seconds");
       await automation.pump.release(duration);
@@ -177,7 +181,7 @@ function WaterPumpScreen() {
     if (newMode) {
       Alert.alert(
         "🤖 Auto Mode Enabled",
-        `Water will be dispensed automatically.\n\nAmount per dispense: ${dispenseAmount} L every 30 minutes`,
+        `Water will be dispensed automatically.\n\nAmount per dispense: ${dispenseAmount} L every 30 minutes\n\n🔒 Manual controls are now disabled.`,
         [{ text: "OK" }],
       );
       await automationScheduler.startPumpScheduler();
@@ -298,13 +302,33 @@ function WaterPumpScreen() {
             pumpStatus === "ON"
               ? [styles.toggleOn, { backgroundColor: colors.danger }]
               : [styles.toggleOff, { backgroundColor: colors.success }],
+            pumpAutoMode && styles.disabledBtn,
           ]}
           onPress={togglePump}
+          disabled={pumpAutoMode}
         >
           <Text style={styles.toggleBtnText}>
-            {pumpStatus === "ON" ? "Stop Pump" : "Start Pump"}
+            {pumpAutoMode
+              ? "🔒 Auto Mode ON"
+              : pumpStatus === "ON"
+                ? "Stop Pump"
+                : "Start Pump"}
           </Text>
         </TouchableOpacity>
+
+        {pumpAutoMode && (
+          <View
+            style={[
+              styles.autoIndicator,
+              { backgroundColor: colors.successLight },
+            ]}
+          >
+            <Ionicons name="lock-closed" size={14} color={colors.success} />
+            <Text style={[styles.autoIndicatorText, { color: colors.success }]}>
+              Auto Mode Active - Manual control disabled
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Water Level */}
@@ -431,6 +455,19 @@ function WaterPumpScreen() {
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
             Manual Release
           </Text>
+          {pumpAutoMode && (
+            <View
+              style={[
+                styles.lockBadge,
+                { backgroundColor: colors.warningLight, marginLeft: 8 },
+              ]}
+            >
+              <Ionicons name="lock-closed" size={12} color={colors.warning} />
+              <Text style={[styles.lockBadgeText, { color: colors.warning }]}>
+                Locked
+              </Text>
+            </View>
+          )}
         </View>
         <View style={styles.releaseButtons}>
           {[15, 30, 60].map((seconds) => {
@@ -442,9 +479,11 @@ function WaterPumpScreen() {
                   styles.releaseBtn,
                   {
                     backgroundColor: colors.info,
+                    opacity: pumpAutoMode ? 0.5 : 1,
                   },
                 ]}
                 onPress={() => handleWaterRelease(seconds)}
+                disabled={pumpAutoMode}
               >
                 <Text style={styles.releaseBtnText}>{seconds}s</Text>
                 <Text style={styles.releaseSubtext}>{amount} L</Text>
@@ -460,6 +499,7 @@ function WaterPumpScreen() {
                 backgroundColor: colors.card,
                 borderColor: colors.border,
                 color: colors.text,
+                opacity: pumpAutoMode ? 0.5 : 1,
               },
             ]}
             value={customDuration}
@@ -467,19 +507,27 @@ function WaterPumpScreen() {
             keyboardType="numeric"
             placeholder="30"
             placeholderTextColor={colors.textMuted}
+            editable={!pumpAutoMode}
           />
           <TouchableOpacity
             style={[
               styles.customBtn,
               {
                 backgroundColor: colors.info,
+                opacity: pumpAutoMode ? 0.5 : 1,
               },
             ]}
             onPress={() => handleWaterRelease(parseInt(customDuration) || 30)}
+            disabled={pumpAutoMode}
           >
             <Text style={styles.customBtnText}>Release</Text>
           </TouchableOpacity>
         </View>
+        {pumpAutoMode && (
+          <Text style={[styles.lockedMessage, { color: colors.warning }]}>
+            🔒 Manual water release is locked while Auto Mode is ON
+          </Text>
+        )}
       </View>
 
       {/* Recent Activity */}
@@ -649,6 +697,22 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
   },
+  disabledBtn: {
+    opacity: 0.5,
+  },
+  autoIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 8,
+  },
+  autoIndicatorText: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 6,
+  },
   levelCard: {
     borderRadius: 16,
     padding: 20,
@@ -757,6 +821,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 0,
+  },
+  lockBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  lockBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+  lockedMessage: {
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 8,
+    fontStyle: "italic",
   },
   releaseButtons: {
     flexDirection: "row",

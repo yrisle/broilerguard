@@ -216,7 +216,7 @@ const GateControlScreen = () => {
   // MANUAL GATE CONTROL
   // ============================================
   const handleToggleGate = async () => {
-    if (isToggling || gateAutoMode) return;
+    if (isToggling || gateAutoMode) return; // Block manual control when auto mode is on
     setIsToggling(true);
 
     try {
@@ -226,6 +226,40 @@ const GateControlScreen = () => {
     } catch (error: any) {
       console.error("❌ Toggle gate error:", error);
       Alert.alert("Error", "Failed to toggle gate. Please try again.");
+    } finally {
+      setIsToggling(false);
+    }
+  };
+
+  const handleOpenGate = async () => {
+    if (isToggling || gateAutoMode) return; // Block manual control when auto mode is on
+    setIsToggling(true);
+
+    try {
+      console.log("🔄 Opening gate...");
+      await automation.gate.open();
+      setGateStatus(true);
+      await fetchData();
+    } catch (error: any) {
+      console.error("❌ Open gate error:", error);
+      Alert.alert("Error", "Failed to open gate. Please try again.");
+    } finally {
+      setIsToggling(false);
+    }
+  };
+
+  const handleCloseGate = async () => {
+    if (isToggling || gateAutoMode) return; // Block manual control when auto mode is on
+    setIsToggling(true);
+
+    try {
+      console.log("🔄 Closing gate...");
+      await automation.gate.close();
+      setGateStatus(false);
+      await fetchData();
+    } catch (error: any) {
+      console.error("❌ Close gate error:", error);
+      Alert.alert("Error", "Failed to close gate. Please try again.");
     } finally {
       setIsToggling(false);
     }
@@ -297,7 +331,7 @@ const GateControlScreen = () => {
   // AUTO FEED DISPENSING
   // ============================================
   const handleDispenseFeed = async () => {
-    if (isAutoDispensing || gateAutoMode) return;
+    if (isAutoDispensing || gateAutoMode) return; // Block manual dispense when auto mode is on
     setIsAutoDispensing(true);
 
     try {
@@ -584,11 +618,85 @@ const GateControlScreen = () => {
               { backgroundColor: colors.successLight },
             ]}
           >
-            <Ionicons name="rocket-outline" size={16} color={colors.success} />
+            <Ionicons name="lock-closed" size={14} color={colors.success} />
             <Text style={[styles.autoIndicatorText, { color: colors.success }]}>
               Auto Mode Active - Manual controls disabled
             </Text>
           </View>
+        )}
+      </View>
+
+      {/* Quick Action Buttons */}
+      <View style={styles.section}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons
+            name="flash-outline"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Quick Actions
+          </Text>
+          {gateAutoMode && (
+            <View
+              style={[
+                styles.lockBadge,
+                { backgroundColor: colors.warningLight, marginLeft: 8 },
+              ]}
+            >
+              <Ionicons name="lock-closed" size={12} color={colors.warning} />
+              <Text style={[styles.lockBadgeText, { color: colors.warning }]}>
+                Locked
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={[
+              styles.actionBtn,
+              styles.actionOpen,
+              {
+                backgroundColor: colors.success,
+                opacity: gateStatus || isToggling || gateAutoMode ? 0.5 : 1,
+              },
+            ]}
+            onPress={handleOpenGate}
+            disabled={gateStatus || isToggling || gateAutoMode}
+          >
+            <FontAwesome5 name="door-open" size={24} color="#FFFFFF" />
+            <Text style={styles.actionBtnText}>Open</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.actionBtn,
+              styles.actionClose,
+              {
+                backgroundColor: colors.danger,
+                opacity: !gateStatus || isToggling || gateAutoMode ? 0.5 : 1,
+              },
+            ]}
+            onPress={handleCloseGate}
+            disabled={!gateStatus || isToggling || gateAutoMode}
+          >
+            <FontAwesome5 name="door-closed" size={24} color="#FFFFFF" />
+            <Text style={styles.actionBtnText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+
+        {gateAutoMode && (
+          <Text style={[styles.lockedMessage, { color: colors.warning }]}>
+            🔒 Manual gate controls are locked while Auto Mode is ON
+          </Text>
         )}
       </View>
 
@@ -1020,6 +1128,24 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 6,
   },
+  lockBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  lockBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+  lockedMessage: {
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 8,
+    fontStyle: "italic",
+  },
   section: {
     paddingHorizontal: 16,
     marginBottom: 16,
@@ -1028,6 +1154,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 0,
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  actionBtn: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  actionOpen: {},
+  actionClose: {},
+  actionBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   autoCard: {
     borderRadius: 12,
