@@ -2,6 +2,7 @@
 
 import { FontAwesome5 } from "@expo/vector-icons";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -18,6 +19,9 @@ import {
 import { automation } from "../../api/endpoints";
 import { useTheme } from "../../hooks/useTheme";
 
+const PUMP_AUTO_MODE_KEY = "@pump_auto_mode";
+const PUMP_DISPENSE_AMOUNT_KEY = "@pump_dispense_amount";
+
 function WaterPumpScreen() {
   const { colors } = useTheme();
   const [pumpStatus, setPumpStatus] = useState("OFF");
@@ -27,7 +31,7 @@ function WaterPumpScreen() {
   const [customDuration, setCustomDuration] = useState("30");
   const [waterLevel, setWaterLevel] = useState(60);
   const [capacity, setCapacity] = useState(2000);
-  const [dispenseAmount, setDispenseAmount] = useState("10"); // Liters to dispense
+  const [dispenseAmount, setDispenseAmount] = useState("10");
   const [isAutoDispensing, setIsAutoDispensing] = useState(false);
   const [currentTime, setCurrentTime] = useState("");
 
@@ -35,7 +39,7 @@ function WaterPumpScreen() {
   const timeIntervalRef = useRef<number | null>(null);
 
   // ============================================
-  // PHILIPPINE TIME (UTC+8)
+  // PHILIPPINE TIME
   // ============================================
   const getPhilippineTime = (): Date => {
     const now = new Date();
@@ -55,7 +59,41 @@ function WaterPumpScreen() {
     );
   };
 
-  // Fetch data from ESP32
+  // ============================================
+  // SAVE & LOAD AUTO MODE STATE
+  // ============================================
+  const saveAutoModeState = async () => {
+    try {
+      await AsyncStorage.setItem(PUMP_AUTO_MODE_KEY, JSON.stringify(autoMode));
+      await AsyncStorage.setItem(PUMP_DISPENSE_AMOUNT_KEY, dispenseAmount);
+      console.log("✅ Pump auto mode saved:", autoMode);
+    } catch (error) {
+      console.log("Error saving pump auto mode:", error);
+    }
+  };
+
+  const loadAutoModeState = async () => {
+    try {
+      const autoMode = await AsyncStorage.getItem(PUMP_AUTO_MODE_KEY);
+      const amount = await AsyncStorage.getItem(PUMP_DISPENSE_AMOUNT_KEY);
+
+      if (autoMode !== null) {
+        const isAuto = JSON.parse(autoMode);
+        setAutoMode(isAuto);
+        if (amount) setDispenseAmount(amount);
+        console.log("✅ Pump auto mode loaded:", isAuto);
+        return isAuto;
+      }
+      return false;
+    } catch (error) {
+      console.log("Error loading pump auto mode:", error);
+      return false;
+    }
+  };
+
+  // ============================================
+  // FETCH DATA
+  // ============================================
   const fetchData = async () => {
     try {
       console.log("📥 Fetching pump data from ESP32...");
@@ -81,10 +119,25 @@ function WaterPumpScreen() {
     }
   };
 
+  // ============================================
+  // INIT - Load auto mode state on mount
+  // ============================================
   useEffect(() => {
-    fetchData();
-    updateCurrentTime();
-    timeIntervalRef.current = setInterval(updateCurrentTime, 1000);
+    const init = async () => {
+      const isAuto = await loadAutoModeState();
+      await fetchData();
+      updateCurrentTime();
+
+      timeIntervalRef.current = setInterval(updateCurrentTime, 1000);
+
+      if (isAuto) {
+        console.log("🔄 Restarting pump auto scheduler...");
+        startScheduler();
+      }
+    };
+
+    init();
+
     return () => {
       if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
     };
@@ -95,12 +148,10 @@ function WaterPumpScreen() {
     fetchData();
   };
 
-  // Toggle Pump ON/OFF
+  // ============================================
+  // TOGGLE PUMP
+  // ============================================
   const togglePump = async () => {
-    if (autoMode) {
-      Alert.alert("Auto Mode ON", "Manual control is disabled in Auto Mode.");
-      return;
-    }
     const newStatus = pumpStatus === "ON" ? "OFF" : "ON";
     try {
       console.log("🔄 Toggling pump to:", newStatus);
@@ -113,12 +164,10 @@ function WaterPumpScreen() {
     }
   };
 
-  // Release Water (for manual watering)
+  // ============================================
+  // MANUAL WATER RELEASE
+  // ============================================
   const handleWaterRelease = async (duration: number) => {
-    if (autoMode) {
-      Alert.alert("Auto Mode ON", "Manual control is disabled in Auto Mode.");
-      return;
-    }
     try {
       console.log("🔄 Releasing water for:", duration, "seconds");
       await automation.pump.release(duration);
@@ -132,16 +181,17 @@ function WaterPumpScreen() {
   };
 
   // ============================================
-  // AUTO MODE - Dispense specific amount of water
+  // TOGGLE AUTO MODE
   // ============================================
-  const toggleAutoMode = () => {
+  const toggleAutoMode = async () => {
     const newMode = !autoMode;
     setAutoMode(newMode);
+    await saveAutoModeState();
 
     if (newMode) {
       Alert.alert(
         "🤖 Auto Mode Enabled",
-        `Water will be dispensed automatically.\n\nAmount per dispense: ${dispenseAmount} L\n\n🔒 Manual pump controls are now disabled.`,
+        `Water will be dispensed automatically.\n\nAmount per dispense: ${dispenseAmount} L every 30 minutes`,
         [{ text: "OK" }],
       );
       startScheduler();
@@ -156,7 +206,9 @@ function WaterPumpScreen() {
     }
   };
 
-  // Auto dispense water
+  // ============================================
+  // AUTO DISPENSE WATER
+  // ============================================
   const handleAutoDispense = async () => {
     if (isAutoDispensing || !autoMode) return;
     setIsAutoDispensing(true);
@@ -165,9 +217,8 @@ function WaterPumpScreen() {
       const amount = parseFloat(dispenseAmount) || 10;
       console.log(`🔄 Auto dispensing ${amount} L of water...`);
 
-      await automation.pump.release(amount * 2); // Convert to seconds
+      await automation.pump.release(amount * 2);
       Alert.alert("💧 Auto Dispense", `Dispensed ${amount} L of water`);
-
       fetchData();
     } catch (error: any) {
       console.error("❌ Auto dispense error:", error);
@@ -176,6 +227,9 @@ function WaterPumpScreen() {
     }
   };
 
+  // ============================================
+  // AUTO SCHEDULER
+  // ============================================
   const startScheduler = () => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -188,19 +242,17 @@ function WaterPumpScreen() {
       const now = getPhilippineTime();
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-      // Check every 30 minutes (0 and 30 minutes mark)
       if (currentMinutes % 30 === 0 && now.getSeconds() < 5) {
         console.log(`⏰ Auto dispense triggered at ${currentTime}`);
         handleAutoDispense();
       }
-    }, 10000); // Check every 10 seconds
+    }, 10000);
   };
 
   // Cleanup interval on unmount
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
     };
   }, []);
 
@@ -306,8 +358,7 @@ function WaterPumpScreen() {
         >
           {pumpStatus === "ON" ? "RUNNING" : "STOPPED"}
         </Text>
-        // src/screens/Automation/WaterPumpScreen.tsx // ✅ I-update ang toggle
-        button - dapat pwedeng i-click ang OFF kahit ON ang status
+
         <TouchableOpacity
           style={[
             styles.toggleBtn,
@@ -316,8 +367,6 @@ function WaterPumpScreen() {
               : [styles.toggleOff, { backgroundColor: colors.success }],
           ]}
           onPress={togglePump}
-          // ❌ REMOVE: disabled={pumpStatus === "ON"}
-          // ✅ Always enabled para pwedeng i-click ang OFF
         >
           <Text style={styles.toggleBtnText}>
             {pumpStatus === "ON" ? "Stop Pump" : "Start Pump"}
@@ -397,7 +446,6 @@ function WaterPumpScreen() {
           />
         </View>
 
-        {/* Dispense Amount Setting */}
         <View style={[styles.settingRow, { borderColor: colors.border }]}>
           <Text style={[styles.settingLabel, { color: colors.text }]}>
             Dispense Amount
@@ -414,7 +462,10 @@ function WaterPumpScreen() {
                 },
               ]}
               value={dispenseAmount}
-              onChangeText={setDispenseAmount}
+              onChangeText={(text) => {
+                setDispenseAmount(text);
+                saveAutoModeState();
+              }}
               keyboardType="numeric"
               editable={true}
             />
@@ -447,19 +498,6 @@ function WaterPumpScreen() {
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
             Manual Release
           </Text>
-          {autoMode && (
-            <View
-              style={[
-                styles.lockBadge,
-                { backgroundColor: colors.warningLight, marginLeft: 8 },
-              ]}
-            >
-              <Ionicons name="lock-closed" size={12} color={colors.warning} />
-              <Text style={[styles.lockBadgeText, { color: colors.warning }]}>
-                Locked
-              </Text>
-            </View>
-          )}
         </View>
         <View style={styles.releaseButtons}>
           {[15, 30, 60].map((seconds) => {
@@ -471,11 +509,9 @@ function WaterPumpScreen() {
                   styles.releaseBtn,
                   {
                     backgroundColor: colors.info,
-                    opacity: autoMode ? 0.5 : 1,
                   },
                 ]}
                 onPress={() => handleWaterRelease(seconds)}
-                disabled={autoMode}
               >
                 <Text style={styles.releaseBtnText}>{seconds}s</Text>
                 <Text style={styles.releaseSubtext}>{amount} L</Text>
@@ -491,7 +527,6 @@ function WaterPumpScreen() {
                 backgroundColor: colors.card,
                 borderColor: colors.border,
                 color: colors.text,
-                opacity: autoMode ? 0.5 : 1,
               },
             ]}
             value={customDuration}
@@ -499,27 +534,19 @@ function WaterPumpScreen() {
             keyboardType="numeric"
             placeholder="30"
             placeholderTextColor={colors.textMuted}
-            editable={!autoMode}
           />
           <TouchableOpacity
             style={[
               styles.customBtn,
               {
                 backgroundColor: colors.info,
-                opacity: autoMode ? 0.5 : 1,
               },
             ]}
             onPress={() => handleWaterRelease(parseInt(customDuration) || 30)}
-            disabled={autoMode}
           >
             <Text style={styles.customBtnText}>Release</Text>
           </TouchableOpacity>
         </View>
-        {autoMode && (
-          <Text style={[styles.lockedMessage, { color: colors.warning }]}>
-            🔒 Manual release is locked while Auto Mode is ON
-          </Text>
-        )}
       </View>
 
       {/* Recent Activity */}
@@ -680,9 +707,6 @@ const styles = StyleSheet.create({
   },
   toggleOn: {},
   toggleOff: {},
-  disabledBtn: {
-    opacity: 0.5,
-  },
   toggleBtnText: {
     fontSize: 16,
     fontWeight: "700",
@@ -796,24 +820,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 0,
-  },
-  lockBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  lockBadgeText: {
-    fontSize: 10,
-    fontWeight: "600",
-    marginLeft: 4,
-  },
-  lockedMessage: {
-    fontSize: 12,
-    textAlign: "center",
-    marginTop: 8,
-    fontStyle: "italic",
   },
   releaseButtons: {
     flexDirection: "row",

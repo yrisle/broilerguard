@@ -1,6 +1,7 @@
 // src/screens/Main/LightControlScreen.tsx
 
 import Ionicons from "@expo/vector-icons/Ionicons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -17,6 +18,10 @@ import {
 } from "react-native";
 import { automation } from "../../api/endpoints";
 import { useTheme } from "../../hooks/useTheme";
+
+const LIGHT_AUTO_MODE_KEY = "@light_auto_mode";
+const LIGHT_ON_TIME_KEY = "@light_on_time";
+const LIGHT_OFF_TIME_KEY = "@light_off_time";
 
 const LightControlScreen = () => {
   const { colors } = useTheme();
@@ -35,7 +40,7 @@ const LightControlScreen = () => {
   const timeIntervalRef = useRef<number | null>(null);
 
   // ============================================
-  // PHILIPPINE TIME (UTC+8)
+  // PHILIPPINE TIME
   // ============================================
   const getPhilippineTime = (): Date => {
     const now = new Date();
@@ -126,7 +131,44 @@ const LightControlScreen = () => {
     return hours * 60 + minutes;
   };
 
-  // Fetch light status from ESP32
+  // ============================================
+  // SAVE & LOAD AUTO MODE STATE
+  // ============================================
+  const saveAutoModeState = async () => {
+    try {
+      await AsyncStorage.setItem(LIGHT_AUTO_MODE_KEY, JSON.stringify(autoMode));
+      await AsyncStorage.setItem(LIGHT_ON_TIME_KEY, onTime);
+      await AsyncStorage.setItem(LIGHT_OFF_TIME_KEY, offTime);
+      console.log("✅ Light auto mode saved:", autoMode);
+    } catch (error) {
+      console.log("Error saving light auto mode:", error);
+    }
+  };
+
+  const loadAutoModeState = async () => {
+    try {
+      const autoMode = await AsyncStorage.getItem(LIGHT_AUTO_MODE_KEY);
+      const on = await AsyncStorage.getItem(LIGHT_ON_TIME_KEY);
+      const off = await AsyncStorage.getItem(LIGHT_OFF_TIME_KEY);
+
+      if (autoMode !== null) {
+        const isAuto = JSON.parse(autoMode);
+        setAutoMode(isAuto);
+        if (on) setOnTime(on);
+        if (off) setOffTime(off);
+        console.log("✅ Light auto mode loaded:", isAuto);
+        return isAuto;
+      }
+      return false;
+    } catch (error) {
+      console.log("Error loading light auto mode:", error);
+      return false;
+    }
+  };
+
+  // ============================================
+  // FETCH DATA
+  // ============================================
   const fetchData = async () => {
     try {
       console.log("📥 Fetching light data from ESP32...");
@@ -148,10 +190,25 @@ const LightControlScreen = () => {
     }
   };
 
+  // ============================================
+  // INIT - Load auto mode state on mount
+  // ============================================
   useEffect(() => {
-    fetchData();
-    updateCurrentTime();
-    timeIntervalRef.current = setInterval(updateCurrentTime, 1000);
+    const init = async () => {
+      const isAuto = await loadAutoModeState();
+      await fetchData();
+      updateCurrentTime();
+
+      timeIntervalRef.current = setInterval(updateCurrentTime, 1000);
+
+      if (isAuto) {
+        console.log("🔄 Restarting light auto scheduler...");
+        startTimeScheduler();
+      }
+    };
+
+    init();
+
     return () => {
       if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
     };
@@ -162,12 +219,10 @@ const LightControlScreen = () => {
     fetchData();
   };
 
-  // Toggle Light ON/OFF
+  // ============================================
+  // TOGGLE LIGHT
+  // ============================================
   const toggleLight = async () => {
-    if (autoMode) {
-      Alert.alert("Auto Mode ON", "Manual control is disabled in Auto Mode.");
-      return;
-    }
     const newStatus = lightStatus === "ON" ? "OFF" : "ON";
     try {
       console.log("🔄 Toggling light to:", newStatus);
@@ -181,16 +236,17 @@ const LightControlScreen = () => {
   };
 
   // ============================================
-  // AUTO MODE - On/Off based on time
+  // TOGGLE AUTO MODE
   // ============================================
-  const toggleAutoMode = () => {
+  const toggleAutoMode = async () => {
     const newMode = !autoMode;
     setAutoMode(newMode);
+    await saveAutoModeState();
 
     if (newMode) {
       Alert.alert(
         "🤖 Auto Mode Enabled",
-        `Light will turn ON at ${onTime} and OFF at ${offTime}.\n\n🔒 Manual controls are now disabled.`,
+        `Light will turn ON at ${onTime} and OFF at ${offTime}.`,
         [{ text: "OK" }],
       );
       startTimeScheduler();
@@ -206,7 +262,7 @@ const LightControlScreen = () => {
   };
 
   // ============================================
-  // TIME-BASED AUTO SCHEDULER - FIXED
+  // TIME-BASED AUTO SCHEDULER
   // ============================================
   const startTimeScheduler = () => {
     if (intervalRef.current) {
@@ -221,28 +277,17 @@ const LightControlScreen = () => {
       const onMin = getTimeMinutes(onTime);
       const offMin = getTimeMinutes(offTime);
 
-      console.log(
-        `⏰ Auto check: ${currentTime} | ON at ${onTime} (${onMin}) | OFF at ${offTime} (${offMin})`,
-      );
-
-      // ✅ FIXED: Determine if light should be ON
       let shouldBeOn = false;
 
-      // Check if ON time is before OFF time (e.g., 7:00 PM to 6:00 AM)
       if (onMin < offMin) {
-        // If current time is between ON and OFF, light should be ON
         if (currentMin >= onMin && currentMin < offMin) {
           shouldBeOn = true;
         }
       } else {
-        // ON time is after OFF time (e.g., 6:00 AM to 7:00 PM)
-        // If current time is before ON or after OFF, light should be ON
         if (currentMin >= onMin || currentMin < offMin) {
           shouldBeOn = true;
         }
       }
-
-      console.log(`💡 Should be ON: ${shouldBeOn}, Current: ${lightStatus}`);
 
       if (shouldBeOn && lightStatus === "OFF") {
         console.log(`💡 Turning Light ON at ${currentTime}`);
@@ -263,11 +308,13 @@ const LightControlScreen = () => {
           console.error("❌ Error turning light OFF:", error);
         }
       }
-    }, 10000); // Check every 10 seconds
+    }, 10000);
   };
 
-  // Update ON time
-  const updateOnTime = () => {
+  // ============================================
+  // UPDATE TIMES
+  // ============================================
+  const updateOnTime = async () => {
     if (!newOnTime.trim()) {
       Alert.alert("Error", "Please enter a time (e.g., 7:00 PM)");
       return;
@@ -286,10 +333,10 @@ const LightControlScreen = () => {
     const formattedTime = formatTimeDisplay(hours, minutes, period);
     setOnTime(formattedTime);
     setNewOnTime("");
+    await saveAutoModeState();
   };
 
-  // Update OFF time
-  const updateOffTime = () => {
+  const updateOffTime = async () => {
     if (!newOffTime.trim()) {
       Alert.alert("Error", "Please enter a time (e.g., 6:00 AM)");
       return;
@@ -308,13 +355,13 @@ const LightControlScreen = () => {
     const formattedTime = formatTimeDisplay(hours, minutes, period);
     setOffTime(formattedTime);
     setNewOffTime("");
+    await saveAutoModeState();
   };
 
   // Cleanup interval on unmount
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
     };
   }, []);
 
@@ -420,8 +467,7 @@ const LightControlScreen = () => {
         >
           {lightStatus === "ON" ? "ON" : "OFF"}
         </Text>
-        // src/screens/Main/LightControlScreen.tsx // ✅ I-update ang toggle
-        button - dapat pwedeng i-click ang OFF kahit ON ang status
+
         <TouchableOpacity
           style={[
             styles.toggleBtn,
@@ -430,8 +476,6 @@ const LightControlScreen = () => {
               : [styles.toggleOff, { backgroundColor: colors.success }],
           ]}
           onPress={toggleLight}
-          // ❌ REMOVE: disabled={lightStatus === "ON"}
-          // ✅ Always enabled para pwedeng i-click ang OFF
         >
           <Text style={styles.toggleBtnText}>
             {lightStatus === "ON" ? "Turn OFF" : "Turn ON"}
@@ -570,19 +614,6 @@ const LightControlScreen = () => {
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
             Quick Actions
           </Text>
-          {autoMode && (
-            <View
-              style={[
-                styles.lockBadge,
-                { backgroundColor: colors.warningLight, marginLeft: 8 },
-              ]}
-            >
-              <Ionicons name="lock-closed" size={12} color={colors.warning} />
-              <Text style={[styles.lockBadgeText, { color: colors.warning }]}>
-                Locked
-              </Text>
-            </View>
-          )}
         </View>
 
         <View style={styles.actionRow}>
@@ -592,13 +623,13 @@ const LightControlScreen = () => {
               styles.actionOn,
               {
                 backgroundColor: colors.success,
-                opacity: lightStatus === "ON" || autoMode ? 0.5 : 1,
+                opacity: lightStatus === "ON" ? 0.5 : 1,
               },
             ]}
             onPress={() => {
-              if (lightStatus !== "ON" && !autoMode) toggleLight();
+              if (lightStatus !== "ON") toggleLight();
             }}
-            disabled={lightStatus === "ON" || autoMode}
+            disabled={lightStatus === "ON"}
           >
             <Ionicons name="power" size={24} color="#FFFFFF" />
             <Text style={styles.actionBtnText}>Turn ON</Text>
@@ -610,24 +641,18 @@ const LightControlScreen = () => {
               styles.actionOff,
               {
                 backgroundColor: colors.danger,
-                opacity: lightStatus === "OFF" || autoMode ? 0.5 : 1,
+                opacity: lightStatus === "OFF" ? 0.5 : 1,
               },
             ]}
             onPress={() => {
-              if (lightStatus !== "OFF" && !autoMode) toggleLight();
+              if (lightStatus !== "OFF") toggleLight();
             }}
-            disabled={lightStatus === "OFF" || autoMode}
+            disabled={lightStatus === "OFF"}
           >
             <Ionicons name="power-outline" size={24} color="#FFFFFF" />
             <Text style={styles.actionBtnText}>Turn OFF</Text>
           </TouchableOpacity>
         </View>
-
-        {autoMode && (
-          <Text style={[styles.lockedMessage, { color: colors.warning }]}>
-            🔒 Manual controls are locked while Auto Mode is ON
-          </Text>
-        )}
       </View>
 
       <View style={styles.footer} />
@@ -735,9 +760,6 @@ const styles = StyleSheet.create({
   },
   toggleOn: {},
   toggleOff: {},
-  disabledBtn: {
-    opacity: 0.5,
-  },
   toggleBtnText: {
     fontSize: 18,
     fontWeight: "700",
@@ -809,24 +831,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 0,
-  },
-  lockBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  lockBadgeText: {
-    fontSize: 10,
-    fontWeight: "600",
-    marginLeft: 4,
-  },
-  lockedMessage: {
-    fontSize: 12,
-    textAlign: "center",
-    marginTop: 8,
-    fontStyle: "italic",
   },
   actionRow: {
     flexDirection: "row",

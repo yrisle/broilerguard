@@ -2,6 +2,7 @@
 
 import { FontAwesome5 } from "@expo/vector-icons";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,6 +18,10 @@ import {
 } from "react-native";
 import { automation } from "../../api/endpoints";
 import { useTheme } from "../../hooks/useTheme";
+
+const GATE_AUTO_MODE_KEY = "@gate_auto_mode";
+const GATE_FEED_AMOUNT_KEY = "@gate_feed_amount";
+const GATE_FEED_TIMES_KEY = "@gate_feed_times";
 
 const GateControlScreen = () => {
   const { colors } = useTheme();
@@ -127,6 +132,44 @@ const GateControlScreen = () => {
     return null;
   };
 
+  // ============================================
+  // SAVE & LOAD AUTO MODE STATE
+  // ============================================
+  const saveAutoModeState = async () => {
+    try {
+      await AsyncStorage.setItem(GATE_AUTO_MODE_KEY, JSON.stringify(autoMode));
+      await AsyncStorage.setItem(GATE_FEED_AMOUNT_KEY, feedAmount);
+      await AsyncStorage.setItem(
+        GATE_FEED_TIMES_KEY,
+        JSON.stringify(feedTimes),
+      );
+      console.log("✅ Gate auto mode saved:", autoMode);
+    } catch (error) {
+      console.log("Error saving gate auto mode:", error);
+    }
+  };
+
+  const loadAutoModeState = async () => {
+    try {
+      const autoMode = await AsyncStorage.getItem(GATE_AUTO_MODE_KEY);
+      const amount = await AsyncStorage.getItem(GATE_FEED_AMOUNT_KEY);
+      const times = await AsyncStorage.getItem(GATE_FEED_TIMES_KEY);
+
+      if (autoMode !== null) {
+        const isAuto = JSON.parse(autoMode);
+        setAutoMode(isAuto);
+        if (amount) setFeedAmount(amount);
+        if (times) setFeedTimes(JSON.parse(times));
+        console.log("✅ Gate auto mode loaded:", isAuto);
+        return isAuto;
+      }
+      return false;
+    } catch (error) {
+      console.log("Error loading gate auto mode:", error);
+      return false;
+    }
+  };
+
   const fetchData = async () => {
     try {
       console.log("📥 Fetching gate data from ESP32...");
@@ -147,10 +190,26 @@ const GateControlScreen = () => {
     }
   };
 
+  // ============================================
+  // INIT - Load auto mode state on mount
+  // ============================================
   useEffect(() => {
-    fetchData();
-    updateCurrentTime();
-    timeIntervalRef.current = setInterval(updateCurrentTime, 1000);
+    const init = async () => {
+      const isAuto = await loadAutoModeState();
+      await fetchData();
+      updateCurrentTime();
+
+      timeIntervalRef.current = setInterval(updateCurrentTime, 1000);
+
+      if (isAuto) {
+        console.log("🔄 Restarting gate auto scheduler...");
+        findNextDispenseTime();
+        startScheduler();
+      }
+    };
+
+    init();
+
     return () => {
       if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
     };
@@ -257,6 +316,7 @@ const GateControlScreen = () => {
 
     setFeedTimes(allTimes);
     setNewTime("");
+    saveAutoModeState();
   };
 
   const removeTime = (time: string) => {
@@ -264,7 +324,9 @@ const GateControlScreen = () => {
       Alert.alert("Error", "You need at least one scheduled time");
       return;
     }
-    setFeedTimes(feedTimes.filter((t) => t !== time));
+    const newTimes = feedTimes.filter((t) => t !== time);
+    setFeedTimes(newTimes);
+    saveAutoModeState();
   };
 
   // ============================================
@@ -368,16 +430,16 @@ const GateControlScreen = () => {
   };
 
   // ============================================
-  // AUTO MODE - FIXED: Hindi namamatay pag lumalabas sa screen
+  // TOGGLE AUTO MODE
   // ============================================
-  const toggleAutoMode = () => {
+  const toggleAutoMode = async () => {
     const newMode = !autoMode;
     setAutoMode(newMode);
+    await saveAutoModeState();
 
     if (newMode) {
       setFeedDispensed(0);
       setDispenseCount(0);
-
       findNextDispenseTime();
 
       Alert.alert(
@@ -400,7 +462,7 @@ const GateControlScreen = () => {
   };
 
   // ============================================
-  // SCHEDULER - Check every 10 seconds using Philippine Time
+  // SCHEDULER - Check every 10 seconds
   // ============================================
   const startScheduler = () => {
     if (intervalRef.current) {
@@ -444,7 +506,7 @@ const GateControlScreen = () => {
     }
   }, [feedTimes]);
 
-  // Reset daily counter at midnight (Philippine Time)
+  // Reset daily counter at midnight
   useEffect(() => {
     const checkMidnight = () => {
       const now = getPhilippineTime();
@@ -561,6 +623,7 @@ const GateControlScreen = () => {
             color={gateStatus ? colors.success : colors.danger}
           />
         </View>
+
         <Text style={[styles.gateStatusLabel, { color: colors.textMuted }]}>
           Gate is
         </Text>
@@ -574,11 +637,11 @@ const GateControlScreen = () => {
         >
           {gateStatus ? "OPEN" : "CLOSED"}
         </Text>
+
         <Text style={[styles.gatePosition, { color: colors.textMuted }]}>
           {gateStatus ? "🔓 Unlocked" : "🔒 Locked"}
         </Text>
-        // src/screens/Automation/GateControlScreen.tsx // ✅ I-update ang
-        toggle button - dapat pwedeng i-click ang Close kahit OPEN ang status
+
         <TouchableOpacity
           style={[
             styles.toggleBtn,
@@ -589,7 +652,6 @@ const GateControlScreen = () => {
           ]}
           onPress={handleToggleGate}
           disabled={isToggling || autoMode}
-          // ❌ REMOVE: disabled={isToggling || autoMode || gateStatus}
         >
           <Text style={styles.toggleBtnText}>
             {isToggling
@@ -601,6 +663,7 @@ const GateControlScreen = () => {
                   : "Open Gate"}
           </Text>
         </TouchableOpacity>
+
         {autoMode && (
           <View
             style={[
@@ -765,7 +828,10 @@ const GateControlScreen = () => {
                   },
                 ]}
                 value={feedAmount}
-                onChangeText={setFeedAmount}
+                onChangeText={(text) => {
+                  setFeedAmount(text);
+                  saveAutoModeState();
+                }}
                 keyboardType="numeric"
                 editable={true}
               />

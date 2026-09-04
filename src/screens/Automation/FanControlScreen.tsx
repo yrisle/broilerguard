@@ -2,6 +2,7 @@
 
 import { FontAwesome5 } from "@expo/vector-icons";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,6 +18,10 @@ import {
 } from "react-native";
 import { automation } from "../../api/endpoints";
 import { useTheme } from "../../hooks/useTheme";
+
+const FAN_AUTO_MODE_KEY = "@fan_auto_mode";
+const FAN_TEMP_ON_KEY = "@fan_temp_on";
+const FAN_TEMP_OFF_KEY = "@fan_temp_off";
 
 function FanControlScreen() {
   const { colors } = useTheme();
@@ -36,7 +41,7 @@ function FanControlScreen() {
   const timeIntervalRef = useRef<number | null>(null);
 
   // ============================================
-  // PHILIPPINE TIME (UTC+8)
+  // PHILIPPINE TIME
   // ============================================
   const getPhilippineTime = (): Date => {
     const now = new Date();
@@ -56,7 +61,59 @@ function FanControlScreen() {
     );
   };
 
-  // Fetch data from ESP32
+  // ============================================
+  // SAVE & LOAD AUTO MODE STATE
+  // ============================================
+  const saveAutoModeState = async () => {
+    try {
+      await AsyncStorage.setItem(
+        FAN_AUTO_MODE_KEY,
+        JSON.stringify(settings.auto_mode),
+      );
+      await AsyncStorage.setItem(
+        FAN_TEMP_ON_KEY,
+        JSON.stringify(settings.temp_on),
+      );
+      await AsyncStorage.setItem(
+        FAN_TEMP_OFF_KEY,
+        JSON.stringify(settings.temp_off),
+      );
+      console.log("✅ Fan auto mode saved:", settings.auto_mode);
+    } catch (error) {
+      console.log("Error saving fan auto mode:", error);
+    }
+  };
+
+  const loadAutoModeState = async () => {
+    try {
+      const autoMode = await AsyncStorage.getItem(FAN_AUTO_MODE_KEY);
+      const tempOn = await AsyncStorage.getItem(FAN_TEMP_ON_KEY);
+      const tempOff = await AsyncStorage.getItem(FAN_TEMP_OFF_KEY);
+
+      if (autoMode !== null) {
+        const isAuto = JSON.parse(autoMode);
+        const on = tempOn ? JSON.parse(tempOn) : 32;
+        const off = tempOff ? JSON.parse(tempOff) : 28;
+
+        setSettings({
+          auto_mode: isAuto,
+          temp_on: on,
+          temp_off: off,
+        });
+
+        console.log("✅ Fan auto mode loaded:", isAuto);
+        return isAuto;
+      }
+      return false;
+    } catch (error) {
+      console.log("Error loading fan auto mode:", error);
+      return false;
+    }
+  };
+
+  // ============================================
+  // FETCH DATA
+  // ============================================
   const fetchData = async () => {
     try {
       console.log("📥 Fetching fan data from ESP32...");
@@ -71,7 +128,6 @@ function FanControlScreen() {
       setHumidity(data.humidity || 0);
 
       console.log("📥 Fan status:", fanStatusValue);
-      console.log("📥 Temperature:", temperature, "Humidity:", humidity);
     } catch (error: any) {
       console.error("❌ Error fetching fan data:", error);
       Alert.alert(
@@ -84,10 +140,25 @@ function FanControlScreen() {
     }
   };
 
+  // ============================================
+  // INIT - Load auto mode state on mount
+  // ============================================
   useEffect(() => {
-    fetchData();
-    updateCurrentTime();
-    timeIntervalRef.current = setInterval(updateCurrentTime, 1000);
+    const init = async () => {
+      const isAuto = await loadAutoModeState();
+      await fetchData();
+      updateCurrentTime();
+
+      timeIntervalRef.current = setInterval(updateCurrentTime, 1000);
+
+      if (isAuto) {
+        console.log("🔄 Restarting fan auto scheduler...");
+        startTemperatureScheduler();
+      }
+    };
+
+    init();
+
     return () => {
       if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
     };
@@ -98,12 +169,10 @@ function FanControlScreen() {
     fetchData();
   };
 
-  // Toggle Fan ON/OFF
+  // ============================================
+  // TOGGLE FAN
+  // ============================================
   const toggleFan = async () => {
-    if (settings.auto_mode) {
-      Alert.alert("Auto Mode ON", "Manual control is disabled in Auto Mode.");
-      return;
-    }
     const newStatus = fanStatus === "ON" ? "OFF" : "ON";
     try {
       console.log("🔄 Toggling fan to:", newStatus);
@@ -117,16 +186,17 @@ function FanControlScreen() {
   };
 
   // ============================================
-  // AUTO MODE - Temperature-based
+  // TOGGLE AUTO MODE
   // ============================================
-  const toggleAutoMode = () => {
+  const toggleAutoMode = async () => {
     const newMode = !settings.auto_mode;
     setSettings({ ...settings, auto_mode: newMode });
+    await saveAutoModeState();
 
     if (newMode) {
       Alert.alert(
         "🤖 Auto Mode Enabled",
-        `Fan will turn ON when temperature reaches ${settings.temp_on}°C and OFF when it drops below ${settings.temp_off}°C.\n\n🔒 Manual controls are now disabled.`,
+        `Fan will turn ON when temperature reaches ${settings.temp_on}°C and OFF when it drops below ${settings.temp_off}°C.`,
         [{ text: "OK" }],
       );
       startTemperatureScheduler();
@@ -141,7 +211,9 @@ function FanControlScreen() {
     }
   };
 
-  // Temperature-based auto scheduler
+  // ============================================
+  // TEMPERATURE-BASED AUTO SCHEDULER
+  // ============================================
   const startTemperatureScheduler = () => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -152,26 +224,18 @@ function FanControlScreen() {
       if (!settings.auto_mode) return;
 
       try {
-        // Get latest temperature
         const response = await automation.fan.getStatus();
         const data = response.data;
         const currentTemp = data.temperature || 0;
         setTemperature(currentTemp);
 
-        console.log(
-          `🌡️ Auto check: ${currentTemp}°C | ON at ${settings.temp_on}°C | OFF at ${settings.temp_off}°C`,
-        );
-
-        // Check if fan should turn ON
         if (currentTemp >= settings.temp_on && fanStatus === "OFF") {
           console.log(
             `🔥 Temperature ${currentTemp}°C >= ${settings.temp_on}°C - Turning FAN ON`,
           );
           await automation.fan.toggle("ON");
           setFanStatus("ON");
-        }
-        // Check if fan should turn OFF
-        else if (currentTemp <= settings.temp_off && fanStatus === "ON") {
+        } else if (currentTemp <= settings.temp_off && fanStatus === "ON") {
           console.log(
             `❄️ Temperature ${currentTemp}°C <= ${settings.temp_off}°C - Turning FAN OFF`,
           );
@@ -181,22 +245,25 @@ function FanControlScreen() {
       } catch (error) {
         console.error("❌ Auto scheduler error:", error);
       }
-    }, 10000); // Check every 10 seconds
+    }, 10000);
   };
 
-  // Update temp_on setting
+  // ============================================
+  // UPDATE TEMP SETTINGS
+  // ============================================
   const updateTempOn = (value: string) => {
     const numValue = parseInt(value) || 0;
     if (numValue > 0 && numValue > settings.temp_off) {
       setSettings({ ...settings, temp_on: numValue });
+      saveAutoModeState();
     }
   };
 
-  // Update temp_off setting
   const updateTempOff = (value: string) => {
     const numValue = parseInt(value) || 0;
     if (numValue > 0 && numValue < settings.temp_on) {
       setSettings({ ...settings, temp_off: numValue });
+      saveAutoModeState();
     }
   };
 
@@ -204,7 +271,6 @@ function FanControlScreen() {
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
     };
   }, []);
 
@@ -312,8 +378,7 @@ function FanControlScreen() {
         >
           {fanStatus === "ON" ? "RUNNING" : "OFF"}
         </Text>
-        // src/screens/Automation/FanControlScreen.tsx // ✅ I-update ang toggle
-        button - dapat pwedeng i-click ang OFF kahit ON ang status
+
         <TouchableOpacity
           style={[
             styles.toggleBtn,
@@ -322,8 +387,6 @@ function FanControlScreen() {
               : [styles.toggleOff, { backgroundColor: colors.success }],
           ]}
           onPress={toggleFan}
-          // ❌ REMOVE: disabled={fanStatus === "ON"}
-          // ✅ Always enabled para pwedeng i-click ang OFF
         >
           <Text style={styles.toggleBtnText}>
             {fanStatus === "ON" ? "Turn OFF" : "Turn ON"}
@@ -444,7 +507,7 @@ function FanControlScreen() {
         </View>
       </View>
 
-      {/* Current Conditions - Real-time from ESP32 */}
+      {/* Current Conditions */}
       <View style={styles.section}>
         <View
           style={{
@@ -481,27 +544,6 @@ function FanControlScreen() {
             <Text style={[styles.conditionLabel, { color: colors.textMuted }]}>
               Temperature
             </Text>
-            {settings.auto_mode && (
-              <Text
-                style={[
-                  styles.conditionStatus,
-                  {
-                    color:
-                      temperature >= settings.temp_on
-                        ? colors.danger
-                        : temperature <= settings.temp_off
-                          ? colors.success
-                          : colors.warning,
-                  },
-                ]}
-              >
-                {temperature >= settings.temp_on
-                  ? "🔥 High"
-                  : temperature <= settings.temp_off
-                    ? "❄️ Low"
-                    : "🌡️ Normal"}
-              </Text>
-            )}
           </View>
           <View
             style={[
@@ -563,25 +605,6 @@ function FanControlScreen() {
             </View>
             <Text style={[styles.logTemp, { color: colors.textMuted }]}>
               {temperature.toFixed(1)}°C
-            </Text>
-          </View>
-          <View style={[styles.logItem, { borderColor: colors.border }]}>
-            <Text style={[styles.logTime, { color: colors.textMuted }]}>
-              {new Date(Date.now() - 3600000).toLocaleTimeString()}
-            </Text>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Ionicons
-                name="person-outline"
-                size={14}
-                color={colors.warning}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.logAction, { color: colors.text }]}>
-                Manual ON
-              </Text>
-            </View>
-            <Text style={[styles.logTemp, { color: colors.textMuted }]}>
-              31.0°C
             </Text>
           </View>
         </View>
@@ -688,9 +711,6 @@ const styles = StyleSheet.create({
   },
   toggleOn: {},
   toggleOff: {},
-  disabledBtn: {
-    opacity: 0.5,
-  },
   toggleBtnText: {
     fontSize: 16,
     fontWeight: "700",
@@ -750,11 +770,6 @@ const styles = StyleSheet.create({
   conditionLabel: {
     fontSize: 12,
     marginTop: 2,
-  },
-  conditionStatus: {
-    fontSize: 11,
-    fontWeight: "600",
-    marginTop: 4,
   },
   conditionDivider: {
     width: 1,
