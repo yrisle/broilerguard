@@ -1,7 +1,7 @@
 // src/screens/Automation/FanControlScreen.tsx
+
 import { FontAwesome5 } from "@expo/vector-icons";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -14,7 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { API_BASE_URL } from "../../api/client";
+import { automation } from "../../api/endpoints";
 import { useTheme } from "../../hooks/useTheme";
 
 function FanControlScreen() {
@@ -27,59 +27,43 @@ function FanControlScreen() {
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [temperature, setTemperature] = useState(0);
+  const [humidity, setHumidity] = useState(0);
 
-  // ✅ Helper function for API calls
-  const apiFetch = async (endpoint: string, options: any = {}) => {
-    try {
-      const token = await AsyncStorage.getItem("auth_token");
-      const url = `${API_BASE_URL}${endpoint}`;
-
-      console.log("📤 API Fetch:", url);
-      console.log("📤 Options:", options);
-
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-          ...options.headers,
-        },
-      });
-
-      const text = await response.text();
-      console.log("📥 Raw response:", text);
-
-      try {
-        return JSON.parse(text);
-      } catch (e) {
-        console.error("❌ JSON Parse error:", e);
-        return { success: false, message: "Invalid response from server" };
-      }
-    } catch (error: any) {
-      console.error("❌ API Fetch error:", error);
-      return { success: false, message: error.message || "Network error" };
-    }
-  };
-
+  // Fetch data from ESP32
   const fetchData = async () => {
     try {
-      console.log("📥 Fetching fan data...");
-      const data = await apiFetch("/automation/fan.php", {
-        method: "GET",
-      });
+      console.log("📥 Fetching fan data from ESP32...");
+      const response = await automation.fan.getStatus();
 
-      console.log("📥 Fan response:", data);
+      // ESP32 response from /sensor: { temperature, humidity, fan, pump, light, gate }
+      const data = response.data;
 
-      if (data.success) {
-        setFanStatus(data.data.status);
-        setSettings(data.data.settings);
-      } else {
-        console.error("❌ API returned success: false");
-      }
+      console.log("📥 ESP32 Data:", data);
+
+      // Update fan status
+      const fanStatusValue = data.fan === 1 ? "ON" : "OFF";
+      setFanStatus(fanStatusValue);
+
+      // Update temperature and humidity
+      setTemperature(data.temperature || 0);
+      setHumidity(data.humidity || 0);
+
+      // For settings - you can store these in ESP32 or keep local
+      // For now, we'll keep them as is or you can add endpoints to save/load settings
+      // setSettings({
+      //   auto_mode: data.auto_mode || true,
+      //   temp_on: data.temp_on || 32,
+      //   temp_off: data.temp_off || 28,
+      // });
+
+      console.log("📥 Fan status:", fanStatusValue);
     } catch (error: any) {
       console.error("❌ Error fetching fan data:", error);
-      Alert.alert("Error", "Failed to load fan data. Please pull to refresh.");
+      Alert.alert(
+        "Error",
+        "Failed to load fan data. Please check connection to ESP32.",
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -95,58 +79,34 @@ function FanControlScreen() {
     fetchData();
   };
 
+  // Toggle Fan ON/OFF
   const toggleFan = async () => {
     const newStatus = fanStatus === "ON" ? "OFF" : "ON";
     try {
       console.log("🔄 Toggling fan to:", newStatus);
-
-      const data = await apiFetch("/automation/fan.php", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "toggle",
-          status: newStatus,
-        }),
-      });
-
-      console.log("📥 Toggle fan response:", data);
-
-      if (data.success) {
-        setFanStatus(newStatus);
-        Alert.alert("Success", `Fan turned ${newStatus}`);
-        fetchData();
-      } else {
-        Alert.alert("Error", data.message || "Failed to toggle fan");
-      }
+      await automation.fan.toggle(newStatus);
+      setFanStatus(newStatus);
+      Alert.alert("Success", `Fan turned ${newStatus}`);
+      fetchData(); // Refresh to get updated status
     } catch (error: any) {
       console.error("❌ Toggle error:", error);
       Alert.alert("Error", "Failed to toggle fan. Please try again.");
     }
   };
 
+  // Toggle Auto Mode
   const toggleAutoMode = async () => {
     const newMode = !settings.auto_mode;
     try {
-      console.log("🔄 Toggling fan auto mode to:", newMode);
-
-      const data = await apiFetch("/automation/fan.php", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "settings",
-          auto_mode: newMode,
-          temp_on: settings.temp_on,
-          temp_off: settings.temp_off,
-        }),
+      console.log("🔄 Toggling auto mode to:", newMode);
+      await automation.fan.updateSettings({
+        auto_mode: newMode,
+        temp_on: settings.temp_on,
+        temp_off: settings.temp_off,
       });
-
-      console.log("📥 Auto mode response:", data);
-
-      if (data.success) {
-        setSettings({ ...settings, auto_mode: newMode });
-        Alert.alert("Success", `Auto mode ${newMode ? "enabled" : "disabled"}`);
-        fetchData();
-      } else {
-        Alert.alert("Error", data.message || "Failed to update settings");
-      }
+      setSettings({ ...settings, auto_mode: newMode });
+      Alert.alert("Success", `Auto mode ${newMode ? "enabled" : "disabled"}`);
+      fetchData();
     } catch (error: any) {
       console.error("❌ Toggle auto mode error:", error);
       Alert.alert("Error", "Failed to update settings. Please try again.");
@@ -157,6 +117,9 @@ function FanControlScreen() {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textMuted }]}>
+          Connecting to ESP32...
+        </Text>
       </View>
     );
   }
@@ -185,6 +148,7 @@ function FanControlScreen() {
         </Text>
       </View>
 
+      {/* Fan Status Card */}
       <View style={[styles.statusCard, { backgroundColor: colors.card }]}>
         <View
           style={[
@@ -213,6 +177,8 @@ function FanControlScreen() {
         >
           {fanStatus === "ON" ? "RUNNING" : "OFF"}
         </Text>
+
+        {/* Toggle Button */}
         <TouchableOpacity
           style={[
             styles.toggleBtn,
@@ -228,6 +194,7 @@ function FanControlScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Automation Settings */}
       <View style={styles.section}>
         <View
           style={{
@@ -268,6 +235,7 @@ function FanControlScreen() {
               value={settings.auto_mode}
               onValueChange={toggleAutoMode}
               trackColor={{ false: "#E0D5C0", true: colors.primary }}
+              thumbColor={settings.auto_mode ? "#FFFFFF" : "#f4f3f4"}
             />
           </View>
           <View style={[styles.settingRow, { borderColor: colors.border }]}>
@@ -305,6 +273,7 @@ function FanControlScreen() {
         </View>
       </View>
 
+      {/* Current Conditions - Real-time from ESP32 */}
       <View style={styles.section}>
         <View
           style={{
@@ -336,7 +305,7 @@ function FanControlScreen() {
               color={colors.orange}
             />
             <Text style={[styles.conditionValue, { color: colors.text }]}>
-              32.5°C
+              {temperature.toFixed(1)}°C
             </Text>
             <Text style={[styles.conditionLabel, { color: colors.textMuted }]}>
               Temperature
@@ -351,7 +320,7 @@ function FanControlScreen() {
           <View style={styles.conditionItem}>
             <FontAwesome5 name="tint" size={28} color={colors.info} />
             <Text style={[styles.conditionValue, { color: colors.text }]}>
-              65%
+              {humidity.toFixed(0)}%
             </Text>
             <Text style={[styles.conditionLabel, { color: colors.textMuted }]}>
               Humidity
@@ -360,6 +329,7 @@ function FanControlScreen() {
         </View>
       </View>
 
+      {/* Recent Activity - Sample data or from ESP32 logs */}
       <View style={[styles.section, styles.lastSection]}>
         <View
           style={{
@@ -386,45 +356,26 @@ function FanControlScreen() {
         >
           <View style={[styles.logItem, { borderColor: colors.border }]}>
             <Text style={[styles.logTime, { color: colors.textMuted }]}>
-              10:30 AM
+              {new Date().toLocaleTimeString()}
             </Text>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Ionicons
                 name="sync-outline"
                 size={14}
-                color={colors.primary}
+                color={fanStatus === "ON" ? colors.primary : colors.danger}
                 style={{ marginRight: 6 }}
               />
               <Text style={[styles.logAction, { color: colors.text }]}>
-                Auto ON
+                {fanStatus === "ON" ? "Fan ON" : "Fan OFF"}
               </Text>
             </View>
             <Text style={[styles.logTemp, { color: colors.textMuted }]}>
-              32.5°C
+              {temperature.toFixed(1)}°C
             </Text>
           </View>
           <View style={[styles.logItem, { borderColor: colors.border }]}>
             <Text style={[styles.logTime, { color: colors.textMuted }]}>
-              08:15 AM
-            </Text>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Ionicons
-                name="sync-outline"
-                size={14}
-                color={colors.danger}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.logAction, { color: colors.text }]}>
-                Auto OFF
-              </Text>
-            </View>
-            <Text style={[styles.logTemp, { color: colors.textMuted }]}>
-              28.0°C
-            </Text>
-          </View>
-          <View style={[styles.logItem, { borderColor: colors.border }]}>
-            <Text style={[styles.logTime, { color: colors.textMuted }]}>
-              06:00 AM
+              {new Date(Date.now() - 3600000).toLocaleTimeString()}
             </Text>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Ionicons
@@ -455,6 +406,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
   },
   header: {
     paddingHorizontal: 20,

@@ -13,9 +13,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { dashboard, sensors } from "../../api/endpoints";
+import { sensors } from "../../api/endpoints";
 import Card from "../../components/common/Card";
-import LevelIndicator from "../../components/sensors/LevelIndicator";
 import { useTheme } from "../../hooks/useTheme";
 
 const DashboardScreen = () => {
@@ -25,13 +24,19 @@ const DashboardScreen = () => {
     // Environmental Conditions
     temperature: 0,
     humidity: 0,
-    feedLevel: 0,
-    waterLevel: 0,
+    feedLevel: 50, // Default value
+    waterLevel: 60, // Default value
     fanPhysicalStatus: "OFF",
     waterPumpPhysicalStatus: "OFF",
     lightStatus: "OFF",
+    gateStatus: "CLOSED",
 
-    // Chicken Health
+    // Automation Status
+    fanStatus: "OFF",
+    waterPump: "OFF",
+    lightStatusDisplay: "OFF",
+
+    // Chicken Health (if available)
     healthyChicks: 0,
     weakChicks: 0,
     unhealthyChicks: 0,
@@ -55,44 +60,54 @@ const DashboardScreen = () => {
 
   const fetchDashboard = async () => {
     try {
-      const [sensorRes, statsRes] = await Promise.all([
-        sensors.getCurrent(),
-        dashboard.getStats(),
-      ]);
+      console.log("📱 Fetching dashboard data from ESP32...");
 
-      const sensorData = sensorRes.data?.data || sensorRes.data || {};
-      const statsData = statsRes.data?.data || statsRes.data || {};
+      // Get data from ESP32
+      const sensorRes = await sensors.getCurrent();
+      const sensorData = sensorRes.data || {};
 
-      console.log("📥 Dashboard Data:", { sensorData, statsData });
+      console.log("📥 ESP32 Data:", sensorData);
+
+      // Get fan status
+      const fanStatus = sensorData.fan === 1 ? "ON" : "OFF";
+      const pumpStatus = sensorData.pump === 1 ? "ON" : "OFF";
+      const lightStatus = sensorData.light === 1 ? "ON" : "OFF";
+      const gateStatus = sensorData.gate === 1 ? "OPEN" : "CLOSED";
 
       setStats({
-        // Environmental Conditions - from sensor_readings
+        // Environmental Conditions - from ESP32
         temperature: sensorData.temperature || 0,
         humidity: sensorData.humidity || 0,
-        feedLevel: sensorData.feed_level || 0,
-        waterLevel: sensorData.water_level || 0,
-        fanPhysicalStatus: sensorData.fan_status || "OFF",
-        waterPumpPhysicalStatus: sensorData.water_pump || "OFF",
-        lightStatus: sensorData.light_status || "OFF",
+        feedLevel: 50, // Simulate kung walang feed sensor
+        waterLevel: 60, // Simulate kung walang water sensor
+        fanPhysicalStatus: fanStatus,
+        waterPumpPhysicalStatus: pumpStatus,
+        lightStatus: lightStatus,
+        gateStatus: gateStatus,
 
-        // Chicken Health - from detection_logs
-        healthyChicks: statsData.healthy_chicks || 0,
-        weakChicks: statsData.weak_chicks || 0,
-        unhealthyChicks: statsData.unhealthy_chicks || 0,
-        totalChicks: statsData.total_chicks || 0,
+        // Automation Status - same as physical
+        fanStatus: fanStatus,
+        waterPump: pumpStatus,
+        lightStatusDisplay: lightStatus,
+
+        // Chicken Health (kung wala, zero)
+        healthyChicks: 0,
+        weakChicks: 0,
+        unhealthyChicks: 0,
+        totalChicks: 0,
 
         // Consumption
-        feedConsumed: statsData.feed_consumed_today || 0,
-        waterConsumed: statsData.water_consumed_today || 0,
+        feedConsumed: 0,
+        waterConsumed: 0,
       });
       setErrorMessage(null);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Unable to reach the server.";
+        error instanceof Error ? error.message : "Unable to reach ESP32.";
 
-      console.warn("Dashboard data unavailable:", message);
+      console.warn("ESP32 data unavailable:", message);
       setErrorMessage(
-        "Unable to reach the server. Showing the latest available values.",
+        "Unable to connect to ESP32. Please check your connection.",
       );
     } finally {
       setLoading(false);
@@ -112,10 +127,20 @@ const DashboardScreen = () => {
     fetchDashboard();
   };
 
+  const getStatusColor = (status: string, colors: any) => {
+    if (status === "OPEN") return colors.success;
+    return status === "ON" ? colors.success : colors.danger;
+  };
+
+  const getStatusBgColor = (status: string, colors: any) => {
+    if (status === "OPEN") return colors.successLight;
+    return status === "ON" ? colors.successLight : colors.dangerLight;
+  };
+
   if (loading) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <Text style={{ color: colors.text }}>Loading...</Text>
+        <Text style={{ color: colors.text }}>Connecting to ESP32...</Text>
       </View>
     );
   }
@@ -174,7 +199,7 @@ const DashboardScreen = () => {
       ) : null}
 
       {/* ============================================
-      ENVIRONMENTAL CONDITIONS - From sensor_readings
+      ENVIRONMENTAL CONDITIONS - From ESP32
       ============================================ */}
       <View style={styles.section}>
         <View
@@ -225,7 +250,7 @@ const DashboardScreen = () => {
       </View>
 
       {/* ============================================
-      RESOURCE LEVELS
+      DEVICE STATUS - ESP32 Devices
       ============================================ */}
       <View style={styles.section}>
         <View
@@ -235,92 +260,195 @@ const DashboardScreen = () => {
             marginBottom: 12,
           }}
         >
-          <FontAwesome5
-            name="box"
+          <Icon
+            name="settings-outline"
             size={20}
             color={colors.textSecondary}
             style={{ marginRight: 8 }}
           />
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-            Resource Levels
+            Device Status
           </Text>
         </View>
-        <Card>
-          <LevelIndicator
-            label="Feed Level"
-            value={stats.feedLevel}
-            maxValue={100}
-            color={colors.primary}
-            consumed={stats.feedConsumed}
-            unit="kg"
-          />
-          <LevelIndicator
-            label="Water Level"
-            value={stats.waterLevel}
-            maxValue={100}
-            color={colors.info}
-            consumed={stats.waterConsumed}
-            unit="L"
-          />
-        </Card>
-      </View>
 
-      {/* ============================================
-      CHICKEN HEALTH - From detection_logs
-      ============================================ */}
-      <View style={styles.section}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            marginBottom: 12,
-          }}
-        >
-          <FontAwesome5
-            name="drumstick-bite"
-            size={20}
-            color={colors.textSecondary}
-            style={{ marginRight: 8 }}
-          />
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-            Chicken Health
-          </Text>
+        <View style={styles.deviceRow}>
+          {/* FAN */}
+          <TouchableOpacity
+            style={styles.deviceCardWrapper}
+            activeOpacity={0.7}
+            onPress={() => handleNavigate("/fan-control")}
+          >
+            <Card style={styles.deviceCard}>
+              <View style={styles.deviceItem}>
+                <FontAwesome5 name="fan" size={24} color={colors.primary} />
+                <View style={styles.deviceInfo}>
+                  <Text
+                    style={[styles.deviceLabel, { color: colors.primaryDark }]}
+                  >
+                    Fan
+                  </Text>
+                  <View
+                    style={[
+                      styles.statusIndicator,
+                      {
+                        backgroundColor: getStatusBgColor(
+                          stats.fanStatus,
+                          colors,
+                        ),
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusText,
+                        {
+                          color: getStatusColor(stats.fanStatus, colors),
+                        },
+                      ]}
+                    >
+                      {stats.fanStatus}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </Card>
+          </TouchableOpacity>
+
+          {/* WATER PUMP */}
+          <TouchableOpacity
+            style={styles.deviceCardWrapper}
+            activeOpacity={0.7}
+            onPress={() => handleNavigate("/water-pump")}
+          >
+            <Card style={styles.deviceCard}>
+              <View style={styles.deviceItem}>
+                <FontAwesome5 name="water" size={24} color={colors.info} />
+                <View style={styles.deviceInfo}>
+                  <Text
+                    style={[styles.deviceLabel, { color: colors.primaryDark }]}
+                  >
+                    Water
+                  </Text>
+                  <View
+                    style={[
+                      styles.statusIndicator,
+                      {
+                        backgroundColor: getStatusBgColor(
+                          stats.waterPump,
+                          colors,
+                        ),
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusText,
+                        {
+                          color: getStatusColor(stats.waterPump, colors),
+                        },
+                      ]}
+                    >
+                      {stats.waterPump}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </Card>
+          </TouchableOpacity>
+
+          {/* LIGHT */}
+          <TouchableOpacity
+            style={styles.deviceCardWrapper}
+            activeOpacity={0.7}
+            onPress={() => handleNavigate("/light-control")}
+          >
+            <Card style={styles.deviceCard}>
+              <View style={styles.deviceItem}>
+                <Icon name="bulb-outline" size={24} color={colors.warning} />
+                <View style={styles.deviceInfo}>
+                  <Text
+                    style={[styles.deviceLabel, { color: colors.primaryDark }]}
+                  >
+                    Light
+                  </Text>
+                  <View
+                    style={[
+                      styles.statusIndicator,
+                      {
+                        backgroundColor: getStatusBgColor(
+                          stats.lightStatus,
+                          colors,
+                        ),
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusText,
+                        {
+                          color: getStatusColor(stats.lightStatus, colors),
+                        },
+                      ]}
+                    >
+                      {stats.lightStatus}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </Card>
+          </TouchableOpacity>
         </View>
-        <Card>
-          <View style={styles.chickenStats}>
-            <View style={styles.chickenStat}>
-              <Text style={[styles.chickenValue, { color: colors.success }]}>
-                {stats.healthyChicks}
-              </Text>
-              <Text style={[styles.chickenLabel, { color: colors.textMuted }]}>
-                Healthy
-              </Text>
-            </View>
-            <View style={styles.chickenStat}>
-              <Text style={[styles.chickenValue, { color: colors.warning }]}>
-                {stats.weakChicks}
-              </Text>
-              <Text style={[styles.chickenLabel, { color: colors.textMuted }]}>
-                Weak
-              </Text>
-            </View>
-            <View style={styles.chickenStat}>
-              <Text style={[styles.chickenValue, { color: colors.danger }]}>
-                {stats.unhealthyChicks}
-              </Text>
-              <Text style={[styles.chickenLabel, { color: colors.textMuted }]}>
-                Unhealthy
-              </Text>
-            </View>
-          </View>
-          <View style={styles.chickenTotal}>
-            <Text
-              style={[styles.chickenTotalText, { color: colors.textMuted }]}
-            >
-              Total Chicks: {stats.totalChicks}
-            </Text>
-          </View>
-        </Card>
+
+        {/* GATE - Separate row */}
+        <View style={styles.deviceRow}>
+          <TouchableOpacity
+            style={[styles.deviceCardWrapper, { maxWidth: "33.33%" }]}
+            activeOpacity={0.7}
+            onPress={() => handleNavigate("/gate-control")}
+          >
+            <Card style={styles.deviceCard}>
+              <View style={styles.deviceItem}>
+                <FontAwesome5
+                  name="door-open"
+                  size={24}
+                  color={colors.success}
+                />
+                <View style={styles.deviceInfo}>
+                  <Text
+                    style={[styles.deviceLabel, { color: colors.primaryDark }]}
+                  >
+                    Gate
+                  </Text>
+                  <View
+                    style={[
+                      styles.statusIndicator,
+                      {
+                        backgroundColor:
+                          stats.gateStatus === "OPEN"
+                            ? colors.successLight
+                            : colors.dangerLight,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusText,
+                        {
+                          color:
+                            stats.gateStatus === "OPEN"
+                              ? colors.success
+                              : colors.danger,
+                        },
+                      ]}
+                    >
+                      {stats.gateStatus}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </Card>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ============================================
@@ -349,29 +477,32 @@ const DashboardScreen = () => {
             style={[styles.quickAction, { backgroundColor: colors.card }]}
             onPress={() => handleNavigate("/fan-control")}
           >
-            <Icon name="options-outline" size={28} color={colors.orange} />
+            <FontAwesome5 name="fan" size={28} color={colors.orange} />
             <Text style={[styles.quickActionText, { color: colors.text }]}>
               Fan
             </Text>
           </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.quickAction, { backgroundColor: colors.card }]}
-            onPress={() => handleNavigate("/feed-dispenser")}
+            onPress={() => handleNavigate("/gate-control")}
           >
-            <Icon name="fast-food" size={28} color={colors.primary} />
+            <FontAwesome5 name="door-open" size={24} color={colors.primary} />
             <Text style={[styles.quickActionText, { color: colors.text }]}>
-              Feed
+              Gate
             </Text>
           </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.quickAction, { backgroundColor: colors.card }]}
             onPress={() => handleNavigate("/water-pump")}
           >
-            <Icon name="water" size={28} color={colors.info} />
+            <FontAwesome5 name="water" size={24} color={colors.info} />
             <Text style={[styles.quickActionText, { color: colors.text }]}>
               Water
             </Text>
           </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.quickAction, { backgroundColor: colors.card }]}
             onPress={() => handleNavigate("/light-control")}
@@ -381,6 +512,7 @@ const DashboardScreen = () => {
               Light
             </Text>
           </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.quickAction, { backgroundColor: colors.card }]}
             onPress={() => handleNavigate("/(tabs)/camera")}
@@ -443,24 +575,50 @@ const styles = StyleSheet.create({
   tempValue: { fontSize: 36, fontWeight: "800" },
   tempLabel: { fontSize: 14, marginTop: 4 },
   tempRange: { fontSize: 11, marginTop: 4 },
-  chickenStats: {
+
+  deviceRow: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 12,
+    justifyContent: "space-between",
+    gap: 6,
+    marginBottom: 8,
   },
-  chickenStat: { alignItems: "center" },
-  chickenValue: { fontSize: 28, fontWeight: "800" },
-  chickenLabel: { fontSize: 12, marginTop: 4 },
-  chickenTotal: {
+  deviceCardWrapper: {
+    flex: 1,
+    maxWidth: "33.33%",
+  },
+  deviceCard: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    minHeight: 100,
+    justifyContent: "center",
+  },
+  deviceItem: {
     alignItems: "center",
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: "#E0E0E0",
+    justifyContent: "center",
+    paddingVertical: 2,
   },
-  chickenTotalText: {
-    fontSize: 14,
+  deviceInfo: {
+    alignItems: "center",
+    marginTop: 4,
+  },
+  deviceLabel: {
+    fontSize: 12,
     fontWeight: "600",
+    marginBottom: 2,
   },
+  statusIndicator: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 2,
+    minWidth: 50,
+    alignItems: "center",
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
   quickActions: {
     flexDirection: "row",
     justifyContent: "space-between",

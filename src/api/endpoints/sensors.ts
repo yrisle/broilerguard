@@ -2,34 +2,25 @@
 import api from "../client";
 
 export const sensors = {
-  getCurrent: () => api.get("/sensors/current"),
+  // Get all sensor data from ESP32
+  getCurrent: () => api.get("/sensor"),
 
-  getTemperature: (period: string = "24h") =>
-    api.get(`/sensors/temperature?period=${period}`),
+  getTemperature: () => api.get("/sensor"),
+  getHumidity: () => api.get("/sensor"),
+  getFeed: () => api.get("/sensor"),
+  getWater: () => api.get("/sensor"),
+  getChickenStatus: () => api.get("/sensor"),
 
-  getHumidity: (period: string = "24h") =>
-    api.get(`/sensors/humidity?period=${period}`),
-
-  getFeed: () => api.get("/sensors/feed"),
-
-  getWater: () => api.get("/sensors/water"),
-
-  getChickenStatus: () => api.get("/sensors/chicken"),
-
-  // Light Control Endpoints
-  getLightStatus: () => api.get("/sensors/light"),
-
+  // Light Control
+  getLightStatus: () => api.get("/sensor"),
   controlLight: (data: { status: string }) =>
-    api.post("/sensors/control-light", data),
-
+    api.get(`/light_${data.status.toLowerCase()}`),
   setLightBrightness: (data: { brightness: number }) =>
-    api.post("/sensors/set-brightness", data),
-
-  getLightSchedule: () => api.get("/sensors/light-schedule"),
-
-  updateLightSchedule: (data: { 
-    onTime: string; 
-    offTime: string; 
-    enabled: boolean 
-  }) => api.post("/sensors/update-light-schedule", data),
+    api.post("/light/brightness", data),
+  getLightSchedule: () => api.get("/light/schedule"),
+  updateLightSchedule: (data: {
+    onTime: string;
+    offTime: string;
+    enabled: boolean;
+  }) => api.post("/light/schedule", data),
 };

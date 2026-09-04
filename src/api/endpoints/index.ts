@@ -6,46 +6,40 @@ import api from "../client";
 // ============================================
 export const auth = {
   login: (username: string, password: string) =>
-    api.post("/auth/login", { username, password }),
+    api.post("/auth/login.php", { username, password }),
 
-  logout: () => api.post("/auth/logout"),
+  logout: () => api.post("/auth/logout.php"),
 
-  validate: () => api.get("/auth/validate"),
+  validate: () => api.get("/auth/validate.php"),
 };
 
 // ============================================
 // DASHBOARD ENDPOINTS
 // ============================================
 export const dashboard = {
-  getStats: () => api.get("/dashboard/stats"),
+  getStats: () => api.get("/dashboard/stats.php"),
 
   getChart: (period: string = "week") =>
-    api.get(`/dashboard/chart?period=${period}`),
+    api.get(`/dashboard/chart.php?period=${period}`),
 
   getRecentActivity: (params?: {
     limit?: number;
     filter?: string;
     search?: string;
-  }) => api.get("/dashboard/activity", { params }),
+  }) => api.get("/dashboard/activity.php", { params }),
 };
 
 // ============================================
 // SENSORS ENDPOINTS
 // ============================================
 export const sensors = {
-  getCurrent: () => api.get("/sensors/current"),
+  getCurrent: () => api.get("/sensor"), // ESP32 endpoint
 
-  getTemperature: (period: string = "24h") =>
-    api.get(`/sensors/temperature?period=${period}`),
-
-  getHumidity: (period: string = "24h") =>
-    api.get(`/sensors/humidity?period=${period}`),
-
-  getFeed: () => api.get("/sensors/feed"),
-
-  getWater: () => api.get("/sensors/water"),
-
-  getChickenStatus: () => api.get("/sensors/chicken"),
+  getTemperature: () => api.get("/sensor"),
+  getHumidity: () => api.get("/sensor"),
+  getFeed: () => api.get("/sensor"),
+  getWater: () => api.get("/sensor"),
+  getChickenStatus: () => api.get("/sensor"),
 };
 
 // ============================================
@@ -54,56 +48,61 @@ export const sensors = {
 export const automation = {
   // Fan Control
   fan: {
-    getStatus: () => api.get("/automation/fan"),
-
-    toggle: (status: "ON" | "OFF") =>
-      api.post("/automation/fan", { action: "toggle", status }),
-
+    getStatus: () => api.get("/sensor"),
+    toggle: (status: "ON" | "OFF") => api.get(`/fan_${status.toLowerCase()}`),
     updateSettings: (settings: {
       auto_mode: boolean;
       temp_on: number;
       temp_off: number;
-    }) => api.post("/automation/fan", { action: "settings", ...settings }),
-
-    resetOverride: () =>
-      api.post("/automation/fan", { action: "reset_override" }),
+    }) => api.post("/fan/settings", settings),
+    resetOverride: () => api.post("/fan/reset"),
   },
 
   // Feed Dispenser
   feeder: {
-    getStatus: () => api.get("/automation/feeder"),
-
-    dispense: (amount: number) =>
-      api.post("/automation/feeder", { action: "dispense", amount }),
-
-    refill: (amount: number) =>
-      api.post("/automation/feeder", { action: "refill", amount }),
-
+    getStatus: () => api.get("/sensor"),
+    dispense: (amount: number) => api.get("/dynamo_on"),
+    refill: (amount: number) => api.get("/dynamo_on"),
     updateSchedules: (schedules: any[]) =>
-      api.post("/automation/feeder", { action: "schedules", schedules }),
-
-    toggleAuto: (enabled: boolean) =>
-      api.post("/automation/feeder", { action: "toggle_auto", enabled }),
+      api.post("/feeder/schedules", schedules),
+    toggleAuto: (enabled: boolean) => api.post("/feeder/auto", { enabled }),
   },
 
   // Water Pump
   pump: {
-    getStatus: () => api.get("/automation/pump"),
-
-    toggle: (status: "ON" | "OFF") =>
-      api.post("/automation/pump", { action: "toggle", status }),
-
-    release: (duration: number) =>
-      api.post("/automation/pump", { action: "water", duration }),
-
+    getStatus: () => api.get("/sensor"),
+    toggle: (status: "ON" | "OFF") => api.get(`/pump_${status.toLowerCase()}`),
+    release: (duration: number) => api.get("/pump_on"),
     updateSchedules: (schedules: any[]) =>
-      api.post("/automation/pump", { action: "schedules", schedules }),
+      api.post("/pump/schedules", schedules),
+    toggleAuto: (enabled: boolean) => api.post("/pump/auto", { enabled }),
+    resetOverride: () => api.post("/pump/reset"),
+  },
 
-    toggleAuto: (enabled: boolean) =>
-      api.post("/automation/pump", { action: "toggle_auto", enabled }),
+  // Light Control
+  light: {
+    getStatus: () => api.get("/sensor"),
+    toggle: (status: "ON" | "OFF") => api.get(`/light_${status.toLowerCase()}`),
+  },
 
-    resetOverride: () =>
-      api.post("/automation/pump", { action: "reset_override" }),
+  // 🚪 GATE CONTROL - ADD THIS
+  gate: {
+    getStatus: () => api.get("/sensor"),
+    open: () => api.get("/gate_open"),
+    close: () => api.get("/gate_close"),
+    toggle: async () => {
+      try {
+        const response = await api.get("/sensor");
+        const isOpen = response.data.gate === 1;
+        if (isOpen) {
+          return await api.get("/gate_close");
+        } else {
+          return await api.get("/gate_open");
+        }
+      } catch (error) {
+        throw error;
+      }
+    },
   },
 };
 
@@ -111,46 +110,48 @@ export const automation = {
 // NOTIFICATIONS ENDPOINTS
 // ============================================
 export const notifications = {
-  getAll: (limit: number = 50) => api.get(`/notifications?limit=${limit}`),
+  getAll: (limit: number = 50) => api.get(`/notifications.php?limit=${limit}`),
 
   markRead: (id: string) =>
-    api.post("/notifications", { action: "mark_read", id }),
+    api.post("/notifications.php", { action: "mark_read", id }),
 
-  markAllRead: () => api.post("/notifications", { action: "mark_all_read" }),
+  markAllRead: () =>
+    api.post("/notifications.php", { action: "mark_all_read" }),
 
-  delete: (id: string) => api.post("/notifications", { action: "delete", id }),
+  delete: (id: string) =>
+    api.post("/notifications.php", { action: "delete", id }),
 
-  deleteAll: () => api.post("/notifications", { action: "delete_all" }),
+  deleteAll: () => api.post("/notifications.php", { action: "delete_all" }),
 
-  getSettings: () => api.get("/notifications/settings"),
+  getSettings: () => api.get("/notifications/settings.php"),
 
   updateSettings: (settings: any) =>
-    api.post("/notifications/settings", settings),
+    api.post("/notifications/settings.php", settings),
 
-  test: () => api.post("/notifications", { action: "test" }),
+  test: () => api.post("/notifications.php", { action: "test" }),
 };
 
 // ============================================
 // SETTINGS ENDPOINTS
 // ============================================
 export const settings = {
-  get: () => api.get("/settings"),
+  get: () => api.get("/settings.php"),
 
   update: (settings: any) =>
-    api.post("/settings", { action: "save_settings", ...settings }),
+    api.post("/settings.php", { action: "save_settings", ...settings }),
 
   changePassword: (data: {
     current_password: string;
     new_password: string;
     confirm_password: string;
-  }) => api.post("/settings", { action: "change_password", ...data }),
+  }) => api.post("/settings.php", { action: "change_password", ...data }),
 
-  reset: () => api.post("/settings", { action: "reset_settings" }),
+  reset: () => api.post("/settings.php", { action: "reset_settings" }),
 
-  clearCache: () => api.post("/settings", { action: "clear_cache" }),
+  clearCache: () => api.post("/settings.php", { action: "clear_cache" }),
 
   exportData: (type: string = "all") =>
-    api.post("/settings", { action: "export_data", export_type: type }),
+    api.post("/settings.php", { action: "export_data", export_type: type }),
 
-  clearLogs: () => api.post("/settings", { action: "clear_activity_logs" }),
+  clearLogs: () => api.post("/settings.php", { action: "clear_activity_logs" }),
 };

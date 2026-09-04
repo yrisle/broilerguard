@@ -1,55 +1,45 @@
 // src/api/client.ts
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { Platform } from "react-native";
 
 // ============================================
-// 🔧 PALITAN ITO - ILAGAY ANG NGROK URL MO
+// 🔧 PALITAN ITO - ILAGAY ANG IP NG ESP32 MO
 // ============================================
-const NGROK_URL = "https://deltoidal-nonregeneratively-florance.ngrok-free.dev";
+const ESP32_IP = "192.168.1.15"; // ← PALITAN! Gamitin ang IP ng ESP32 mo
 
 const getBaseUrl = () => {
   if (Platform.OS === "android") {
-    return `${NGROK_URL}/broilerguard/api`;
+    return `http://${ESP32_IP}`;
   }
   if (Platform.OS === "ios") {
-    return `${NGROK_URL}/broilerguard/api`;
+    return `http://${ESP32_IP}`;
   }
   if (Platform.OS === "web") {
-    return `http://localhost/broilerguard/api`;
+    return `http://localhost`;
   }
-  return `${NGROK_URL}/broilerguard/api`;
+  return `http://${ESP32_IP}`;
 };
 
 export const API_BASE_URL = getBaseUrl();
 
 console.log("========================================");
-console.log("🔗 API Base URL:", API_BASE_URL);
+console.log("🔗 ESP32 API URL:", API_BASE_URL);
 console.log("========================================");
 
-// ✅ CREATE AXIOS INSTANCE
+// CREATE AXIOS INSTANCE
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: 10000, // 10 seconds for ESP32
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
   },
 });
 
-// ✅ REQUEST INTERCEPTOR
+// REQUEST INTERCEPTOR
 api.interceptors.request.use(
   async (config) => {
-    try {
-      const token = await AsyncStorage.getItem("auth_token");
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    } catch (error) {
-      console.log("Token error:", error);
-    }
-
-    console.log("📤 Request:", config.method?.toUpperCase(), config.url);
+    console.log("📤 ESP32 Request:", config.method?.toUpperCase(), config.url);
     return config;
   },
   (error) => {
@@ -58,26 +48,19 @@ api.interceptors.request.use(
   },
 );
 
-// ✅ RESPONSE INTERCEPTOR
+// RESPONSE INTERCEPTOR
 api.interceptors.response.use(
   (response) => {
-    console.log("📥 Response:", response.status, response.config.url);
+    console.log("📥 ESP32 Response:", response.status, response.config.url);
+    console.log("📥 Data:", response.data);
     return response;
   },
   async (error) => {
-    console.log("❌ Response Error:", error.message);
+    console.log("❌ ESP32 Error:", error.message);
     console.log("❌ URL:", error.config?.url);
     console.log("❌ Full URL:", error.config?.baseURL + error.config?.url);
-
-    if (error.response?.status === 401) {
-      try {
-        await AsyncStorage.removeItem("auth_token");
-      } catch {}
-    }
-
     return Promise.reject(error);
   },
 );
 
-// ✅ EXPORT DEFAULT
 export default api;

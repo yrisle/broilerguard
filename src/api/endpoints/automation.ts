@@ -4,55 +4,50 @@ import api from "../client";
 export const automation = {
   // Fan Control
   fan: {
-    getStatus: () => api.get("/automation/fan.php"),
-
-    toggle: (status: "ON" | "OFF") =>
-      api.post("/automation/fan.php", { action: "toggle", status }),
-
+    getStatus: () => api.get("/sensor"),
+    toggle: (status: "ON" | "OFF") => api.get(`/fan_${status.toLowerCase()}`),
     updateSettings: (settings: {
       auto_mode: boolean;
       temp_on: number;
       temp_off: number;
-    }) => api.post("/automation/fan.php", { action: "settings", ...settings }),
-
-    resetOverride: () =>
-      api.post("/automation/fan.php", { action: "reset_override" }),
-  },
-
-  // Feed Dispenser
-  feeder: {
-    getStatus: () => api.get("/automation/feeder.php"),
-
-    dispense: (amount: number) =>
-      api.post("/automation/feeder.php", { action: "dispense", amount }),
-
-    refill: (amount: number) =>
-      api.post("/automation/feeder.php", { action: "refill", amount }),
-
-    updateSchedules: (schedules: any[]) =>
-      api.post("/automation/feeder.php", { action: "schedules", schedules }),
-
-    toggleAuto: (enabled: boolean) =>
-      api.post("/automation/feeder.php", { action: "toggle_auto", enabled }),
+    }) => api.post("/fan/settings", settings),
+    resetOverride: () => api.post("/fan/reset"),
   },
 
   // Water Pump
   pump: {
-    getStatus: () => api.get("/automation/pump.php"),
-
-    toggle: (status: "ON" | "OFF") =>
-      api.post("/automation/pump.php", { action: "toggle", status }),
-
-    release: (duration: number) =>
-      api.post("/automation/pump.php", { action: "water", duration }),
-
+    getStatus: () => api.get("/sensor"),
+    toggle: (status: "ON" | "OFF") => api.get(`/pump_${status.toLowerCase()}`),
+    release: (duration: number) => api.get("/pump_on"),
     updateSchedules: (schedules: any[]) =>
-      api.post("/automation/pump.php  ", { action: "schedules", schedules }),
+      api.post("/pump/schedules", schedules),
+    toggleAuto: (enabled: boolean) => api.post("/pump/auto", { enabled }),
+    resetOverride: () => api.post("/pump/reset"),
+  },
 
-    toggleAuto: (enabled: boolean) =>
-      api.post("/automation/pump.php", { action: "toggle_auto", enabled }),
+  // Light Control
+  light: {
+    getStatus: () => api.get("/sensor"),
+    toggle: (status: "ON" | "OFF") => api.get(`/light_${status.toLowerCase()}`),
+  },
 
-    resetOverride: () =>
-      api.post("/automation/pump.php", { action: "reset_override" }),
+  // 🚪 GATE CONTROL
+  gate: {
+    getStatus: () => api.get("/sensor"),
+    open: () => api.get("/gate_open"), // ESP32 endpoint
+    close: () => api.get("/gate_close"), // ESP32 endpoint
+    toggle: async () => {
+      try {
+        const response = await api.get("/sensor");
+        const isOpen = response.data.gate === 1;
+        if (isOpen) {
+          return await api.get("/gate_close");
+        } else {
+          return await api.get("/gate_open");
+        }
+      } catch (error) {
+        throw error;
+      }
+    },
   },
 };

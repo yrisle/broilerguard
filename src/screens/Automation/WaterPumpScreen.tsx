@@ -1,7 +1,7 @@
 // src/screens/Automation/WaterPumpScreen.tsx
+
 import { FontAwesome5 } from "@expo/vector-icons";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -15,70 +15,45 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { API_BASE_URL } from "../../api/client";
+import { automation } from "../../api/endpoints";
 import { useTheme } from "../../hooks/useTheme";
 
 function WaterPumpScreen() {
   const { colors } = useTheme();
-  const [data, setData] = useState<any>(null);
+  const [pumpStatus, setPumpStatus] = useState("OFF");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [autoMode, setAutoMode] = useState(true);
   const [customDuration, setCustomDuration] = useState("30");
+  const [waterLevel, setWaterLevel] = useState(60);
+  const [capacity, setCapacity] = useState(2000);
 
-  // ✅ Helper function for API calls
-  const apiFetch = async (endpoint: string, options: any = {}) => {
-    try {
-      const token = await AsyncStorage.getItem("auth_token");
-      const url = `${API_BASE_URL}${endpoint}`;
-
-      console.log("📤 API Fetch:", url);
-
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-          ...options.headers,
-        },
-      });
-
-      const text = await response.text();
-      console.log("📥 Raw response:", text);
-
-      try {
-        return JSON.parse(text);
-      } catch (e) {
-        console.error("❌ JSON Parse error:", e);
-        return { success: false, message: "Invalid response from server" };
-      }
-    } catch (error: any) {
-      console.error("❌ API Fetch error:", error);
-      return { success: false, message: error.message || "Network error" };
-    }
-  };
-
+  // Fetch data from ESP32
   const fetchData = async () => {
     try {
-      console.log("📥 Fetching pump data...");
-      const data = await apiFetch("/automation/pump.php", {
-        method: "GET",
-      });
+      console.log("📥 Fetching pump data from ESP32...");
+      const response = await automation.pump.getStatus();
 
-      console.log("📥 Pump response:", data);
+      // ESP32 response from /sensor: { temperature, humidity, fan, pump, light, gate }
+      const data = response.data;
 
-      if (data.success) {
-        setData(data.data);
-        if (data.data?.settings?.auto_mode !== undefined) {
-          setAutoMode(data.data.settings.auto_mode);
-        }
-      } else {
-        console.error("❌ API returned success: false");
-      }
+      console.log("📥 ESP32 Data:", data);
+
+      // Update pump status
+      const pumpStatusValue = data.pump === 1 ? "ON" : "OFF";
+      setPumpStatus(pumpStatusValue);
+
+      // Simulate water level (kung walang water sensor)
+      // Pwedeng magdagdag ng water level sensor sa ESP32
+      setWaterLevel(data.water_level || 60);
+
+      console.log("📥 Pump status:", pumpStatusValue);
     } catch (error: any) {
       console.error("❌ Error fetching pump data:", error);
-      Alert.alert("Error", "Failed to load pump data. Please pull to refresh.");
+      Alert.alert(
+        "Error",
+        "Failed to load pump data. Please check connection to ESP32.",
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -94,101 +69,64 @@ function WaterPumpScreen() {
     fetchData();
   };
 
+  // Toggle Pump ON/OFF
+  const togglePump = async () => {
+    const newStatus = pumpStatus === "ON" ? "OFF" : "ON";
+    try {
+      console.log("🔄 Toggling pump to:", newStatus);
+      await automation.pump.toggle(newStatus);
+      setPumpStatus(newStatus);
+      Alert.alert("Success", `Pump turned ${newStatus}`);
+      fetchData(); // Refresh to get updated status
+    } catch (error: any) {
+      console.error("❌ Toggle error:", error);
+      Alert.alert("Error", "Failed to toggle pump. Please try again.");
+    }
+  };
+
+  // Release Water (for manual watering)
   const handleWaterRelease = async (duration: number) => {
     try {
-      console.log("🔄 Releasing water:", duration);
+      console.log("🔄 Releasing water for:", duration, "seconds");
+      // Use pump toggle with duration
+      await automation.pump.release(duration);
 
-      const data = await apiFetch("/automation/pump.php", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "water",
-          duration,
-        }),
-      });
-
-      console.log("📥 Water release response:", data);
-
-      if (data.success) {
-        const amount = data.data?.amount || (duration * 0.5).toFixed(1);
-        Alert.alert("Success", `Released ${amount} L of water`);
-        fetchData();
-      } else {
-        Alert.alert("Error", data.message || "Failed to release water");
-      }
+      const amount = (duration * 0.5).toFixed(1);
+      Alert.alert("Success", `Released ${amount} L of water`);
+      fetchData();
     } catch (error: any) {
       console.error("❌ Water release error:", error);
       Alert.alert("Error", "Failed to release water. Please try again.");
     }
   };
 
-  const togglePump = async () => {
-    const currentStatus = data?.pump?.status || "OFF";
-    const newStatus = currentStatus === "ON" ? "OFF" : "ON";
-    try {
-      console.log("🔄 Toggling pump to:", newStatus);
-
-      const data = await apiFetch("/automation/pump.php", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "toggle",
-          status: newStatus,
-        }),
-      });
-
-      console.log("📥 Toggle pump response:", data);
-
-      if (data.success) {
-        Alert.alert("Success", `Pump turned ${newStatus}`);
-        fetchData();
-      } else {
-        Alert.alert("Error", data.message || "Failed to toggle pump");
-      }
-    } catch (error: any) {
-      console.error("❌ Toggle pump error:", error);
-      Alert.alert("Error", "Failed to toggle pump. Please try again.");
-    }
-  };
-
+  // Toggle Auto Mode
   const toggleAutoMode = async () => {
     const newMode = !autoMode;
     try {
       console.log("🔄 Toggling pump auto mode to:", newMode);
-
-      const data = await apiFetch("/automation/pump.php", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "settings",
-          auto_mode: newMode,
-        }),
-      });
-
-      console.log("📥 Auto mode response:", data);
-
-      if (data.success) {
-        setAutoMode(newMode);
-        Alert.alert("Success", `Auto mode ${newMode ? "enabled" : "disabled"}`);
-        fetchData();
-      } else {
-        Alert.alert("Error", data.message || "Failed to update settings");
-      }
+      await automation.pump.toggleAuto(newMode);
+      setAutoMode(newMode);
+      Alert.alert("Success", `Auto mode ${newMode ? "enabled" : "disabled"}`);
+      fetchData();
     } catch (error: any) {
       console.error("❌ Toggle auto mode error:", error);
       Alert.alert("Error", "Failed to update settings. Please try again.");
     }
   };
 
+  const percentage = (waterLevel / capacity) * 100;
+
   if (loading) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textMuted }]}>
+          Connecting to ESP32...
+        </Text>
       </View>
     );
   }
-
-  const pumpStatus = data?.pump?.status || "OFF";
-  const level = data?.inventory?.current_level || 0;
-  const capacity = data?.inventory?.capacity || 2000;
-  const percentage = (level / capacity) * 100;
 
   return (
     <ScrollView
@@ -212,6 +150,7 @@ function WaterPumpScreen() {
         </Text>
       </View>
 
+      {/* Pump Status Card */}
       <View style={[styles.statusCard, { backgroundColor: colors.card }]}>
         <View
           style={[
@@ -240,6 +179,8 @@ function WaterPumpScreen() {
         >
           {pumpStatus === "ON" ? "RUNNING" : "STOPPED"}
         </Text>
+
+        {/* Toggle Button */}
         <TouchableOpacity
           style={[
             styles.toggleBtn,
@@ -255,6 +196,7 @@ function WaterPumpScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Water Level */}
       <View style={[styles.levelCard, { backgroundColor: colors.card }]}>
         <View
           style={{
@@ -288,10 +230,11 @@ function WaterPumpScreen() {
           </View>
         </View>
         <Text style={[styles.levelText, { color: colors.textMuted }]}>
-          {level.toFixed(0)} L / {capacity} L
+          {waterLevel.toFixed(0)} L / {capacity} L
         </Text>
       </View>
 
+      {/* Auto Mode */}
       <View
         style={[
           styles.autoCard,
@@ -319,10 +262,12 @@ function WaterPumpScreen() {
             value={autoMode}
             onValueChange={toggleAutoMode}
             trackColor={{ false: "#E0D5C0", true: colors.primary }}
+            thumbColor={autoMode ? "#FFFFFF" : "#f4f3f4"}
           />
         </View>
       </View>
 
+      {/* Manual Release */}
       <View style={styles.section}>
         <View
           style={{
@@ -381,81 +326,7 @@ function WaterPumpScreen() {
         </View>
       </View>
 
-      <View style={styles.section}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            marginBottom: 12,
-          }}
-        >
-          <Ionicons
-            name="calendar"
-            size={20}
-            color={colors.textSecondary}
-            style={{ marginRight: 8 }}
-          />
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-            Watering Schedule
-          </Text>
-        </View>
-        {data?.schedules?.map((schedule: any, index: number) => (
-          <View
-            key={index}
-            style={[
-              styles.scheduleItem,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View style={styles.scheduleLeft}>
-              <Text style={[styles.scheduleTime, { color: colors.text }]}>
-                {new Date(`2000-01-01T${schedule.time}:00`).toLocaleTimeString(
-                  "en-US",
-                  {
-                    hour: "numeric",
-                    minute: "2-digit",
-                  },
-                )}
-              </Text>
-              <Text
-                style={[
-                  styles.scheduleDuration,
-                  { color: colors.textSecondary },
-                ]}
-              >
-                {schedule.duration}s
-              </Text>
-            </View>
-            <View style={styles.scheduleRight}>
-              <Text style={[styles.scheduleLabel, { color: colors.textMuted }]}>
-                {schedule.label}
-              </Text>
-              <View
-                style={[
-                  styles.scheduleStatus,
-                  schedule.enabled
-                    ? [
-                        styles.statusActive,
-                        { backgroundColor: colors.successLight },
-                      ]
-                    : [
-                        styles.statusInactive,
-                        { backgroundColor: colors.dangerLight },
-                      ],
-                ]}
-              >
-                <Text style={styles.scheduleStatusText}>
-                  {schedule.enabled ? "Active" : "Off"}
-                </Text>
-              </View>
-            </View>
-          </View>
-        ))}
-      </View>
-
+      {/* Recent Activity */}
       <View style={[styles.section, styles.lastSection]}>
         <View
           style={{
@@ -474,46 +345,42 @@ function WaterPumpScreen() {
             Recent Activity
           </Text>
         </View>
-        {data?.logs?.slice(0, 5).map((log: any, index: number) => (
-          <View
-            key={index}
+
+        <View
+          style={[
+            styles.logItem,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.logTime, { color: colors.textMuted }]}>
+            {new Date().toLocaleTimeString()}
+          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+            <FontAwesome5
+              name="water"
+              size={12}
+              color={pumpStatus === "ON" ? colors.info : colors.danger}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[styles.logAction, { color: colors.text }]}>
+              {pumpStatus === "ON" ? "Pump ON" : "Pump OFF"}
+            </Text>
+          </View>
+          <Text
             style={[
-              styles.logItem,
+              styles.logTrigger,
               {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
+                color: colors.textMuted,
+                backgroundColor: colors.backgroundSecondary,
               },
             ]}
           >
-            <Text style={[styles.logTime, { color: colors.textMuted }]}>
-              {new Date(log.timestamp).toLocaleTimeString()}
-            </Text>
-            <View
-              style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
-            >
-              <FontAwesome5
-                name="water"
-                size={12}
-                color={colors.info}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.logAction, { color: colors.text }]}>
-                Released {log.water_amount} L
-              </Text>
-            </View>
-            <Text
-              style={[
-                styles.logTrigger,
-                {
-                  color: colors.textMuted,
-                  backgroundColor: colors.backgroundSecondary,
-                },
-              ]}
-            >
-              {log.trigger}
-            </Text>
-          </View>
-        ))}
+            Manual
+          </Text>
+        </View>
       </View>
     </ScrollView>
   );
@@ -527,6 +394,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
   },
   header: {
     paddingHorizontal: 20,
@@ -707,47 +578,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#FFFFFF",
-  },
-  scheduleItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
-    borderWidth: 1,
-  },
-  scheduleLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  scheduleTime: {
-    fontSize: 16,
-    fontWeight: "700",
-    width: 70,
-  },
-  scheduleDuration: {
-    fontSize: 14,
-  },
-  scheduleRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  scheduleLabel: {
-    fontSize: 12,
-  },
-  scheduleStatus: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusActive: {},
-  statusInactive: {},
-  scheduleStatusText: {
-    fontSize: 11,
-    fontWeight: "600",
   },
   lastSection: {
     paddingBottom: 20,
