@@ -45,6 +45,25 @@ const GateControlScreen = () => {
   const intervalRef = useRef<number | null>(null);
 
   // ============================================
+  // PHILIPPINE TIME
+  // ============================================
+  const getPhilippineTime = (): Date => {
+    const now = new Date();
+    // Philippines is UTC+8
+    const phTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    return phTime;
+  };
+
+  const getCurrentTimeString = (): string => {
+    const now = getPhilippineTime();
+    return now.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  // ============================================
   // TIME CONVERSION FUNCTIONS
   // ============================================
   const convertTo24Hour = (timeStr: string): string => {
@@ -296,7 +315,7 @@ const GateControlScreen = () => {
   const findNextDispenseTime = () => {
     if (feedTimes.length === 0) return;
 
-    const now = new Date();
+    const now = getPhilippineTime();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
     const timeMinutes = feedTimes.map((time) => {
@@ -333,7 +352,9 @@ const GateControlScreen = () => {
 
     if (nextTime) {
       setNextDispenseTime(nextDate);
-      console.log(`⏰ Next dispense at ${nextDate.toLocaleTimeString()}`);
+      console.log(
+        `⏰ Next dispense at ${nextDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}`,
+      );
     }
   };
 
@@ -370,7 +391,7 @@ const GateControlScreen = () => {
   };
 
   // ============================================
-  // SCHEDULER - Check every 30 seconds
+  // SCHEDULER - Check every 10 seconds using Philippine Time
   // ============================================
   const startScheduler = () => {
     if (intervalRef.current) {
@@ -381,60 +402,39 @@ const GateControlScreen = () => {
     intervalRef.current = setInterval(() => {
       if (!autoMode || isAutoDispensing) return;
 
-      const now = new Date();
+      const now = getPhilippineTime();
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
       const currentSeconds = now.getSeconds();
 
-      console.log(`⏰ Checking schedule at ${now.toLocaleTimeString()}`);
+      const currentTimeStr = now.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+
+      console.log(`⏰ [PH Time: ${currentTimeStr}] Checking schedule...`);
 
       for (const time of feedTimes) {
         const time24 = convertTo24Hour(time);
         const [hours, minutes] = time24.split(":").map(Number);
         const timeMinutes = hours * 60 + minutes;
 
+        // Check if within 10 seconds window
         const timeDiff = Math.abs(
           currentMinutes * 60 + currentSeconds - timeMinutes * 60,
         );
-        if (timeDiff <= 30) {
-          console.log(`⏰ Scheduled dispense at ${time} - Triggering now!`);
+        if (timeDiff <= 10) {
+          console.log(
+            `⏰ [PH Time: ${currentTimeStr}] SCHEDULED DISPENSE AT ${time} - TRIGGERING NOW!`,
+          );
           handleDispenseFeed();
           break;
         }
       }
 
+      // Update next dispense time every 10 seconds
       findNextDispenseTime();
-    }, 30000);
-  };
-
-  // ============================================
-  // CHECK AND DISPENSE - Manual trigger
-  // ============================================
-  const checkAndDispense = () => {
-    if (!autoMode || isAutoDispensing) {
-      Alert.alert("Info", "Auto mode must be ON to check schedule.");
-      return;
-    }
-
-    const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-    for (const time of feedTimes) {
-      const time24 = convertTo24Hour(time);
-      const [hours, minutes] = time24.split(":").map(Number);
-      const timeMinutes = hours * 60 + minutes;
-
-      if (Math.abs(currentMinutes - timeMinutes) <= 5) {
-        console.log(`⏰ Manual check: Time ${time} matched! Dispensing...`);
-        handleDispenseFeed();
-        return;
-      }
-    }
-
-    Alert.alert(
-      "Info",
-      `No scheduled time matches current time.\nCurrent time: ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
-      [{ text: "OK" }],
-    );
+    }, 10000); // Check every 10 seconds
   };
 
   // Update scheduler when feed times change
@@ -445,10 +445,10 @@ const GateControlScreen = () => {
     }
   }, [feedTimes]);
 
-  // Reset daily counter at midnight
+  // Reset daily counter at midnight (Philippine Time)
   useEffect(() => {
     const checkMidnight = () => {
-      const now = new Date();
+      const now = getPhilippineTime();
       if (
         now.getHours() === 0 &&
         now.getMinutes() === 0 &&
@@ -457,7 +457,7 @@ const GateControlScreen = () => {
         setFeedDispensed(0);
         setDispenseCount(0);
         setNextDispenseTime(null);
-        console.log("🔄 Daily feed counter reset");
+        console.log("🔄 Daily feed counter reset (Philippine Time)");
       }
     };
 
@@ -478,6 +478,7 @@ const GateControlScreen = () => {
 
   const target = 5.0;
   const progress = Math.min((feedDispensed / target) * 100, 100);
+  const currentTime = getCurrentTimeString();
 
   return (
     <ScrollView
@@ -500,6 +501,14 @@ const GateControlScreen = () => {
         </View>
         <Text style={[styles.subtitle, { color: colors.textMuted }]}>
           Control gate and automated feed dispensing
+        </Text>
+      </View>
+
+      {/* Current Time Display */}
+      <View style={[styles.timeDisplay, { backgroundColor: colors.card }]}>
+        <Ionicons name="time-outline" size={20} color={colors.primary} />
+        <Text style={[styles.timeDisplayText, { color: colors.text }]}>
+          Philippine Time: {currentTime}
         </Text>
       </View>
 
@@ -826,9 +835,10 @@ const GateControlScreen = () => {
               <Ionicons name="alarm-outline" size={20} color={colors.primary} />
               <Text style={[styles.nextDispenseText, { color: colors.text }]}>
                 Next dispense at:{" "}
-                {nextDispenseTime.toLocaleTimeString([], {
+                {nextDispenseTime.toLocaleTimeString("en-US", {
                   hour: "numeric",
                   minute: "2-digit",
+                  hour12: true,
                 })}
               </Text>
             </View>
@@ -864,41 +874,22 @@ const GateControlScreen = () => {
             </Text>
           </View>
 
-          {/* Buttons Row */}
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={[
-                styles.dispenseBtn,
-                {
-                  backgroundColor: colors.primary,
-                  opacity: isAutoDispensing || autoMode ? 0.5 : 1,
-                  flex: 1,
-                },
-              ]}
-              onPress={handleDispenseFeed}
-              disabled={isAutoDispensing || autoMode}
-            >
-              <Text style={styles.dispenseBtnText}>
-                {isAutoDispensing ? "Dispensing..." : "Dispense Now"}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.checkBtn,
-                {
-                  backgroundColor: colors.info,
-                  opacity: autoMode ? 1 : 0.5,
-                  flex: 1,
-                },
-              ]}
-              onPress={checkAndDispense}
-              disabled={!autoMode}
-            >
-              <Ionicons name="refresh-outline" size={20} color="#FFFFFF" />
-              <Text style={styles.checkBtnText}>Check Schedule</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Manual Dispense Button */}
+          <TouchableOpacity
+            style={[
+              styles.dispenseBtn,
+              {
+                backgroundColor: colors.primary,
+                opacity: isAutoDispensing || autoMode ? 0.5 : 1,
+              },
+            ]}
+            onPress={handleDispenseFeed}
+            disabled={isAutoDispensing || autoMode}
+          >
+            <Text style={styles.dispenseBtnText}>
+              {isAutoDispensing ? "Dispensing..." : "Dispense Feed Now"}
+            </Text>
+          </TouchableOpacity>
 
           {autoMode && (
             <Text style={[styles.autoNote, { color: colors.warning }]}>
@@ -993,6 +984,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
     marginLeft: 36,
+  },
+  timeDisplay: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+  },
+  timeDisplayText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
   statusCard: {
     borderRadius: 16,
@@ -1262,34 +1268,16 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textAlign: "right",
   },
-  buttonRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 12,
-  },
   dispenseBtn: {
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
-    justifyContent: "center",
+    marginTop: 12,
   },
   dispenseBtnText: {
     fontSize: 16,
     fontWeight: "700",
     color: "#FFFFFF",
-  },
-  checkBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 12,
-    paddingVertical: 14,
-    gap: 8,
-  },
-  checkBtnText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
   },
   autoNote: {
     fontSize: 12,
