@@ -173,6 +173,15 @@ const LightControlScreen = () => {
     };
   }, []);
 
+  // Idagdag ito para mag-save kapag nag-exit sa screen
+  useEffect(() => {
+    return () => {
+      // Save time settings when unmounting
+      AsyncStorage.setItem(LIGHT_ON_TIME_KEY, onTime);
+      AsyncStorage.setItem(LIGHT_OFF_TIME_KEY, offTime);
+    };
+  }, [onTime, offTime]);
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchData();
@@ -199,16 +208,26 @@ const LightControlScreen = () => {
   // ============================================
   // TOGGLE AUTO MODE
   // ============================================
+  // ============================================
+  // TOGGLE AUTO MODE
+  // ============================================
   const toggleAutoMode = async () => {
     const newMode = !lightAutoMode;
     await setLightAutoMode(newMode);
 
     if (newMode) {
+      // I-save muna ang mga oras bago mag-start ng scheduler
+      await AsyncStorage.setItem(LIGHT_ON_TIME_KEY, onTime);
+      await AsyncStorage.setItem(LIGHT_OFF_TIME_KEY, offTime);
+
       Alert.alert(
         "🤖 Auto Mode Enabled",
         `Light will turn ON at ${onTime} and OFF at ${offTime}.\n\n🔒 Manual controls are now disabled.`,
         [{ text: "OK" }],
       );
+
+      // Stop muna ang existing scheduler bago mag-start ng bago
+      automationScheduler.stopLightScheduler();
       await automationScheduler.startLightScheduler();
     } else {
       automationScheduler.stopLightScheduler();
@@ -218,6 +237,9 @@ const LightControlScreen = () => {
     }
   };
 
+  // ============================================
+  // UPDATE TIMES
+  // ============================================
   // ============================================
   // UPDATE TIMES
   // ============================================
@@ -237,10 +259,31 @@ const LightControlScreen = () => {
     }
 
     const { hours, minutes, period } = parsed;
+    if (hours < 1 || hours > 12) {
+      Alert.alert("Error", "Hour must be between 1 and 12");
+      return;
+    }
+    if (minutes < 0 || minutes > 59) {
+      Alert.alert("Error", "Minutes must be between 0 and 59");
+      return;
+    }
+
     const formattedTime = formatTimeDisplay(hours, minutes, period);
+
+    // I-update ang state at i-save agad
     setOnTime(formattedTime);
     setNewOnTime("");
-    await saveTimeSettings();
+
+    // I-save ang bagong oras
+    await AsyncStorage.setItem(LIGHT_ON_TIME_KEY, formattedTime);
+
+    // Kung naka-ON ang auto mode, i-restart ang scheduler para makuha ang bagong oras
+    if (lightAutoMode) {
+      automationScheduler.stopLightScheduler();
+      await automationScheduler.startLightScheduler();
+    }
+
+    Alert.alert("Success", `Light will turn ON at ${formattedTime}`);
   };
 
   const updateOffTime = async () => {
@@ -259,10 +302,31 @@ const LightControlScreen = () => {
     }
 
     const { hours, minutes, period } = parsed;
+    if (hours < 1 || hours > 12) {
+      Alert.alert("Error", "Hour must be between 1 and 12");
+      return;
+    }
+    if (minutes < 0 || minutes > 59) {
+      Alert.alert("Error", "Minutes must be between 0 and 59");
+      return;
+    }
+
     const formattedTime = formatTimeDisplay(hours, minutes, period);
+
+    // I-update ang state at i-save agad
     setOffTime(formattedTime);
     setNewOffTime("");
-    await saveTimeSettings();
+
+    // I-save ang bagong oras
+    await AsyncStorage.setItem(LIGHT_OFF_TIME_KEY, formattedTime);
+
+    // Kung naka-ON ang auto mode, i-restart ang scheduler para makuha ang bagong oras
+    if (lightAutoMode) {
+      automationScheduler.stopLightScheduler();
+      await automationScheduler.startLightScheduler();
+    }
+
+    Alert.alert("Success", `Light will turn OFF at ${formattedTime}`);
   };
 
   if (loading) {
