@@ -1,80 +1,24 @@
 // app/login.tsx
-import React, { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/hooks/useTheme";
 
 export default function LoginScreen() {
   const { colors } = useTheme();
-  const { login, isLoading, isAuthenticated, clearAuth } = useAuth();
+  const router = useRouter();
   const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("broilerguard2025");
-  const [debugInfo, setDebugInfo] = useState("");
-  const [isChecking, setIsChecking] = useState(true);
-
-  // ✅ Clear any old tokens on mount
-  useEffect(() => {
-    const clearOldTokens = async () => {
-      try {
-        await clearAuth();
-        console.log("✅ Cleared old tokens");
-      } catch (error) {
-        console.error("Error clearing tokens:", error);
-      } finally {
-        setIsChecking(false);
-      }
-    };
-    clearOldTokens();
-  }, []);
-
-  // ✅ If still checking, show loading
-  if (isChecking) {
-    return (
-      <View
-        style={[
-          styles.container,
-          {
-            backgroundColor: colors.background,
-            justifyContent: "center",
-            alignItems: "center",
-          },
-        ]}
-      >
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 20, color: colors.text }}>Loading...</Text>
-      </View>
-    );
-  }
-
-  // ✅ If already authenticated, don't show login
-  if (isAuthenticated) {
-    return (
-      <View
-        style={[
-          styles.container,
-          {
-            backgroundColor: colors.background,
-            justifyContent: "center",
-            alignItems: "center",
-          },
-        ]}
-      >
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 20, color: colors.text }}>
-          Already logged in...
-        </Text>
-      </View>
-    );
-  }
+  const [password, setPassword] = useState("admin");
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -82,99 +26,92 @@ export default function LoginScreen() {
       return;
     }
 
-    setDebugInfo("🔄 Logging in...");
+    setLoading(true);
 
     try {
-      await login(username.trim(), password.trim());
-      setDebugInfo("✅ Login successful!");
-    } catch (error: any) {
-      console.error("Login error:", error);
-      setDebugInfo(`❌ Error: ${error.message || "Unknown error"}`);
+      // ✅ Local validation only (no API call)
+      if (username === "admin" && password === "admin") {
+        // Save login state
+        await AsyncStorage.setItem("auth_token", "dummy_token");
+        await AsyncStorage.setItem(
+          "user",
+          JSON.stringify({ username: "admin" }),
+        );
 
-      // ✅ Clear any partial auth data
-      await clearAuth();
-
-      Alert.alert(
-        "Login Failed",
-        error.message || "Invalid credentials. Please try again.",
-      );
+        // Navigate to home
+        router.replace("/(tabs)/home");
+      } else {
+        Alert.alert("Error", "Invalid username or password");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Login failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.logo}>🐔</Text>
-          <Text style={[styles.title, { color: colors.text }]}>
-            BroilerGuard
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Smart Poultry Management
-          </Text>
-        </View>
+      <View style={styles.header}>
+        <Text style={styles.logo}>🐔</Text>
+        <Text style={[styles.title, { color: colors.text }]}>BroilerGuard</Text>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+          Smart Poultry Management
+        </Text>
+      </View>
 
-        <View style={styles.form}>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                color: colors.text,
-              },
-            ]}
-            placeholder="Username"
-            placeholderTextColor={colors.textMuted}
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-          />
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                color: colors.text,
-              },
-            ]}
-            placeholder="Password"
-            placeholderTextColor={colors.textMuted}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+      <View style={styles.form}>
+        <TextInput
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              color: colors.text,
+            },
+          ]}
+          placeholder="Username"
+          placeholderTextColor={colors.textMuted}
+          value={username}
+          onChangeText={setUsername}
+          autoCapitalize="none"
+        />
+        <TextInput
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              color: colors.text,
+            },
+          ]}
+          placeholder="Password"
+          placeholderTextColor={colors.textMuted}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
 
-          <TouchableOpacity
-            style={[
-              styles.loginBtn,
-              { backgroundColor: colors.primary },
-              isLoading && styles.loginBtnDisabled,
-            ]}
-            onPress={handleLogin}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.loginBtnText}>Login</Text>
-            )}
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.loginBtn,
+            { backgroundColor: colors.primary },
+            loading && styles.loginBtnDisabled,
+          ]}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.loginBtnText}>Login</Text>
+          )}
+        </TouchableOpacity>
 
-          {debugInfo ? (
-            <View style={[styles.debugBox, { backgroundColor: colors.card }]}>
-              <Text style={[styles.debugText, { color: colors.primary }]}>
-                {debugInfo}
-              </Text>
-            </View>
-          ) : null}
-
-          <Text style={[styles.footerText, { color: colors.textMuted }]}>
-            Demo: admin / broilerguard2025
-          </Text>
-        </View>
-      </ScrollView>
+        <Text style={[styles.footerText, { color: colors.textMuted }]}>
+          Default: admin / admin
+        </Text>
+      </View>
     </View>
   );
 }
@@ -182,9 +119,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
     justifyContent: "center",
     padding: 24,
   },
@@ -229,15 +163,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
-  },
-  debugBox: {
-    marginTop: 16,
-    padding: 12,
-    borderRadius: 8,
-  },
-  debugText: {
-    fontSize: 12,
-    textAlign: "center",
   },
   footerText: {
     textAlign: "center",
