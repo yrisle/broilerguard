@@ -135,14 +135,23 @@ const GateControlScreen = () => {
   // ============================================
   // SAVE & LOAD FEED SETTINGS
   // ============================================
-  const saveFeedSettings = async () => {
+  const saveFeedSettings = async (
+    newFeedTimes?: string[],
+    newFeedAmount?: string,
+  ) => {
     try {
-      await AsyncStorage.setItem(GATE_FEED_AMOUNT_KEY, feedAmount);
+      const timesToSave = newFeedTimes || feedTimes;
+      const amountToSave = newFeedAmount || feedAmount;
+
+      await AsyncStorage.setItem(GATE_FEED_AMOUNT_KEY, amountToSave);
       await AsyncStorage.setItem(
         GATE_FEED_TIMES_KEY,
-        JSON.stringify(feedTimes),
+        JSON.stringify(timesToSave),
       );
-      console.log("✅ Gate feed settings saved:", { feedAmount, feedTimes });
+      console.log("✅ Gate feed settings saved:", {
+        feedAmount: amountToSave,
+        feedTimes: timesToSave,
+      });
     } catch (error) {
       console.log("Error saving gate feed settings:", error);
     }
@@ -268,7 +277,7 @@ const GateControlScreen = () => {
   // ============================================
   // TIME MANAGEMENT
   // ============================================
-  const addTime = () => {
+  const addTime = async () => {
     if (!newTime.trim()) {
       Alert.alert("Error", "Please enter a time (e.g., 8:00 AM)");
       return;
@@ -308,22 +317,37 @@ const GateControlScreen = () => {
 
     setFeedTimes(allTimes);
     setNewTime("");
-    saveFeedSettings();
+
+    // Save immediately with new times
+    await saveFeedSettings(allTimes);
+
     if (gateAutoMode) {
       findNextDispenseTime();
+      // Restart scheduler para makuha ang bagong times
+      automationScheduler.stopGateScheduler();
+      await automationScheduler.startGateScheduler();
     }
+
+    Alert.alert("Success", `Added ${formattedTime} to schedule`);
   };
 
-  const removeTime = (time: string) => {
+  // Palitan ang removeTime function:
+  const removeTime = async (time: string) => {
     if (feedTimes.length <= 1) {
       Alert.alert("Error", "You need at least one scheduled time");
       return;
     }
     const newTimes = feedTimes.filter((t) => t !== time);
     setFeedTimes(newTimes);
-    saveFeedSettings();
+
+    // Save immediately with new times
+    await saveFeedSettings(newTimes);
+
     if (gateAutoMode) {
       findNextDispenseTime();
+      // Restart scheduler para makuha ang bagong times
+      automationScheduler.stopGateScheduler();
+      await automationScheduler.startGateScheduler();
     }
   };
 
@@ -428,6 +452,7 @@ const GateControlScreen = () => {
   // ============================================
   // TOGGLE AUTO MODE
   // ============================================
+
   const toggleAutoMode = async () => {
     const newMode = !gateAutoMode;
     await setGateAutoMode(newMode);
@@ -435,6 +460,10 @@ const GateControlScreen = () => {
     if (newMode) {
       setFeedDispensed(0);
       setDispenseCount(0);
+
+      // Save settings muna bago mag-start ng scheduler
+      await saveFeedSettings();
+
       findNextDispenseTime();
 
       Alert.alert(
@@ -443,6 +472,8 @@ const GateControlScreen = () => {
         [{ text: "OK" }],
       );
 
+      // Stop muna ang existing scheduler bago mag-start ng bago
+      automationScheduler.stopGateScheduler();
       await automationScheduler.startGateScheduler();
     } else {
       automationScheduler.stopGateScheduler();
@@ -775,9 +806,9 @@ const GateControlScreen = () => {
                   },
                 ]}
                 value={feedAmount}
-                onChangeText={(text) => {
+                onChangeText={async (text) => {
                   setFeedAmount(text);
-                  saveFeedSettings();
+                  await saveFeedSettings(undefined, text); // Save kaagad
                 }}
                 keyboardType="numeric"
                 editable={true}
