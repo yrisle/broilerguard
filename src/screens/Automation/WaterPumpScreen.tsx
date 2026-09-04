@@ -2,7 +2,7 @@
 
 import { FontAwesome5 } from "@expo/vector-icons";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -23,28 +23,49 @@ function WaterPumpScreen() {
   const [pumpStatus, setPumpStatus] = useState("OFF");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [autoMode, setAutoMode] = useState(true);
+  const [autoMode, setAutoMode] = useState(false);
   const [customDuration, setCustomDuration] = useState("30");
   const [waterLevel, setWaterLevel] = useState(60);
   const [capacity, setCapacity] = useState(2000);
+  const [dispenseAmount, setDispenseAmount] = useState("10"); // Liters to dispense
+  const [isAutoDispensing, setIsAutoDispensing] = useState(false);
+  const [currentTime, setCurrentTime] = useState("");
+
+  const intervalRef = useRef<number | null>(null);
+  const timeIntervalRef = useRef<number | null>(null);
+
+  // ============================================
+  // PHILIPPINE TIME (UTC+8)
+  // ============================================
+  const getPhilippineTime = (): Date => {
+    const now = new Date();
+    const phTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    return phTime;
+  };
+
+  const updateCurrentTime = () => {
+    const now = getPhilippineTime();
+    setCurrentTime(
+      now.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      }),
+    );
+  };
 
   // Fetch data from ESP32
   const fetchData = async () => {
     try {
       console.log("📥 Fetching pump data from ESP32...");
       const response = await automation.pump.getStatus();
-
-      // ESP32 response from /sensor: { temperature, humidity, fan, pump, light, gate }
       const data = response.data;
 
       console.log("📥 ESP32 Data:", data);
 
-      // Update pump status
       const pumpStatusValue = data.pump === 1 ? "ON" : "OFF";
       setPumpStatus(pumpStatusValue);
-
-      // Simulate water level (kung walang water sensor)
-      // Pwedeng magdagdag ng water level sensor sa ESP32
       setWaterLevel(data.water_level || 60);
 
       console.log("📥 Pump status:", pumpStatusValue);
@@ -62,6 +83,11 @@ function WaterPumpScreen() {
 
   useEffect(() => {
     fetchData();
+    updateCurrentTime();
+    timeIntervalRef.current = setInterval(updateCurrentTime, 1000);
+    return () => {
+      if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
+    };
   }, []);
 
   const onRefresh = () => {
@@ -71,12 +97,16 @@ function WaterPumpScreen() {
 
   // Toggle Pump ON/OFF
   const togglePump = async () => {
+    if (autoMode) {
+      Alert.alert("Auto Mode ON", "Manual control is disabled in Auto Mode.");
+      return;
+    }
     const newStatus = pumpStatus === "ON" ? "OFF" : "ON";
     try {
       console.log("🔄 Toggling pump to:", newStatus);
       await automation.pump.toggle(newStatus);
       setPumpStatus(newStatus);
-      fetchData(); // Refresh to get updated status
+      fetchData();
     } catch (error: any) {
       console.error("❌ Toggle error:", error);
       Alert.alert("Error", "Failed to toggle pump. Please try again.");
@@ -85,12 +115,15 @@ function WaterPumpScreen() {
 
   // Release Water (for manual watering)
   const handleWaterRelease = async (duration: number) => {
+    if (autoMode) {
+      Alert.alert("Auto Mode ON", "Manual control is disabled in Auto Mode.");
+      return;
+    }
     try {
       console.log("🔄 Releasing water for:", duration, "seconds");
-      // Use pump toggle with duration
       await automation.pump.release(duration);
-
       const amount = (duration * 0.5).toFixed(1);
+      Alert.alert("Success", `Released ${amount} L of water`);
       fetchData();
     } catch (error: any) {
       console.error("❌ Water release error:", error);
@@ -98,20 +131,78 @@ function WaterPumpScreen() {
     }
   };
 
-  // Toggle Auto Mode
-  const toggleAutoMode = async () => {
+  // ============================================
+  // AUTO MODE - Dispense specific amount of water
+  // ============================================
+  const toggleAutoMode = () => {
     const newMode = !autoMode;
-    try {
-      console.log("🔄 Toggling pump auto mode to:", newMode);
-      await automation.pump.toggleAuto(newMode);
-      setAutoMode(newMode);
-      Alert.alert("Success", `Auto mode ${newMode ? "enabled" : "disabled"}`);
-      fetchData();
-    } catch (error: any) {
-      console.error("❌ Toggle auto mode error:", error);
-      Alert.alert("Error", "Failed to update settings. Please try again.");
+    setAutoMode(newMode);
+
+    if (newMode) {
+      Alert.alert(
+        "🤖 Auto Mode Enabled",
+        `Water will be dispensed automatically.\n\nAmount per dispense: ${dispenseAmount} L\n\n🔒 Manual pump controls are now disabled.`,
+        [{ text: "OK" }],
+      );
+      startScheduler();
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      Alert.alert("Auto Mode Disabled", "Manual control restored.", [
+        { text: "OK" },
+      ]);
     }
   };
+
+  // Auto dispense water
+  const handleAutoDispense = async () => {
+    if (isAutoDispensing || !autoMode) return;
+    setIsAutoDispensing(true);
+
+    try {
+      const amount = parseFloat(dispenseAmount) || 10;
+      console.log(`🔄 Auto dispensing ${amount} L of water...`);
+
+      await automation.pump.release(amount * 2); // Convert to seconds
+      Alert.alert("💧 Auto Dispense", `Dispensed ${amount} L of water`);
+
+      fetchData();
+    } catch (error: any) {
+      console.error("❌ Auto dispense error:", error);
+    } finally {
+      setIsAutoDispensing(false);
+    }
+  };
+
+  const startScheduler = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    intervalRef.current = setInterval(() => {
+      if (!autoMode || isAutoDispensing) return;
+
+      const now = getPhilippineTime();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+      // Check every 30 minutes (0 and 30 minutes mark)
+      if (currentMinutes % 30 === 0 && now.getSeconds() < 5) {
+        console.log(`⏰ Auto dispense triggered at ${currentTime}`);
+        handleAutoDispense();
+      }
+    }, 10000); // Check every 10 seconds
+  };
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
+    };
+  }, []);
 
   const percentage = (waterLevel / capacity) * 100;
 
@@ -148,6 +239,44 @@ function WaterPumpScreen() {
         </Text>
       </View>
 
+      {/* Current Time Display */}
+      <View style={[styles.timeDisplay, { backgroundColor: colors.card }]}>
+        <Ionicons name="time-outline" size={20} color={colors.primary} />
+        <Text style={[styles.timeDisplayText, { color: colors.text }]}>
+          Philippine Time: {currentTime}
+        </Text>
+      </View>
+
+      {/* Auto Mode Status */}
+      <View
+        style={[
+          styles.autoStatusCard,
+          {
+            backgroundColor: autoMode ? colors.successLight : colors.card,
+            borderColor: autoMode ? colors.success : colors.border,
+          },
+        ]}
+      >
+        <Ionicons
+          name={autoMode ? "checkmark-circle" : "time-outline"}
+          size={20}
+          color={autoMode ? colors.success : colors.textMuted}
+        />
+        <Text
+          style={[
+            styles.autoStatusText,
+            { color: autoMode ? colors.success : colors.textMuted },
+          ]}
+        >
+          {autoMode ? "Auto Mode is ACTIVE" : "Auto Mode is OFF"}
+        </Text>
+        {autoMode && (
+          <Text style={[styles.autoStatusSubtext, { color: colors.textMuted }]}>
+            Dispensing {dispenseAmount} L every 30 minutes
+          </Text>
+        )}
+      </View>
+
       {/* Pump Status Card */}
       <View style={[styles.statusCard, { backgroundColor: colors.card }]}>
         <View
@@ -178,18 +307,23 @@ function WaterPumpScreen() {
           {pumpStatus === "ON" ? "RUNNING" : "STOPPED"}
         </Text>
 
-        {/* Toggle Button */}
         <TouchableOpacity
           style={[
             styles.toggleBtn,
             pumpStatus === "ON"
               ? [styles.toggleOn, { backgroundColor: colors.danger }]
               : [styles.toggleOff, { backgroundColor: colors.success }],
+            autoMode && styles.disabledBtn,
           ]}
           onPress={togglePump}
+          disabled={pumpStatus === "ON" || autoMode}
         >
           <Text style={styles.toggleBtnText}>
-            {pumpStatus === "ON" ? "Stop Pump" : "Start Pump"}
+            {autoMode
+              ? "🔒 Auto Mode ON"
+              : pumpStatus === "ON"
+                ? "Stop Pump"
+                : "Start Pump"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -232,7 +366,7 @@ function WaterPumpScreen() {
         </Text>
       </View>
 
-      {/* Auto Mode */}
+      {/* Auto Mode Section */}
       <View
         style={[
           styles.autoCard,
@@ -253,7 +387,9 @@ function WaterPumpScreen() {
               </Text>
             </View>
             <Text style={[styles.autoDesc, { color: colors.textMuted }]}>
-              {autoMode ? "Water released automatically" : "Manual mode only"}
+              {autoMode
+                ? "✅ Auto dispensing is ON"
+                : "⏸️ Auto dispensing is OFF"}
             </Text>
           </View>
           <Switch
@@ -263,6 +399,37 @@ function WaterPumpScreen() {
             thumbColor={autoMode ? "#FFFFFF" : "#f4f3f4"}
           />
         </View>
+
+        {/* Dispense Amount Setting */}
+        <View style={[styles.settingRow, { borderColor: colors.border }]}>
+          <Text style={[styles.settingLabel, { color: colors.text }]}>
+            Dispense Amount
+          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <TextInput
+              style={[
+                styles.amountInput,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  color: colors.text,
+                  width: 70,
+                },
+              ]}
+              value={dispenseAmount}
+              onChangeText={setDispenseAmount}
+              keyboardType="numeric"
+              editable={true}
+            />
+            <Text style={[styles.settingValue, { color: colors.textMuted }]}>
+              L
+            </Text>
+          </View>
+        </View>
+
+        <Text style={[styles.autoNote, { color: colors.textMuted }]}>
+          ⏰ Auto dispense every 30 minutes
+        </Text>
       </View>
 
       {/* Manual Release */}
@@ -283,6 +450,19 @@ function WaterPumpScreen() {
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
             Manual Release
           </Text>
+          {autoMode && (
+            <View
+              style={[
+                styles.lockBadge,
+                { backgroundColor: colors.warningLight, marginLeft: 8 },
+              ]}
+            >
+              <Ionicons name="lock-closed" size={12} color={colors.warning} />
+              <Text style={[styles.lockBadgeText, { color: colors.warning }]}>
+                Locked
+              </Text>
+            </View>
+          )}
         </View>
         <View style={styles.releaseButtons}>
           {[15, 30, 60].map((seconds) => {
@@ -290,8 +470,15 @@ function WaterPumpScreen() {
             return (
               <TouchableOpacity
                 key={seconds}
-                style={[styles.releaseBtn, { backgroundColor: colors.info }]}
+                style={[
+                  styles.releaseBtn,
+                  {
+                    backgroundColor: colors.info,
+                    opacity: autoMode ? 0.5 : 1,
+                  },
+                ]}
                 onPress={() => handleWaterRelease(seconds)}
+                disabled={autoMode}
               >
                 <Text style={styles.releaseBtnText}>{seconds}s</Text>
                 <Text style={styles.releaseSubtext}>{amount} L</Text>
@@ -307,6 +494,7 @@ function WaterPumpScreen() {
                 backgroundColor: colors.card,
                 borderColor: colors.border,
                 color: colors.text,
+                opacity: autoMode ? 0.5 : 1,
               },
             ]}
             value={customDuration}
@@ -314,14 +502,27 @@ function WaterPumpScreen() {
             keyboardType="numeric"
             placeholder="30"
             placeholderTextColor={colors.textMuted}
+            editable={!autoMode}
           />
           <TouchableOpacity
-            style={[styles.customBtn, { backgroundColor: colors.info }]}
+            style={[
+              styles.customBtn,
+              {
+                backgroundColor: colors.info,
+                opacity: autoMode ? 0.5 : 1,
+              },
+            ]}
             onPress={() => handleWaterRelease(parseInt(customDuration) || 30)}
+            disabled={autoMode}
           >
             <Text style={styles.customBtnText}>Release</Text>
           </TouchableOpacity>
         </View>
+        {autoMode && (
+          <Text style={[styles.lockedMessage, { color: colors.warning }]}>
+            🔒 Manual release is locked while Auto Mode is ON
+          </Text>
+        )}
       </View>
 
       {/* Recent Activity */}
@@ -376,7 +577,7 @@ function WaterPumpScreen() {
               },
             ]}
           >
-            Manual
+            {autoMode ? "Auto" : "Manual"}
           </Text>
         </View>
       </View>
@@ -410,6 +611,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
     marginLeft: 36,
+  },
+  timeDisplay: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+  },
+  timeDisplayText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  autoStatusCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    flexWrap: "wrap",
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+  },
+  autoStatusText: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  autoStatusSubtext: {
+    fontSize: 12,
   },
   statusCard: {
     borderRadius: 16,
@@ -447,6 +683,9 @@ const styles = StyleSheet.create({
   },
   toggleOn: {},
   toggleOff: {},
+  disabledBtn: {
+    opacity: 0.5,
+  },
   toggleBtnText: {
     fontSize: 16,
     fontWeight: "700",
@@ -524,6 +763,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
+  settingRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  settingLabel: {
+    fontSize: 14,
+  },
+  settingValue: {
+    fontSize: 14,
+    marginLeft: 6,
+  },
+  amountInput: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderRadius: 6,
+    textAlign: "center",
+    fontSize: 14,
+  },
+  autoNote: {
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: "center",
+    fontStyle: "italic",
+  },
   section: {
     paddingHorizontal: 16,
     marginBottom: 16,
@@ -532,6 +799,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 0,
+  },
+  lockBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  lockBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+  lockedMessage: {
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 8,
+    fontStyle: "italic",
   },
   releaseButtons: {
     flexDirection: "row",

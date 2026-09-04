@@ -41,26 +41,30 @@ const GateControlScreen = () => {
   const [dispenseCount, setDispenseCount] = useState(0);
   const [isAutoDispensing, setIsAutoDispensing] = useState(false);
   const [nextDispenseTime, setNextDispenseTime] = useState<Date | null>(null);
+  const [currentTime, setCurrentTime] = useState("");
 
   const intervalRef = useRef<number | null>(null);
+  const timeIntervalRef = useRef<number | null>(null);
 
   // ============================================
-  // PHILIPPINE TIME
+  // PHILIPPINE TIME (UTC+8)
   // ============================================
   const getPhilippineTime = (): Date => {
     const now = new Date();
-    // Philippines is UTC+8
     const phTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
     return phTime;
   };
 
-  const getCurrentTimeString = (): string => {
+  const updateCurrentTime = () => {
     const now = getPhilippineTime();
-    return now.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
+    setCurrentTime(
+      now.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      }),
+    );
   };
 
   // ============================================
@@ -145,6 +149,11 @@ const GateControlScreen = () => {
 
   useEffect(() => {
     fetchData();
+    updateCurrentTime();
+    timeIntervalRef.current = setInterval(updateCurrentTime, 1000);
+    return () => {
+      if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
+    };
   }, []);
 
   const onRefresh = () => {
@@ -359,7 +368,7 @@ const GateControlScreen = () => {
   };
 
   // ============================================
-  // AUTO MODE
+  // AUTO MODE - FIXED: Hindi namamatay pag lumalabas sa screen
   // ============================================
   const toggleAutoMode = () => {
     const newMode = !autoMode;
@@ -406,35 +415,25 @@ const GateControlScreen = () => {
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
       const currentSeconds = now.getSeconds();
 
-      const currentTimeStr = now.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
-
-      console.log(`⏰ [PH Time: ${currentTimeStr}] Checking schedule...`);
-
       for (const time of feedTimes) {
         const time24 = convertTo24Hour(time);
         const [hours, minutes] = time24.split(":").map(Number);
         const timeMinutes = hours * 60 + minutes;
 
-        // Check if within 10 seconds window
         const timeDiff = Math.abs(
           currentMinutes * 60 + currentSeconds - timeMinutes * 60,
         );
         if (timeDiff <= 10) {
           console.log(
-            `⏰ [PH Time: ${currentTimeStr}] SCHEDULED DISPENSE AT ${time} - TRIGGERING NOW!`,
+            `⏰ [PH Time: ${currentTime}] SCHEDULED DISPENSE AT ${time} - TRIGGERING NOW!`,
           );
           handleDispenseFeed();
           break;
         }
       }
 
-      // Update next dispense time every 10 seconds
       findNextDispenseTime();
-    }, 10000); // Check every 10 seconds
+    }, 10000);
   };
 
   // Update scheduler when feed times change
@@ -478,7 +477,6 @@ const GateControlScreen = () => {
 
   const target = 5.0;
   const progress = Math.min((feedDispensed / target) * 100, 100);
-  const currentTime = getCurrentTimeString();
 
   return (
     <ScrollView
@@ -510,6 +508,41 @@ const GateControlScreen = () => {
         <Text style={[styles.timeDisplayText, { color: colors.text }]}>
           Philippine Time: {currentTime}
         </Text>
+      </View>
+
+      {/* Auto Mode Status */}
+      <View
+        style={[
+          styles.autoStatusCard,
+          {
+            backgroundColor: autoMode ? colors.successLight : colors.card,
+            borderColor: autoMode ? colors.success : colors.border,
+          },
+        ]}
+      >
+        <Ionicons
+          name={autoMode ? "checkmark-circle" : "time-outline"}
+          size={20}
+          color={autoMode ? colors.success : colors.textMuted}
+        />
+        <Text
+          style={[
+            styles.autoStatusText,
+            { color: autoMode ? colors.success : colors.textMuted },
+          ]}
+        >
+          {autoMode ? "Auto Mode is ACTIVE" : "Auto Mode is OFF"}
+        </Text>
+        {autoMode && nextDispenseTime && (
+          <Text style={[styles.autoStatusSubtext, { color: colors.textMuted }]}>
+            Next dispense at:{" "}
+            {nextDispenseTime.toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+            })}
+          </Text>
+        )}
       </View>
 
       {/* Gate Status Card */}
@@ -999,6 +1032,26 @@ const styles = StyleSheet.create({
   timeDisplayText: {
     fontSize: 14,
     fontWeight: "600",
+  },
+  autoStatusCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    flexWrap: "wrap",
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+  },
+  autoStatusText: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  autoStatusSubtext: {
+    fontSize: 12,
   },
   statusCard: {
     borderRadius: 16,
