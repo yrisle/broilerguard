@@ -67,12 +67,14 @@ function SettingsScreen() {
       };
       setProfile(userProfile);
       setEditedProfile(userProfile);
+      setLoading(false); // ✅ Set loading to false when user is available
     } else {
-      // Reset profile if no user
-      setProfile(null);
-      setEditedProfile(null);
+      // If no user, still set loading to false after a short delay
+      setTimeout(() => {
+        setLoading(false);
+      }, 1000);
     }
-  }, [user]); // ✅ Depend on user changes
+  }, [user]);
 
   // Load saved data on mount and when user changes
   useEffect(() => {
@@ -80,6 +82,11 @@ function SettingsScreen() {
       loadSavedData();
       fetchSettings();
       fetchUserProfile();
+    } else {
+      // If no user, stop loading after a moment
+      setTimeout(() => {
+        setLoading(false);
+      }, 1000);
     }
   }, [user]);
 
@@ -136,6 +143,9 @@ function SettingsScreen() {
       }
     } catch (error) {
       console.error("Error loading saved data:", error);
+    } finally {
+      // ✅ Always set loading to false after loading data
+      setLoading(false);
     }
   };
 
@@ -144,7 +154,7 @@ function SettingsScreen() {
       if (!token || !user) return;
 
       const response = await api.get("/user/profile");
-      if (response.data.success) {
+      if (response.data && response.data.success) {
         const userData = response.data.data || response.data.user;
         if (userData && userData.id === user.id) {
           const updatedProfile: User = {
@@ -191,12 +201,13 @@ function SettingsScreen() {
   const fetchSettings = async () => {
     try {
       const response = await api.get("/settings");
-      if (response.data.success) {
+      if (response.data && response.data.success) {
         setSettings(response.data.data);
       }
     } catch (error) {
       console.error("Error fetching settings:", error);
     } finally {
+      // ✅ Also set loading to false here
       setLoading(false);
       setRefreshing(false);
     }
@@ -204,9 +215,13 @@ function SettingsScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchSettings();
-    fetchUserProfile();
-    loadSavedData();
+    setLoading(true); // ✅ Set loading to true when refreshing
+    Promise.all([fetchSettings(), fetchUserProfile(), loadSavedData()]).finally(
+      () => {
+        setLoading(false);
+        setRefreshing(false);
+      },
+    );
   };
 
   const handleEditProfile = () => {
@@ -280,7 +295,7 @@ function SettingsScreen() {
 
       try {
         const response = await api.put("/user/profile", profileData);
-        if (response.data.success) {
+        if (response.data && response.data.success) {
           setProfile(editedProfile);
           await AsyncStorage.setItem(
             STORAGE_KEYS.PROFILE,
@@ -395,14 +410,31 @@ function SettingsScreen() {
     return roleMap[role?.toLowerCase()] || role || "User";
   };
 
-  // ✅ Show loading if no profile or user
-  if (loading || !profile || !user) {
+  // ✅ Show loading only if loading is true AND no profile
+  if (loading) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[styles.loadingText, { color: colors.textMuted }]}>
           Loading profile...
         </Text>
+      </View>
+    );
+  }
+
+  // ✅ If no profile but not loading, show fallback
+  if (!profile || !user) {
+    return (
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: colors.text }]}>
+          No user profile found
+        </Text>
+        <TouchableOpacity
+          style={[styles.retryButton, { backgroundColor: colors.primary }]}
+          onPress={onRefresh}
+        >
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -780,7 +812,6 @@ function SettingsScreen() {
         )}
       </View>
 
-      {/* Rest of the component remains the same */}
       {/* Preferences Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
@@ -1004,10 +1035,25 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    padding: 20,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
+  },
+  errorText: {
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
   header: {
     paddingHorizontal: 20,
