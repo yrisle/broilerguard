@@ -68,10 +68,16 @@ export const automation = {
     toggleAuto: (enabled: boolean) => api.post("/feeder/auto", { enabled }),
   },
 
-  // Water Pump
+  // Water Pump - FIXED
   pump: {
     getStatus: () => api.get("/sensor"),
-    toggle: (status: "ON" | "OFF") => api.get(`/pump_${status.toLowerCase()}`),
+    toggle: (status: "ON" | "OFF") => {
+      if (status === "ON") {
+        return api.get("/pump_on");
+      } else {
+        return api.get("/pump_off");
+      }
+    },
     release: (duration: number) => api.get("/pump_on"),
     updateSchedules: (schedules: any[]) =>
       api.post("/pump/schedules", schedules),
@@ -85,7 +91,7 @@ export const automation = {
     toggle: (status: "ON" | "OFF") => api.get(`/light_${status.toLowerCase()}`),
   },
 
-  // 🚪 GATE CONTROL - ADD THIS
+  // 🚪 GATE CONTROL
   gate: {
     getStatus: () => api.get("/sensor"),
     open: () => api.get("/gate_open"),
