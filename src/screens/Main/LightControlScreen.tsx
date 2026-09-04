@@ -1,417 +1,213 @@
 // src/screens/Main/LightControlScreen.tsx
+
 import Icon from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
-  View,
-  TextInput,
-  Modal,
+  View
 } from "react-native";
-import Card from "../../components/common/Card";
+import { automation } from "../../api/endpoints";
 import { useTheme } from "../../hooks/useTheme";
 
 const LightControlScreen = () => {
   const { colors } = useTheme();
   const router = useRouter();
-  
-  // Local state only - no API calls
   const [lightStatus, setLightStatus] = useState("OFF");
-  const [brightness, setBrightness] = useState(50);
-  const [schedule, setSchedule] = useState({
-    onTime: "06:00",
-    offTime: "18:00",
-    enabled: true,
-  });
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [editingTime, setEditingTime] = useState<"on" | "off" | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Toggle light locally
-  const toggleLight = () => {
-    setLightStatus(lightStatus === "ON" ? "OFF" : "ON");
+  // Fetch light status from ESP32
+  const fetchData = async () => {
+    try {
+      console.log("📥 Fetching light data from ESP32...");
+      const response = await automation.light.getStatus();
+      const data = response.data;
+
+      const status = data.light === 1 ? "ON" : "OFF";
+      setLightStatus(status);
+      console.log("📥 Light status:", status);
+    } catch (error: any) {
+      console.error("❌ Error fetching light data:", error);
+      Alert.alert(
+        "Error",
+        "Failed to load light data. Please check connection to ESP32.",
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
-  // Update brightness locally
-  const updateBrightness = (value: number) => {
-    setBrightness(value);
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
   };
 
-  // Manual control locally
-  const handleManualControl = (status: string) => {
-    if (status === lightStatus) return;
-    setLightStatus(status);
+  // Toggle Light ON/OFF
+  const toggleLight = async () => {
+    const newStatus = lightStatus === "ON" ? "OFF" : "ON";
+    try {
+      console.log("🔄 Toggling light to:", newStatus);
+      await automation.light.toggle(newStatus);
+      setLightStatus(newStatus);
+      Alert.alert("Success", `Light turned ${newStatus}`);
+      fetchData();
+    } catch (error: any) {
+      console.error("❌ Toggle error:", error);
+      Alert.alert("Error", "Failed to toggle light. Please try again.");
+    }
   };
 
-  // Toggle schedule locally
-  const toggleSchedule = () => {
-    setSchedule({ ...schedule, enabled: !schedule.enabled });
-  };
-
-  // Update schedule time locally
-  const updateScheduleTime = (type: "on" | "off", time: string) => {
-    const newSchedule = { 
-      ...schedule,
-      onTime: type === "on" ? time : schedule.onTime,
-      offTime: type === "off" ? time : schedule.offTime,
-    };
-    setSchedule(newSchedule);
-    setShowTimePicker(false);
-  };
-
-  // Fallback colors
-  const themeColors = {
-    background: colors?.background || "#F9FAFB",
-    text: colors?.text || "#111827",
-    textMuted: colors?.textMuted || "#6B7280",
-    textSecondary: colors?.textSecondary || "#4B5563",
-    card: colors?.card || "#FFFFFF",
-    border: colors?.border || "#D1D5DB",
-    primary: colors?.primary || "#3B82F6",
-    success: colors?.success || "#10B981",
-    danger: colors?.danger || "#EF4444",
-    warning: colors?.warning || "#F59E0B",
-    warningLight: colors?.warningLight || "#FEF3C7",
-  };
+  if (loading) {
+    return (
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textMuted }]}>
+          Connecting to ESP32...
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: themeColors.background }]}
+      style={[styles.container, { backgroundColor: colors.background }]}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
     >
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Icon name="arrow-back" size={24} color={themeColors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: themeColors.text }]}>
-          Light Control
-        </Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      {/* Demo Mode Banner */}
-      <View
-        style={[
-          styles.demoBanner,
-          {
-            backgroundColor: themeColors.warningLight,
-            borderColor: themeColors.warning,
-          },
-        ]}
-      >
-        <Icon name="information-circle" size={20} color={themeColors.warning} />
-        <Text style={[styles.demoText, { color: themeColors.warning }]}>
-          Demo Mode - Local Control Only
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Icon
+            name="bulb-outline"
+            size={24}
+            color={colors.text}
+            style={{ marginRight: 12 }}
+          />
+          <Text style={[styles.title, { color: colors.text }]}>
+            Light Control
+          </Text>
+        </View>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+          Control the poultry house lighting
         </Text>
       </View>
 
       {/* Light Status Card */}
-      <Card style={styles.statusCard}>
-        <View style={styles.statusContainer}>
-          <View style={styles.statusIconContainer}>
-            <Icon
-              name={lightStatus === "ON" ? "bulb" : "bulb-outline"}
-              size={60}
-              color={lightStatus === "ON" ? themeColors.warning : themeColors.textMuted}
-            />
-          </View>
-          <View style={styles.statusInfo}>
-            <Text style={[styles.statusLabel, { color: themeColors.textMuted }]}>
-              Light Status
-            </Text>
-            <Text
-              style={[
-                styles.statusValue,
-                {
-                  color: lightStatus === "ON" ? themeColors.success : themeColors.danger,
-                },
-              ]}
-            >
-              {lightStatus}
-            </Text>
-            <View style={styles.switchContainer}>
-              <Switch
-                trackColor={{ 
-                  false: themeColors.border, 
-                  true: themeColors.success 
-                }}
-                thumbColor={lightStatus === "ON" ? "#fff" : "#f4f3f4"}
-                ios_backgroundColor={themeColors.border}
-                onValueChange={toggleLight}
-                value={lightStatus === "ON"}
-              />
-              <Text style={[styles.switchLabel, { color: themeColors.textMuted }]}>
-                Toggle Light
-              </Text>
-            </View>
-          </View>
-        </View>
-      </Card>
-
-      {/* Brightness Control */}
-      <Card style={styles.brightnessCard}>
-        <Text style={[styles.brightnessTitle, { color: themeColors.text }]}>
-          Brightness Control
-        </Text>
-        <View style={styles.brightnessContainer}>
-          <Icon name="sunny-outline" size={24} color={themeColors.textMuted} />
-          <View style={styles.brightnessSliderContainer}>
-            <View style={styles.brightnessTrack}>
-              <View
-                style={[
-                  styles.brightnessFill,
-                  {
-                    width: `${brightness}%`,
-                    backgroundColor: themeColors.warning,
-                  },
-                ]}
-              />
-            </View>
-            <View style={styles.brightnessControls}>
-              {[0, 25, 50, 75, 100].map((value) => (
-                <TouchableOpacity
-                  key={value}
-                  style={[
-                    styles.brightnessDot,
-                    {
-                      backgroundColor:
-                        brightness === value ? themeColors.warning : themeColors.border,
-                    },
-                  ]}
-                  onPress={() => updateBrightness(value)}
-                />
-              ))}
-            </View>
-          </View>
-          <Text style={[styles.brightnessValue, { color: themeColors.text }]}>
-            {brightness}%
-          </Text>
-        </View>
-        <View style={styles.brightnessButtons}>
-          {["Low", "Medium", "High"].map((level, index) => {
-            const values = [25, 50, 75];
-            return (
-              <TouchableOpacity
-                key={level}
-                style={[
-                  styles.brightnessButton,
-                  {
-                    backgroundColor:
-                      brightness === values[index]
-                        ? themeColors.warning
-                        : themeColors.card,
-                    borderColor: themeColors.border,
-                  },
-                ]}
-                onPress={() => updateBrightness(values[index])}
-              >
-                <Text
-                  style={[
-                    styles.brightnessButtonText,
-                    {
-                      color:
-                        brightness === values[index]
-                          ? "#fff"
-                          : themeColors.textSecondary,
-                    },
-                  ]}
-                >
-                  {level}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </Card>
-
-      {/* Manual Control */}
-      <Card style={styles.manualControlCard}>
-        <Text style={[styles.manualTitle, { color: themeColors.text }]}>
-          Manual Control
-        </Text>
-        <View style={styles.manualButtons}>
-          <TouchableOpacity
-            style={[
-              styles.manualButton,
-              {
-                backgroundColor:
-                  lightStatus === "ON" ? themeColors.success : themeColors.card,
-                borderColor: themeColors.border,
-              },
-            ]}
-            onPress={() => handleManualControl("ON")}
-            disabled={lightStatus === "ON"}
-          >
-            <Icon
-              name="power"
-              size={24}
-              color={lightStatus === "ON" ? "#fff" : themeColors.textSecondary}
-            />
-            <Text
-              style={[
-                styles.manualButtonText,
-                {
-                  color: lightStatus === "ON" ? "#fff" : themeColors.textSecondary,
-                },
-              ]}
-            >
-              Turn ON
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.manualButton,
-              {
-                backgroundColor:
-                  lightStatus === "OFF" ? themeColors.danger : themeColors.card,
-                borderColor: themeColors.border,
-              },
-            ]}
-            onPress={() => handleManualControl("OFF")}
-            disabled={lightStatus === "OFF"}
-          >
-            <Icon
-              name="power-outline"
-              size={24}
-              color={lightStatus === "OFF" ? "#fff" : themeColors.textSecondary}
-            />
-            <Text
-              style={[
-                styles.manualButtonText,
-                {
-                  color: lightStatus === "OFF" ? "#fff" : themeColors.textSecondary,
-                },
-              ]}
-            >
-              Turn OFF
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </Card>
-
-      {/* Schedule/Automation */}
-      <Card style={styles.scheduleCard}>
-        <Text style={[styles.scheduleTitle, { color: themeColors.text }]}>
-          Automation Schedule
-        </Text>
-        
-        {/* ON Time */}
-        <TouchableOpacity
-          style={styles.scheduleItem}
-          onPress={() => {
-            setEditingTime("on");
-            setShowTimePicker(true);
-          }}
+      <View style={[styles.statusCard, { backgroundColor: colors.card }]}>
+        <View
+          style={[
+            styles.lightIconContainer,
+            {
+              backgroundColor: colors.backgroundSecondary || colors.card + "80",
+            },
+          ]}
         >
-          <View style={styles.scheduleInfo}>
-            <Icon name="time-outline" size={20} color={themeColors.textMuted} />
-            <Text style={[styles.scheduleText, { color: themeColors.textMuted }]}>
-              Light ON at {schedule.onTime}
-            </Text>
-          </View>
-          <Icon name="chevron-forward" size={20} color={themeColors.textMuted} />
-        </TouchableOpacity>
-        
-        {/* OFF Time */}
-        <TouchableOpacity
-          style={styles.scheduleItem}
-          onPress={() => {
-            setEditingTime("off");
-            setShowTimePicker(true);
-          }}
-        >
-          <View style={styles.scheduleInfo}>
-            <Icon name="time-outline" size={20} color={themeColors.textMuted} />
-            <Text style={[styles.scheduleText, { color: themeColors.textMuted }]}>
-              Light OFF at {schedule.offTime}
-            </Text>
-          </View>
-          <Icon name="chevron-forward" size={20} color={themeColors.textMuted} />
-        </TouchableOpacity>
-        
-        {/* Enable Automation */}
-        <View style={[styles.scheduleItem, styles.scheduleToggle]}>
-          <View style={styles.scheduleInfo}>
-            <Icon name="calendar-outline" size={20} color={themeColors.textMuted} />
-            <Text style={[styles.scheduleText, { color: themeColors.textMuted }]}>
-              Enable Automation
-            </Text>
-          </View>
-          <Switch
-            trackColor={{ false: themeColors.border, true: themeColors.success }}
-            thumbColor="#fff"
-            ios_backgroundColor={themeColors.border}
-            onValueChange={toggleSchedule}
-            value={schedule.enabled}
+          <Icon
+            name={lightStatus === "ON" ? "bulb" : "bulb-outline"}
+            size={50}
+            color={lightStatus === "ON" ? colors.warning : colors.textMuted}
           />
         </View>
-      </Card>
+        <Text style={[styles.lightStatusLabel, { color: colors.textMuted }]}>
+          Light is
+        </Text>
+        <Text
+          style={[
+            styles.lightStatusText,
+            lightStatus === "ON"
+              ? [styles.statusOn, { color: colors.success }]
+              : [styles.statusOff, { color: colors.danger }],
+          ]}
+        >
+          {lightStatus === "ON" ? "ON" : "OFF"}
+        </Text>
 
-      {/* Time Picker Modal */}
-      <Modal
-        visible={showTimePicker}
-        transparent={true}
-        animationType="slide"
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: themeColors.card }]}>
-            <Text style={[styles.modalTitle, { color: themeColors.text }]}>
-              Select Time
-            </Text>
-            
-            <TextInput
-              style={[styles.timeInput, { 
-                borderColor: themeColors.border,
-                color: themeColors.text,
-              }]}
-              value={editingTime === "on" ? schedule.onTime : schedule.offTime}
-              onChangeText={(text) => {
-                // Simple time validation (HH:MM)
-                if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(text) || text === "") {
-                  if (editingTime === "on") {
-                    setSchedule({ ...schedule, onTime: text });
-                  } else {
-                    setSchedule({ ...schedule, offTime: text });
-                  }
-                }
-              }}
-              placeholder="HH:MM"
-              placeholderTextColor={themeColors.textMuted}
-              keyboardType="numbers-and-punctuation"
-              maxLength={5}
-            />
-            
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: themeColors.border }]}
-                onPress={() => {
-                  setShowTimePicker(false);
-                }}
-              >
-                <Text style={{ color: themeColors.text }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: themeColors.primary }]}
-                onPress={() => {
-                  if (editingTime === "on") {
-                    updateScheduleTime("on", schedule.onTime);
-                  } else {
-                    updateScheduleTime("off", schedule.offTime);
-                  }
-                }}
-              >
-                <Text style={{ color: "#fff" }}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+        {/* Toggle Button */}
+        <TouchableOpacity
+          style={[
+            styles.toggleBtn,
+            lightStatus === "ON"
+              ? [styles.toggleOn, { backgroundColor: colors.danger }]
+              : [styles.toggleOff, { backgroundColor: colors.success }],
+          ]}
+          onPress={toggleLight}
+        >
+          <Text style={styles.toggleBtnText}>
+            {lightStatus === "ON" ? "Turn OFF" : "Turn ON"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Quick Actions */}
+      <View style={styles.section}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Icon
+            name="flash-outline"
+            size={20}
+            color={colors.textSecondary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            Quick Actions
+          </Text>
         </View>
-      </Modal>
+
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={[
+              styles.actionBtn,
+              styles.actionOn,
+              {
+                backgroundColor: colors.success,
+                opacity: lightStatus === "ON" ? 0.5 : 1,
+              },
+            ]}
+            onPress={() => {
+              if (lightStatus !== "ON") toggleLight();
+            }}
+            disabled={lightStatus === "ON"}
+          >
+            <Icon name="power" size={24} color="#FFFFFF" />
+            <Text style={styles.actionBtnText}>Turn ON</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.actionBtn,
+              styles.actionOff,
+              {
+                backgroundColor: colors.danger,
+                opacity: lightStatus === "OFF" ? 0.5 : 1,
+              },
+            ]}
+            onPress={() => {
+              if (lightStatus !== "OFF") toggleLight();
+            }}
+            disabled={lightStatus === "OFF"}
+          >
+            <Icon name="power-outline" size={24} color="#FFFFFF" />
+            <Text style={styles.actionBtnText}>Turn OFF</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <View style={styles.footer} />
     </ScrollView>
@@ -422,226 +218,100 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  centered: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 16,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: 8,
   },
-  backButton: {
-    padding: 8,
+  title: {
+    fontSize: 24,
+    fontWeight: "800",
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  demoBanner: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  demoText: {
-    fontSize: 12,
-    fontWeight: "600",
-    marginLeft: 8,
+  subtitle: {
+    fontSize: 14,
+    marginTop: 4,
+    marginLeft: 36,
   },
   statusCard: {
-    marginHorizontal: 16,
-    marginTop: 16,
-  },
-  statusContainer: {
-    flexDirection: "row",
+    borderRadius: 16,
+    padding: 24,
+    margin: 16,
     alignItems: "center",
-    padding: 16,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  statusIconContainer: {
-    marginRight: 20,
-  },
-  statusInfo: {
-    flex: 1,
-  },
-  statusLabel: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  statusValue: {
-    fontSize: 24,
-    fontWeight: "700",
-    marginTop: 4,
-  },
-  switchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  switchLabel: {
-    marginLeft: 8,
-    fontSize: 14,
-  },
-  brightnessCard: {
-    marginHorizontal: 16,
-    marginTop: 12,
-  },
-  brightnessTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 16,
-  },
-  brightnessContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  brightnessSliderContainer: {
-    flex: 1,
-    marginHorizontal: 12,
-  },
-  brightnessTrack: {
-    height: 6,
-    backgroundColor: "#E5E7EB",
-    borderRadius: 3,
-    overflow: "hidden",
-  },
-  brightnessFill: {
-    height: "100%",
-    borderRadius: 3,
-  },
-  brightnessControls: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 8,
-  },
-  brightnessDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-  },
-  brightnessValue: {
-    fontSize: 16,
-    fontWeight: "600",
-    minWidth: 50,
-    textAlign: "right",
-  },
-  brightnessButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 16,
-  },
-  brightnessButton: {
-    flex: 1,
-    paddingVertical: 10,
-    marginHorizontal: 4,
-    borderRadius: 8,
-    alignItems: "center",
-    borderWidth: 1,
-  },
-  brightnessButtonText: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  manualControlCard: {
-    marginHorizontal: 16,
-    marginTop: 12,
-  },
-  manualTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 16,
-  },
-  manualButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  manualButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    marginHorizontal: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  manualButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  scheduleCard: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 16,
-  },
-  scheduleTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 16,
-  },
-  scheduleItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  scheduleToggle: {
-    borderBottomWidth: 0,
-    marginTop: 4,
-  },
-  scheduleInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  scheduleText: {
-    fontSize: 14,
-    marginLeft: 8,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  lightIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 12,
   },
-  modalContent: {
+  lightStatusLabel: {
+    fontSize: 14,
+  },
+  lightStatusText: {
+    fontSize: 32,
+    fontWeight: "800",
+    marginVertical: 4,
+  },
+  statusOn: {},
+  statusOff: {},
+  toggleBtn: {
+    paddingHorizontal: 40,
+    paddingVertical: 14,
+    borderRadius: 30,
+    marginTop: 12,
     width: "80%",
-    padding: 20,
-    borderRadius: 12,
     alignItems: "center",
   },
-  modalTitle: {
+  toggleOn: {},
+  toggleOff: {},
+  toggleBtnText: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  section: {
+    paddingHorizontal: 16,
     marginBottom: 16,
   },
-  timeInput: {
-    width: "100%",
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
+  sectionTitle: {
     fontSize: 16,
-    textAlign: "center",
-    marginBottom: 16,
+    fontWeight: "600",
+    marginBottom: 0,
   },
-  modalButtons: {
+  actionRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
+    gap: 12,
   },
-  modalButton: {
+  actionBtn: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    borderRadius: 12,
+    paddingVertical: 20,
     alignItems: "center",
-    marginHorizontal: 4,
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  actionOn: {},
+  actionOff: {},
+  actionBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   footer: {
     height: 40,

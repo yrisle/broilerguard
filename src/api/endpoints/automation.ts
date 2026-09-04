@@ -17,7 +17,13 @@ export const automation = {
   // Water Pump
   pump: {
     getStatus: () => api.get("/sensor"),
-    toggle: (status: "ON" | "OFF") => api.get(`/pump_${status.toLowerCase()}`),
+    toggle: (status: "ON" | "OFF") => {
+      if (status === "ON") {
+        return api.get("/pump_on");
+      } else {
+        return api.get("/pump_off");
+      }
+    },
     release: (duration: number) => api.get("/pump_on"),
     updateSchedules: (schedules: any[]) =>
       api.post("/pump/schedules", schedules),
