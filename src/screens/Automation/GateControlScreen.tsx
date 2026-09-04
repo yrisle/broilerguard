@@ -29,12 +29,13 @@ const GateControlScreen = () => {
   const [autoMode, setAutoMode] = useState(false);
   const [feedAmount, setFeedAmount] = useState("0.5");
   const [feedTimes, setFeedTimes] = useState<string[]>([
-    "08:00",
-    "12:00",
-    "16:00",
-    "20:00",
+    "8:00 AM",
+    "12:00 PM",
+    "4:00 PM",
+    "8:00 PM",
   ]);
   const [newTime, setNewTime] = useState("");
+  const [newPeriod, setNewPeriod] = useState<"AM" | "PM">("AM");
 
   // ✅ Tracking
   const [feedDispensed, setFeedDispensed] = useState(0);
@@ -43,6 +44,78 @@ const GateControlScreen = () => {
   const [nextDispenseTime, setNextDispenseTime] = useState<Date | null>(null);
 
   const intervalRef = useRef<number | null>(null);
+
+  // ============================================
+  // TIME CONVERSION FUNCTIONS
+  // ============================================
+  // Convert 12-hour format to 24-hour format
+  const convertTo24Hour = (timeStr: string): string => {
+    const parts = timeStr.split(" ");
+    if (parts.length !== 2) return timeStr;
+
+    const time = parts[0];
+    const period = parts[1];
+    let [hours, minutes] = time.split(":").map(Number);
+
+    if (period === "PM" && hours !== 12) {
+      hours += 12;
+    } else if (period === "AM" && hours === 12) {
+      hours = 0;
+    }
+
+    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+  };
+
+  // Convert 24-hour format to 12-hour format
+  const convertTo12Hour = (timeStr: string): string => {
+    const [hours, minutes] = timeStr.split(":").map(Number);
+    const period = hours >= 12 ? "PM" : "AM";
+    const hour12 = hours % 12 || 12;
+    return `${hour12}:${minutes.toString().padStart(2, "0")} ${period}`;
+  };
+
+  const parseTimeInput = (
+    input: string,
+  ): { hours: number; minutes: number; period: string } | null => {
+    // Check if input matches patterns like "8:00 AM", "8:00am", "8am"
+    const patterns = [
+      /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i, // 8:00 AM
+      /^(\d{1,2}):(\d{2})(AM|PM)$/i, // 8:00AM
+      /^(\d{1,2})\s*(AM|PM)$/i, // 8 AM
+      /^(\d{1,2})(AM|PM)$/i, // 8AM
+    ];
+
+    for (const pattern of patterns) {
+      const match = input.match(pattern);
+      if (match) {
+        if (match.length === 4) {
+          // Format: 8:00 AM
+          return {
+            hours: parseInt(match[1]),
+            minutes: parseInt(match[2]),
+            period: match[3].toUpperCase(),
+          };
+        } else if (match.length === 3) {
+          // Format: 8 AM
+          return {
+            hours: parseInt(match[1]),
+            minutes: 0,
+            period: match[2].toUpperCase(),
+          };
+        }
+      }
+    }
+    return null;
+  };
+
+  const formatTimeDisplay = (
+    hours: number,
+    minutes: number,
+    period: string,
+  ): string => {
+    const hour12 = hours % 12 || 12;
+    return `${hour12}:${minutes.toString().padStart(2, "0")} ${period}`;
+  };
 
   const fetchData = async () => {
     try {
@@ -131,26 +204,52 @@ const GateControlScreen = () => {
   // ============================================
   const addTime = () => {
     if (!newTime.trim()) {
-      Alert.alert("Error", "Please enter a time");
+      Alert.alert("Error", "Please enter a time (e.g., 8:00 AM)");
       return;
     }
-    // Validate time format HH:MM
-    if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(newTime.trim())) {
-      Alert.alert("Error", "Invalid time format. Use HH:MM (e.g., 08:00)");
+
+    const parsed = parseTimeInput(newTime.trim());
+    if (!parsed) {
+      Alert.alert(
+        "Error",
+        "Invalid time format. Use: 8:00 AM, 8:00am, 8 AM, or 8am",
+      );
       return;
     }
-    if (feedTimes.includes(newTime.trim())) {
+
+    const { hours, minutes, period } = parsed;
+    if (hours < 1 || hours > 12) {
+      Alert.alert("Error", "Hour must be between 1 and 12");
+      return;
+    }
+    if (minutes < 0 || minutes > 59) {
+      Alert.alert("Error", "Minutes must be between 0 and 59");
+      return;
+    }
+
+    const formattedTime = formatTimeDisplay(hours, minutes, period);
+    if (feedTimes.includes(formattedTime)) {
       Alert.alert("Error", "Time already exists");
       return;
     }
-    const sorted = [...feedTimes, newTime.trim()].sort();
-    setFeedTimes(sorted);
+
+    // Sort times
+    const allTimes = [...feedTimes, formattedTime];
+    // Sort by converting to 24-hour format
+    allTimes.sort((a, b) => {
+      const a24 = convertTo24Hour(a);
+      const b24 = convertTo24Hour(b);
+      return a24.localeCompare(b24);
+    });
+
+    setFeedTimes(allTimes);
     setNewTime("");
+    setNewPeriod("AM");
   };
 
   const removeTime = (time: string) => {
     if (feedTimes.length <= 1) {
-      Alert.alert("Error", "You need at least one time");
+      Alert.alert("Error", "You need at least one scheduled time");
       return;
     }
     setFeedTimes(feedTimes.filter((t) => t !== time));
@@ -184,8 +283,8 @@ const GateControlScreen = () => {
       // Find next dispense time
       findNextDispenseTime();
 
-      // Check daily target (optional, you can set a target if needed)
-      const target = 5.0; // You can make this configurable
+      // Check daily target (optional)
+      const target = 5.0;
       if (newTotal >= target) {
         Alert.alert(
           "✅ Daily Target Reached",
@@ -216,37 +315,42 @@ const GateControlScreen = () => {
     if (feedTimes.length === 0) return;
 
     const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    // Sort times and find next
-    const sortedTimes = [...feedTimes].sort();
+    // Convert all times to minutes and sort
+    const timeMinutes = feedTimes.map((time) => {
+      const time24 = convertTo24Hour(time);
+      const [hours, minutes] = time24.split(":").map(Number);
+      return { time, minutes: hours * 60 + minutes };
+    });
+
+    timeMinutes.sort((a, b) => a.minutes - b.minutes);
+
     let nextTime: string | null = null;
+    let nextDate = new Date(now);
 
-    for (const time of sortedTimes) {
-      const [hours, minutes] = time.split(":").map(Number);
-      const timeMinutes = hours * 60 + minutes;
-      if (timeMinutes > currentTime) {
-        nextTime = time;
+    for (const tm of timeMinutes) {
+      if (tm.minutes > currentMinutes) {
+        nextTime = tm.time;
+        const [hours, minutes] = convertTo24Hour(tm.time)
+          .split(":")
+          .map(Number);
+        nextDate.setHours(hours, minutes, 0, 0);
         break;
       }
     }
 
     // If no time found, use the first time tomorrow
-    if (!nextTime && sortedTimes.length > 0) {
-      nextTime = sortedTimes[0];
-      // Set to tomorrow
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const [hours, minutes] = nextTime.split(":").map(Number);
-      tomorrow.setHours(hours, minutes, 0, 0);
-      setNextDispenseTime(tomorrow);
+    if (!nextTime && timeMinutes.length > 0) {
+      nextTime = timeMinutes[0].time;
+      const [hours, minutes] = convertTo24Hour(nextTime).split(":").map(Number);
+      nextDate.setDate(nextDate.getDate() + 1);
+      nextDate.setHours(hours, minutes, 0, 0);
+      setNextDispenseTime(nextDate);
       return;
     }
 
     if (nextTime) {
-      const [hours, minutes] = nextTime.split(":").map(Number);
-      const nextDate = new Date(now);
-      nextDate.setHours(hours, minutes, 0, 0);
       setNextDispenseTime(nextDate);
     }
   };
@@ -259,7 +363,6 @@ const GateControlScreen = () => {
     setAutoMode(newMode);
 
     if (newMode) {
-      // Reset daily counter
       setFeedDispensed(0);
       setDispenseCount(0);
 
@@ -267,11 +370,10 @@ const GateControlScreen = () => {
 
       Alert.alert(
         "🤖 Auto Mode Enabled",
-        `Feed will be dispensed automatically at the following times:\n\n${feedTimes.map((t) => `🕐 ${t}`).join("\n")}\n\nAmount per dispense: ${feedAmount} kg\n\n🔒 Manual gate controls are now disabled.`,
+        `Feed will be dispensed automatically at:\n\n${feedTimes.map((t) => `🕐 ${t}`).join("\n")}\n\nAmount per dispense: ${feedAmount} kg\n\n🔒 Manual gate controls are now disabled.`,
         [{ text: "OK" }],
       );
 
-      // Start checking for scheduled times
       startScheduler();
     } else {
       if (intervalRef.current) {
@@ -298,15 +400,15 @@ const GateControlScreen = () => {
       if (!autoMode || isAutoDispensing) return;
 
       const now = new Date();
-      const currentTime = now.getHours() * 60 + now.getMinutes();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
       // Check if current time matches any scheduled time
       for (const time of feedTimes) {
-        const [hours, minutes] = time.split(":").map(Number);
+        const time24 = convertTo24Hour(time);
+        const [hours, minutes] = time24.split(":").map(Number);
         const timeMinutes = hours * 60 + minutes;
 
-        // Check if it's time to dispense (within the last minute)
-        if (Math.abs(currentTime - timeMinutes) <= 1) {
+        if (Math.abs(currentMinutes - timeMinutes) <= 1) {
           console.log(`⏰ Scheduled dispense at ${time}`);
           handleDispenseFeed();
           break;
@@ -357,7 +459,7 @@ const GateControlScreen = () => {
     );
   }
 
-  const target = 5.0; // Daily target (optional)
+  const target = 5.0;
   const progress = Math.min((feedDispensed / target) * 100, 100);
 
   return (
@@ -419,7 +521,6 @@ const GateControlScreen = () => {
           {gateStatus ? "🔓 Unlocked" : "🔒 Locked"}
         </Text>
 
-        {/* Toggle Button - Disabled when auto mode is ON */}
         <TouchableOpacity
           style={[
             styles.toggleBtn,
@@ -442,7 +543,6 @@ const GateControlScreen = () => {
           </Text>
         </TouchableOpacity>
 
-        {/* Auto Mode Indicator */}
         {autoMode && (
           <View
             style={[
@@ -620,7 +720,7 @@ const GateControlScreen = () => {
           {/* Schedule Times */}
           <View style={styles.scheduleContainer}>
             <Text style={[styles.scheduleLabel, { color: colors.text }]}>
-              Scheduled Times
+              Scheduled Times (12-hour format)
             </Text>
 
             {/* Add Time Input */}
@@ -636,10 +736,9 @@ const GateControlScreen = () => {
                 ]}
                 value={newTime}
                 onChangeText={setNewTime}
-                placeholder="HH:MM"
+                placeholder="e.g., 8:00 AM"
                 placeholderTextColor={colors.textMuted}
-                keyboardType="numbers-and-punctuation"
-                maxLength={5}
+                autoCapitalize="characters"
                 editable={!autoMode}
               />
               <TouchableOpacity
@@ -695,6 +794,10 @@ const GateControlScreen = () => {
               ))}
             </View>
 
+            <Text style={[styles.timeHint, { color: colors.textMuted }]}>
+              💡 Examples: 8:00 AM, 12:00 PM, 4:30 PM, 8am, 12pm
+            </Text>
+
             {autoMode && (
               <Text style={[styles.scheduleNote, { color: colors.warning }]}>
                 ⚠️ Schedule is locked while Auto Mode is ON
@@ -709,7 +812,7 @@ const GateControlScreen = () => {
               <Text style={[styles.nextDispenseText, { color: colors.text }]}>
                 Next dispense at:{" "}
                 {nextDispenseTime.toLocaleTimeString([], {
-                  hour: "2-digit",
+                  hour: "numeric",
                   minute: "2-digit",
                 })}
               </Text>
@@ -1033,7 +1136,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 14,
-    textAlign: "center",
   },
   addTimeBtn: {
     paddingHorizontal: 16,
@@ -1063,6 +1165,11 @@ const styles = StyleSheet.create({
   timeItemText: {
     fontSize: 13,
     fontWeight: "500",
+  },
+  timeHint: {
+    fontSize: 11,
+    marginTop: 6,
+    fontStyle: "italic",
   },
   scheduleNote: {
     fontSize: 11,
