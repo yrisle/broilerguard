@@ -2,7 +2,6 @@
 
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,26 +16,25 @@ import {
   View,
 } from "react-native";
 import { automation } from "../../api/endpoints";
+import { useAutomation } from "../../context/AutomationContext";
 import { useTheme } from "../../hooks/useTheme";
+import { automationScheduler } from "../../services/AutomationScheduler";
 
-const LIGHT_AUTO_MODE_KEY = "@light_auto_mode";
 const LIGHT_ON_TIME_KEY = "@light_on_time";
 const LIGHT_OFF_TIME_KEY = "@light_off_time";
 
 const LightControlScreen = () => {
   const { colors } = useTheme();
-  const router = useRouter();
+  const { lightAutoMode, setLightAutoMode } = useAutomation();
   const [lightStatus, setLightStatus] = useState("OFF");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [autoMode, setAutoMode] = useState(false);
   const [onTime, setOnTime] = useState("7:00 PM");
   const [offTime, setOffTime] = useState("6:00 AM");
   const [newOnTime, setNewOnTime] = useState("");
   const [newOffTime, setNewOffTime] = useState("");
   const [currentTime, setCurrentTime] = useState("");
 
-  const intervalRef = useRef<number | null>(null);
   const timeIntervalRef = useRef<number | null>(null);
 
   // ============================================
@@ -63,23 +61,6 @@ const LightControlScreen = () => {
   // ============================================
   // TIME CONVERSION FUNCTIONS
   // ============================================
-  const convertTo24Hour = (timeStr: string): string => {
-    const parts = timeStr.split(" ");
-    if (parts.length !== 2) return timeStr;
-
-    const time = parts[0];
-    const period = parts[1];
-    let [hours, minutes] = time.split(":").map(Number);
-
-    if (period === "PM" && hours !== 12) {
-      hours += 12;
-    } else if (period === "AM" && hours === 12) {
-      hours = 0;
-    }
-
-    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-  };
-
   const formatTimeDisplay = (
     hours: number,
     minutes: number,
@@ -120,49 +101,32 @@ const LightControlScreen = () => {
     return null;
   };
 
-  const getCurrentMinutes = (): number => {
-    const now = getPhilippineTime();
-    return now.getHours() * 60 + now.getMinutes();
-  };
-
-  const getTimeMinutes = (timeStr: string): number => {
-    const time24 = convertTo24Hour(timeStr);
-    const [hours, minutes] = time24.split(":").map(Number);
-    return hours * 60 + minutes;
-  };
-
   // ============================================
-  // SAVE & LOAD AUTO MODE STATE
+  // SAVE & LOAD TIME SETTINGS
   // ============================================
-  const saveAutoModeState = async () => {
+  const saveTimeSettings = async () => {
     try {
-      await AsyncStorage.setItem(LIGHT_AUTO_MODE_KEY, JSON.stringify(autoMode));
       await AsyncStorage.setItem(LIGHT_ON_TIME_KEY, onTime);
       await AsyncStorage.setItem(LIGHT_OFF_TIME_KEY, offTime);
-      console.log("✅ Light auto mode saved:", autoMode);
+      console.log("✅ Light time settings saved:", { onTime, offTime });
     } catch (error) {
-      console.log("Error saving light auto mode:", error);
+      console.log("Error saving light time settings:", error);
     }
   };
 
-  const loadAutoModeState = async () => {
+  const loadTimeSettings = async () => {
     try {
-      const autoMode = await AsyncStorage.getItem(LIGHT_AUTO_MODE_KEY);
       const on = await AsyncStorage.getItem(LIGHT_ON_TIME_KEY);
       const off = await AsyncStorage.getItem(LIGHT_OFF_TIME_KEY);
 
-      if (autoMode !== null) {
-        const isAuto = JSON.parse(autoMode);
-        setAutoMode(isAuto);
-        if (on) setOnTime(on);
-        if (off) setOffTime(off);
-        console.log("✅ Light auto mode loaded:", isAuto);
-        return isAuto;
-      }
-      return false;
+      if (on) setOnTime(on);
+      if (off) setOffTime(off);
+      console.log("✅ Light time settings loaded:", {
+        onTime: on,
+        offTime: off,
+      });
     } catch (error) {
-      console.log("Error loading light auto mode:", error);
-      return false;
+      console.log("Error loading light time settings:", error);
     }
   };
 
@@ -191,20 +155,15 @@ const LightControlScreen = () => {
   };
 
   // ============================================
-  // INIT - Load auto mode state on mount
+  // INIT - Load settings on mount
   // ============================================
   useEffect(() => {
     const init = async () => {
-      const isAuto = await loadAutoModeState();
+      await loadTimeSettings();
       await fetchData();
       updateCurrentTime();
 
       timeIntervalRef.current = setInterval(updateCurrentTime, 1000);
-
-      if (isAuto) {
-        console.log("🔄 Restarting light auto scheduler...");
-        startTimeScheduler();
-      }
     };
 
     init();
@@ -239,9 +198,8 @@ const LightControlScreen = () => {
   // TOGGLE AUTO MODE
   // ============================================
   const toggleAutoMode = async () => {
-    const newMode = !autoMode;
-    setAutoMode(newMode);
-    await saveAutoModeState();
+    const newMode = !lightAutoMode;
+    await setLightAutoMode(newMode);
 
     if (newMode) {
       Alert.alert(
@@ -249,66 +207,13 @@ const LightControlScreen = () => {
         `Light will turn ON at ${onTime} and OFF at ${offTime}.`,
         [{ text: "OK" }],
       );
-      startTimeScheduler();
+      await automationScheduler.startLightScheduler();
     } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+      automationScheduler.stopLightScheduler();
       Alert.alert("Auto Mode Disabled", "Manual control restored.", [
         { text: "OK" },
       ]);
     }
-  };
-
-  // ============================================
-  // TIME-BASED AUTO SCHEDULER
-  // ============================================
-  const startTimeScheduler = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-
-    intervalRef.current = setInterval(async () => {
-      if (!autoMode) return;
-
-      const currentMin = getCurrentMinutes();
-      const onMin = getTimeMinutes(onTime);
-      const offMin = getTimeMinutes(offTime);
-
-      let shouldBeOn = false;
-
-      if (onMin < offMin) {
-        if (currentMin >= onMin && currentMin < offMin) {
-          shouldBeOn = true;
-        }
-      } else {
-        if (currentMin >= onMin || currentMin < offMin) {
-          shouldBeOn = true;
-        }
-      }
-
-      if (shouldBeOn && lightStatus === "OFF") {
-        console.log(`💡 Turning Light ON at ${currentTime}`);
-        try {
-          await automation.light.toggle("ON");
-          setLightStatus("ON");
-          fetchData();
-        } catch (error) {
-          console.error("❌ Error turning light ON:", error);
-        }
-      } else if (!shouldBeOn && lightStatus === "ON") {
-        console.log(`💡 Turning Light OFF at ${currentTime}`);
-        try {
-          await automation.light.toggle("OFF");
-          setLightStatus("OFF");
-          fetchData();
-        } catch (error) {
-          console.error("❌ Error turning light OFF:", error);
-        }
-      }
-    }, 10000);
   };
 
   // ============================================
@@ -333,7 +238,7 @@ const LightControlScreen = () => {
     const formattedTime = formatTimeDisplay(hours, minutes, period);
     setOnTime(formattedTime);
     setNewOnTime("");
-    await saveAutoModeState();
+    await saveTimeSettings();
   };
 
   const updateOffTime = async () => {
@@ -355,15 +260,8 @@ const LightControlScreen = () => {
     const formattedTime = formatTimeDisplay(hours, minutes, period);
     setOffTime(formattedTime);
     setNewOffTime("");
-    await saveAutoModeState();
+    await saveTimeSettings();
   };
-
-  // Cleanup interval on unmount
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
 
   if (loading) {
     return (
@@ -413,25 +311,25 @@ const LightControlScreen = () => {
         style={[
           styles.autoStatusCard,
           {
-            backgroundColor: autoMode ? colors.successLight : colors.card,
-            borderColor: autoMode ? colors.success : colors.border,
+            backgroundColor: lightAutoMode ? colors.successLight : colors.card,
+            borderColor: lightAutoMode ? colors.success : colors.border,
           },
         ]}
       >
         <Ionicons
-          name={autoMode ? "checkmark-circle" : "time-outline"}
+          name={lightAutoMode ? "checkmark-circle" : "time-outline"}
           size={20}
-          color={autoMode ? colors.success : colors.textMuted}
+          color={lightAutoMode ? colors.success : colors.textMuted}
         />
         <Text
           style={[
             styles.autoStatusText,
-            { color: autoMode ? colors.success : colors.textMuted },
+            { color: lightAutoMode ? colors.success : colors.textMuted },
           ]}
         >
-          {autoMode ? "Auto Mode is ACTIVE" : "Auto Mode is OFF"}
+          {lightAutoMode ? "Auto Mode is ACTIVE" : "Auto Mode is OFF"}
         </Text>
-        {autoMode && (
+        {lightAutoMode && (
           <Text style={[styles.autoStatusSubtext, { color: colors.textMuted }]}>
             ON at {onTime} | OFF at {offTime}
           </Text>
@@ -504,16 +402,16 @@ const LightControlScreen = () => {
               </Text>
             </View>
             <Text style={[styles.autoDesc, { color: colors.textMuted }]}>
-              {autoMode
+              {lightAutoMode
                 ? "✅ Auto scheduling is ON"
                 : "⏸️ Auto scheduling is OFF"}
             </Text>
           </View>
           <Switch
-            value={autoMode}
+            value={lightAutoMode}
             onValueChange={toggleAutoMode}
             trackColor={{ false: "#E0D5C0", true: colors.primary }}
-            thumbColor={autoMode ? "#FFFFFF" : "#f4f3f4"}
+            thumbColor={lightAutoMode ? "#FFFFFF" : "#f4f3f4"}
           />
         </View>
 

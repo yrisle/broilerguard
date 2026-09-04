@@ -17,17 +17,18 @@ import {
   View,
 } from "react-native";
 import { automation } from "../../api/endpoints";
+import { useAutomation } from "../../context/AutomationContext";
 import { useTheme } from "../../hooks/useTheme";
+import { automationScheduler } from "../../services/AutomationScheduler";
 
-const PUMP_AUTO_MODE_KEY = "@pump_auto_mode";
 const PUMP_DISPENSE_AMOUNT_KEY = "@pump_dispense_amount";
 
 function WaterPumpScreen() {
   const { colors } = useTheme();
+  const { pumpAutoMode, setPumpAutoMode } = useAutomation();
   const [pumpStatus, setPumpStatus] = useState("OFF");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [autoMode, setAutoMode] = useState(false);
   const [customDuration, setCustomDuration] = useState("30");
   const [waterLevel, setWaterLevel] = useState(60);
   const [capacity, setCapacity] = useState(2000);
@@ -35,7 +36,6 @@ function WaterPumpScreen() {
   const [isAutoDispensing, setIsAutoDispensing] = useState(false);
   const [currentTime, setCurrentTime] = useState("");
 
-  const intervalRef = useRef<number | null>(null);
   const timeIntervalRef = useRef<number | null>(null);
 
   // ============================================
@@ -60,34 +60,26 @@ function WaterPumpScreen() {
   };
 
   // ============================================
-  // SAVE & LOAD AUTO MODE STATE
+  // SAVE & LOAD DISPENSE AMOUNT
   // ============================================
-  const saveAutoModeState = async () => {
+  const saveDispenseAmount = async () => {
     try {
-      await AsyncStorage.setItem(PUMP_AUTO_MODE_KEY, JSON.stringify(autoMode));
       await AsyncStorage.setItem(PUMP_DISPENSE_AMOUNT_KEY, dispenseAmount);
-      console.log("✅ Pump auto mode saved:", autoMode);
+      console.log("✅ Pump dispense amount saved:", dispenseAmount);
     } catch (error) {
-      console.log("Error saving pump auto mode:", error);
+      console.log("Error saving pump dispense amount:", error);
     }
   };
 
-  const loadAutoModeState = async () => {
+  const loadDispenseAmount = async () => {
     try {
-      const autoMode = await AsyncStorage.getItem(PUMP_AUTO_MODE_KEY);
       const amount = await AsyncStorage.getItem(PUMP_DISPENSE_AMOUNT_KEY);
-
-      if (autoMode !== null) {
-        const isAuto = JSON.parse(autoMode);
-        setAutoMode(isAuto);
-        if (amount) setDispenseAmount(amount);
-        console.log("✅ Pump auto mode loaded:", isAuto);
-        return isAuto;
+      if (amount) {
+        setDispenseAmount(amount);
+        console.log("✅ Pump dispense amount loaded:", amount);
       }
-      return false;
     } catch (error) {
-      console.log("Error loading pump auto mode:", error);
-      return false;
+      console.log("Error loading pump dispense amount:", error);
     }
   };
 
@@ -120,20 +112,15 @@ function WaterPumpScreen() {
   };
 
   // ============================================
-  // INIT - Load auto mode state on mount
+  // INIT - Load settings on mount
   // ============================================
   useEffect(() => {
     const init = async () => {
-      const isAuto = await loadAutoModeState();
+      await loadDispenseAmount();
       await fetchData();
       updateCurrentTime();
 
       timeIntervalRef.current = setInterval(updateCurrentTime, 1000);
-
-      if (isAuto) {
-        console.log("🔄 Restarting pump auto scheduler...");
-        startScheduler();
-      }
     };
 
     init();
@@ -184,9 +171,8 @@ function WaterPumpScreen() {
   // TOGGLE AUTO MODE
   // ============================================
   const toggleAutoMode = async () => {
-    const newMode = !autoMode;
-    setAutoMode(newMode);
-    await saveAutoModeState();
+    const newMode = !pumpAutoMode;
+    await setPumpAutoMode(newMode);
 
     if (newMode) {
       Alert.alert(
@@ -194,67 +180,14 @@ function WaterPumpScreen() {
         `Water will be dispensed automatically.\n\nAmount per dispense: ${dispenseAmount} L every 30 minutes`,
         [{ text: "OK" }],
       );
-      startScheduler();
+      await automationScheduler.startPumpScheduler();
     } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+      automationScheduler.stopPumpScheduler();
       Alert.alert("Auto Mode Disabled", "Manual control restored.", [
         { text: "OK" },
       ]);
     }
   };
-
-  // ============================================
-  // AUTO DISPENSE WATER
-  // ============================================
-  const handleAutoDispense = async () => {
-    if (isAutoDispensing || !autoMode) return;
-    setIsAutoDispensing(true);
-
-    try {
-      const amount = parseFloat(dispenseAmount) || 10;
-      console.log(`🔄 Auto dispensing ${amount} L of water...`);
-
-      await automation.pump.release(amount * 2);
-      Alert.alert("💧 Auto Dispense", `Dispensed ${amount} L of water`);
-      fetchData();
-    } catch (error: any) {
-      console.error("❌ Auto dispense error:", error);
-    } finally {
-      setIsAutoDispensing(false);
-    }
-  };
-
-  // ============================================
-  // AUTO SCHEDULER
-  // ============================================
-  const startScheduler = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-
-    intervalRef.current = setInterval(() => {
-      if (!autoMode || isAutoDispensing) return;
-
-      const now = getPhilippineTime();
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-      if (currentMinutes % 30 === 0 && now.getSeconds() < 5) {
-        console.log(`⏰ Auto dispense triggered at ${currentTime}`);
-        handleAutoDispense();
-      }
-    }, 10000);
-  };
-
-  // Cleanup interval on unmount
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
 
   const percentage = (waterLevel / capacity) * 100;
 
@@ -304,25 +237,25 @@ function WaterPumpScreen() {
         style={[
           styles.autoStatusCard,
           {
-            backgroundColor: autoMode ? colors.successLight : colors.card,
-            borderColor: autoMode ? colors.success : colors.border,
+            backgroundColor: pumpAutoMode ? colors.successLight : colors.card,
+            borderColor: pumpAutoMode ? colors.success : colors.border,
           },
         ]}
       >
         <Ionicons
-          name={autoMode ? "checkmark-circle" : "time-outline"}
+          name={pumpAutoMode ? "checkmark-circle" : "time-outline"}
           size={20}
-          color={autoMode ? colors.success : colors.textMuted}
+          color={pumpAutoMode ? colors.success : colors.textMuted}
         />
         <Text
           style={[
             styles.autoStatusText,
-            { color: autoMode ? colors.success : colors.textMuted },
+            { color: pumpAutoMode ? colors.success : colors.textMuted },
           ]}
         >
-          {autoMode ? "Auto Mode is ACTIVE" : "Auto Mode is OFF"}
+          {pumpAutoMode ? "Auto Mode is ACTIVE" : "Auto Mode is OFF"}
         </Text>
-        {autoMode && (
+        {pumpAutoMode && (
           <Text style={[styles.autoStatusSubtext, { color: colors.textMuted }]}>
             Dispensing {dispenseAmount} L every 30 minutes
           </Text>
@@ -433,16 +366,16 @@ function WaterPumpScreen() {
               </Text>
             </View>
             <Text style={[styles.autoDesc, { color: colors.textMuted }]}>
-              {autoMode
+              {pumpAutoMode
                 ? "✅ Auto dispensing is ON"
                 : "⏸️ Auto dispensing is OFF"}
             </Text>
           </View>
           <Switch
-            value={autoMode}
+            value={pumpAutoMode}
             onValueChange={toggleAutoMode}
             trackColor={{ false: "#E0D5C0", true: colors.primary }}
-            thumbColor={autoMode ? "#FFFFFF" : "#f4f3f4"}
+            thumbColor={pumpAutoMode ? "#FFFFFF" : "#f4f3f4"}
           />
         </View>
 
@@ -464,7 +397,7 @@ function WaterPumpScreen() {
               value={dispenseAmount}
               onChangeText={(text) => {
                 setDispenseAmount(text);
-                saveAutoModeState();
+                saveDispenseAmount();
               }}
               keyboardType="numeric"
               editable={true}
@@ -589,7 +522,11 @@ function WaterPumpScreen() {
               style={{ marginRight: 6 }}
             />
             <Text style={[styles.logAction, { color: colors.text }]}>
-              {pumpStatus === "ON" ? "Pump ON" : "Pump OFF"}
+              {pumpAutoMode
+                ? "Auto Mode"
+                : pumpStatus === "ON"
+                  ? "Pump ON"
+                  : "Pump OFF"}
             </Text>
           </View>
           <Text
@@ -601,7 +538,7 @@ function WaterPumpScreen() {
               },
             ]}
           >
-            {autoMode ? "Auto" : "Manual"}
+            {pumpAutoMode ? "Auto" : "Manual"}
           </Text>
         </View>
       </View>

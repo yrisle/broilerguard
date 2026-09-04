@@ -17,21 +17,22 @@ import {
   View,
 } from "react-native";
 import { automation } from "../../api/endpoints";
+import { useAutomation } from "../../context/AutomationContext";
 import { useTheme } from "../../hooks/useTheme";
+import { automationScheduler } from "../../services/AutomationScheduler";
 
-const GATE_AUTO_MODE_KEY = "@gate_auto_mode";
 const GATE_FEED_AMOUNT_KEY = "@gate_feed_amount";
 const GATE_FEED_TIMES_KEY = "@gate_feed_times";
 
 const GateControlScreen = () => {
   const { colors } = useTheme();
+  const { gateAutoMode, setGateAutoMode } = useAutomation();
   const [gateStatus, setGateStatus] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
   // Feed Settings
-  const [autoMode, setAutoMode] = useState(false);
   const [feedAmount, setFeedAmount] = useState("0.5");
   const [feedTimes, setFeedTimes] = useState<string[]>([
     "8:00 AM",
@@ -48,7 +49,6 @@ const GateControlScreen = () => {
   const [nextDispenseTime, setNextDispenseTime] = useState<Date | null>(null);
   const [currentTime, setCurrentTime] = useState("");
 
-  const intervalRef = useRef<number | null>(null);
   const timeIntervalRef = useRef<number | null>(null);
 
   // ============================================
@@ -133,40 +133,34 @@ const GateControlScreen = () => {
   };
 
   // ============================================
-  // SAVE & LOAD AUTO MODE STATE
+  // SAVE & LOAD FEED SETTINGS
   // ============================================
-  const saveAutoModeState = async () => {
+  const saveFeedSettings = async () => {
     try {
-      await AsyncStorage.setItem(GATE_AUTO_MODE_KEY, JSON.stringify(autoMode));
       await AsyncStorage.setItem(GATE_FEED_AMOUNT_KEY, feedAmount);
       await AsyncStorage.setItem(
         GATE_FEED_TIMES_KEY,
         JSON.stringify(feedTimes),
       );
-      console.log("✅ Gate auto mode saved:", autoMode);
+      console.log("✅ Gate feed settings saved:", { feedAmount, feedTimes });
     } catch (error) {
-      console.log("Error saving gate auto mode:", error);
+      console.log("Error saving gate feed settings:", error);
     }
   };
 
-  const loadAutoModeState = async () => {
+  const loadFeedSettings = async () => {
     try {
-      const autoMode = await AsyncStorage.getItem(GATE_AUTO_MODE_KEY);
       const amount = await AsyncStorage.getItem(GATE_FEED_AMOUNT_KEY);
       const times = await AsyncStorage.getItem(GATE_FEED_TIMES_KEY);
 
-      if (autoMode !== null) {
-        const isAuto = JSON.parse(autoMode);
-        setAutoMode(isAuto);
-        if (amount) setFeedAmount(amount);
-        if (times) setFeedTimes(JSON.parse(times));
-        console.log("✅ Gate auto mode loaded:", isAuto);
-        return isAuto;
-      }
-      return false;
+      if (amount) setFeedAmount(amount);
+      if (times) setFeedTimes(JSON.parse(times));
+      console.log("✅ Gate feed settings loaded:", {
+        feedAmount: amount,
+        feedTimes: times,
+      });
     } catch (error) {
-      console.log("Error loading gate auto mode:", error);
-      return false;
+      console.log("Error loading gate feed settings:", error);
     }
   };
 
@@ -191,20 +185,18 @@ const GateControlScreen = () => {
   };
 
   // ============================================
-  // INIT - Load auto mode state on mount
+  // INIT - Load settings on mount
   // ============================================
   useEffect(() => {
     const init = async () => {
-      const isAuto = await loadAutoModeState();
+      await loadFeedSettings();
       await fetchData();
       updateCurrentTime();
 
       timeIntervalRef.current = setInterval(updateCurrentTime, 1000);
 
-      if (isAuto) {
-        console.log("🔄 Restarting gate auto scheduler...");
+      if (gateAutoMode) {
         findNextDispenseTime();
-        startScheduler();
       }
     };
 
@@ -223,42 +215,8 @@ const GateControlScreen = () => {
   // ============================================
   // MANUAL GATE CONTROL
   // ============================================
-  const handleOpenGate = async () => {
-    if (isToggling || autoMode) return;
-    setIsToggling(true);
-
-    try {
-      console.log("🔄 Opening gate...");
-      await automation.gate.open();
-      setGateStatus(true);
-      await fetchData();
-    } catch (error: any) {
-      console.error("❌ Open gate error:", error);
-      Alert.alert("Error", "Failed to open gate. Please try again.");
-    } finally {
-      setIsToggling(false);
-    }
-  };
-
-  const handleCloseGate = async () => {
-    if (isToggling || autoMode) return;
-    setIsToggling(true);
-
-    try {
-      console.log("🔄 Closing gate...");
-      await automation.gate.close();
-      setGateStatus(false);
-      await fetchData();
-    } catch (error: any) {
-      console.error("❌ Close gate error:", error);
-      Alert.alert("Error", "Failed to close gate. Please try again.");
-    } finally {
-      setIsToggling(false);
-    }
-  };
-
   const handleToggleGate = async () => {
-    if (isToggling || autoMode) return;
+    if (isToggling || gateAutoMode) return;
     setIsToggling(true);
 
     try {
@@ -316,7 +274,10 @@ const GateControlScreen = () => {
 
     setFeedTimes(allTimes);
     setNewTime("");
-    saveAutoModeState();
+    saveFeedSettings();
+    if (gateAutoMode) {
+      findNextDispenseTime();
+    }
   };
 
   const removeTime = (time: string) => {
@@ -326,14 +287,17 @@ const GateControlScreen = () => {
     }
     const newTimes = feedTimes.filter((t) => t !== time);
     setFeedTimes(newTimes);
-    saveAutoModeState();
+    saveFeedSettings();
+    if (gateAutoMode) {
+      findNextDispenseTime();
+    }
   };
 
   // ============================================
   // AUTO FEED DISPENSING
   // ============================================
   const handleDispenseFeed = async () => {
-    if (isAutoDispensing) return;
+    if (isAutoDispensing || gateAutoMode) return;
     setIsAutoDispensing(true);
 
     try {
@@ -353,8 +317,6 @@ const GateControlScreen = () => {
       console.log(
         `✅ Dispensed ${amount} kg. Total today: ${newTotal.toFixed(2)} kg`,
       );
-
-      findNextDispenseTime();
 
       const target = 5.0;
       if (newTotal >= target) {
@@ -433,9 +395,8 @@ const GateControlScreen = () => {
   // TOGGLE AUTO MODE
   // ============================================
   const toggleAutoMode = async () => {
-    const newMode = !autoMode;
-    setAutoMode(newMode);
-    await saveAutoModeState();
+    const newMode = !gateAutoMode;
+    await setGateAutoMode(newMode);
 
     if (newMode) {
       setFeedDispensed(0);
@@ -448,63 +409,15 @@ const GateControlScreen = () => {
         [{ text: "OK" }],
       );
 
-      startScheduler();
+      await automationScheduler.startGateScheduler();
     } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+      automationScheduler.stopGateScheduler();
       setNextDispenseTime(null);
       Alert.alert("Auto Mode Disabled", "Manual control restored.", [
         { text: "OK" },
       ]);
     }
   };
-
-  // ============================================
-  // SCHEDULER - Check every 10 seconds
-  // ============================================
-  const startScheduler = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-
-    intervalRef.current = setInterval(() => {
-      if (!autoMode || isAutoDispensing) return;
-
-      const now = getPhilippineTime();
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      const currentSeconds = now.getSeconds();
-
-      for (const time of feedTimes) {
-        const time24 = convertTo24Hour(time);
-        const [hours, minutes] = time24.split(":").map(Number);
-        const timeMinutes = hours * 60 + minutes;
-
-        const timeDiff = Math.abs(
-          currentMinutes * 60 + currentSeconds - timeMinutes * 60,
-        );
-        if (timeDiff <= 10) {
-          console.log(
-            `⏰ [PH Time: ${currentTime}] SCHEDULED DISPENSE AT ${time} - TRIGGERING NOW!`,
-          );
-          handleDispenseFeed();
-          break;
-        }
-      }
-
-      findNextDispenseTime();
-    }, 10000);
-  };
-
-  // Update scheduler when feed times change
-  useEffect(() => {
-    if (autoMode) {
-      startScheduler();
-      findNextDispenseTime();
-    }
-  }, [feedTimes]);
 
   // Reset daily counter at midnight
   useEffect(() => {
@@ -577,25 +490,25 @@ const GateControlScreen = () => {
         style={[
           styles.autoStatusCard,
           {
-            backgroundColor: autoMode ? colors.successLight : colors.card,
-            borderColor: autoMode ? colors.success : colors.border,
+            backgroundColor: gateAutoMode ? colors.successLight : colors.card,
+            borderColor: gateAutoMode ? colors.success : colors.border,
           },
         ]}
       >
         <Ionicons
-          name={autoMode ? "checkmark-circle" : "time-outline"}
+          name={gateAutoMode ? "checkmark-circle" : "time-outline"}
           size={20}
-          color={autoMode ? colors.success : colors.textMuted}
+          color={gateAutoMode ? colors.success : colors.textMuted}
         />
         <Text
           style={[
             styles.autoStatusText,
-            { color: autoMode ? colors.success : colors.textMuted },
+            { color: gateAutoMode ? colors.success : colors.textMuted },
           ]}
         >
-          {autoMode ? "Auto Mode is ACTIVE" : "Auto Mode is OFF"}
+          {gateAutoMode ? "Auto Mode is ACTIVE" : "Auto Mode is OFF"}
         </Text>
-        {autoMode && nextDispenseTime && (
+        {gateAutoMode && nextDispenseTime && (
           <Text style={[styles.autoStatusSubtext, { color: colors.textMuted }]}>
             Next dispense at:{" "}
             {nextDispenseTime.toLocaleTimeString("en-US", {
@@ -648,15 +561,15 @@ const GateControlScreen = () => {
             gateStatus
               ? [styles.toggleClose, { backgroundColor: colors.danger }]
               : [styles.toggleOpen, { backgroundColor: colors.success }],
-            autoMode && styles.disabledBtn,
+            gateAutoMode && styles.disabledBtn,
           ]}
           onPress={handleToggleGate}
-          disabled={isToggling || autoMode}
+          disabled={isToggling || gateAutoMode}
         >
           <Text style={styles.toggleBtnText}>
             {isToggling
               ? "Processing..."
-              : autoMode
+              : gateAutoMode
                 ? "🔒 Auto Mode ON"
                 : gateStatus
                   ? "Close Gate"
@@ -664,7 +577,7 @@ const GateControlScreen = () => {
           </Text>
         </TouchableOpacity>
 
-        {autoMode && (
+        {gateAutoMode && (
           <View
             style={[
               styles.autoIndicator,
@@ -676,80 +589,6 @@ const GateControlScreen = () => {
               Auto Mode Active - Manual controls disabled
             </Text>
           </View>
-        )}
-      </View>
-
-      {/* Quick Action Buttons */}
-      <View style={styles.section}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            marginBottom: 12,
-          }}
-        >
-          <Ionicons
-            name="flash-outline"
-            size={20}
-            color={colors.textSecondary}
-            style={{ marginRight: 8 }}
-          />
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-            Quick Actions
-          </Text>
-          {autoMode && (
-            <View
-              style={[
-                styles.lockBadge,
-                { backgroundColor: colors.warningLight, marginLeft: 8 },
-              ]}
-            >
-              <Ionicons name="lock-closed" size={12} color={colors.warning} />
-              <Text style={[styles.lockBadgeText, { color: colors.warning }]}>
-                Locked
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={[
-              styles.actionBtn,
-              styles.actionOpen,
-              {
-                backgroundColor: colors.success,
-                opacity: gateStatus || isToggling || autoMode ? 0.5 : 1,
-              },
-            ]}
-            onPress={handleOpenGate}
-            disabled={gateStatus || isToggling || autoMode}
-          >
-            <FontAwesome5 name="door-open" size={24} color="#FFFFFF" />
-            <Text style={styles.actionBtnText}>Open</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.actionBtn,
-              styles.actionClose,
-              {
-                backgroundColor: colors.danger,
-                opacity: !gateStatus || isToggling || autoMode ? 0.5 : 1,
-              },
-            ]}
-            onPress={handleCloseGate}
-            disabled={!gateStatus || isToggling || autoMode}
-          >
-            <FontAwesome5 name="door-closed" size={24} color="#FFFFFF" />
-            <Text style={styles.actionBtnText}>Close</Text>
-          </TouchableOpacity>
-        </View>
-
-        {autoMode && (
-          <Text style={[styles.lockedMessage, { color: colors.warning }]}>
-            🔒 Manual gate controls are locked while Auto Mode is ON
-          </Text>
         )}
       </View>
 
@@ -778,8 +617,8 @@ const GateControlScreen = () => {
             styles.autoCard,
             {
               backgroundColor: colors.card,
-              borderColor: autoMode ? colors.success : colors.border,
-              borderWidth: autoMode ? 2 : 1,
+              borderColor: gateAutoMode ? colors.success : colors.border,
+              borderWidth: gateAutoMode ? 2 : 1,
             },
           ]}
         >
@@ -788,9 +627,9 @@ const GateControlScreen = () => {
             <View>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Ionicons
-                  name={autoMode ? "checkmark-circle" : "time-outline"}
+                  name={gateAutoMode ? "checkmark-circle" : "time-outline"}
                   size={20}
-                  color={autoMode ? colors.success : colors.textMuted}
+                  color={gateAutoMode ? colors.success : colors.textMuted}
                   style={{ marginRight: 8 }}
                 />
                 <Text style={[styles.autoLabel, { color: colors.text }]}>
@@ -798,16 +637,16 @@ const GateControlScreen = () => {
                 </Text>
               </View>
               <Text style={[styles.autoDesc, { color: colors.textMuted }]}>
-                {autoMode
+                {gateAutoMode
                   ? `✅ Auto dispensing is ON (${feedTimes.length} scheduled times)`
                   : "⏸️ Auto dispensing is OFF"}
               </Text>
             </View>
             <Switch
-              value={autoMode}
+              value={gateAutoMode}
               onValueChange={toggleAutoMode}
               trackColor={{ false: "#E0D5C0", true: colors.primary }}
-              thumbColor={autoMode ? "#FFFFFF" : "#f4f3f4"}
+              thumbColor={gateAutoMode ? "#FFFFFF" : "#f4f3f4"}
             />
           </View>
 
@@ -830,7 +669,7 @@ const GateControlScreen = () => {
                 value={feedAmount}
                 onChangeText={(text) => {
                   setFeedAmount(text);
-                  saveAutoModeState();
+                  saveFeedSettings();
                 }}
                 keyboardType="numeric"
                 editable={true}
@@ -862,18 +701,18 @@ const GateControlScreen = () => {
                 placeholder="e.g., 8:00 AM"
                 placeholderTextColor={colors.textMuted}
                 autoCapitalize="characters"
-                editable={!autoMode}
+                editable={!gateAutoMode}
               />
               <TouchableOpacity
                 style={[
                   styles.addTimeBtn,
                   {
                     backgroundColor: colors.primary,
-                    opacity: autoMode ? 0.5 : 1,
+                    opacity: gateAutoMode ? 0.5 : 1,
                   },
                 ]}
                 onPress={addTime}
-                disabled={autoMode}
+                disabled={gateAutoMode}
               >
                 <Text style={styles.addTimeBtnText}>Add</Text>
               </TouchableOpacity>
@@ -903,13 +742,13 @@ const GateControlScreen = () => {
                   </View>
                   <TouchableOpacity
                     onPress={() => removeTime(time)}
-                    disabled={autoMode}
-                    style={{ opacity: autoMode ? 0.5 : 1 }}
+                    disabled={gateAutoMode}
+                    style={{ opacity: gateAutoMode ? 0.5 : 1 }}
                   >
                     <Ionicons
                       name="close-circle"
                       size={20}
-                      color={autoMode ? colors.textMuted : colors.danger}
+                      color={gateAutoMode ? colors.textMuted : colors.danger}
                     />
                   </TouchableOpacity>
                 </View>
@@ -920,7 +759,7 @@ const GateControlScreen = () => {
               💡 Examples: 8:00 AM, 12:00 PM, 4:30 PM, 8am, 12pm
             </Text>
 
-            {autoMode && (
+            {gateAutoMode && (
               <Text style={[styles.scheduleNote, { color: colors.warning }]}>
                 ⚠️ Schedule is locked while Auto Mode is ON
               </Text>
@@ -928,7 +767,7 @@ const GateControlScreen = () => {
           </View>
 
           {/* Next Dispense Time */}
-          {autoMode && nextDispenseTime && (
+          {gateAutoMode && nextDispenseTime && (
             <View style={styles.nextDispenseContainer}>
               <Ionicons name="alarm-outline" size={20} color={colors.primary} />
               <Text style={[styles.nextDispenseText, { color: colors.text }]}>
@@ -978,18 +817,18 @@ const GateControlScreen = () => {
               styles.dispenseBtn,
               {
                 backgroundColor: colors.primary,
-                opacity: isAutoDispensing || autoMode ? 0.5 : 1,
+                opacity: isAutoDispensing || gateAutoMode ? 0.5 : 1,
               },
             ]}
             onPress={handleDispenseFeed}
-            disabled={isAutoDispensing || autoMode}
+            disabled={isAutoDispensing || gateAutoMode}
           >
             <Text style={styles.dispenseBtnText}>
               {isAutoDispensing ? "Dispensing..." : "Dispense Feed Now"}
             </Text>
           </TouchableOpacity>
 
-          {autoMode && (
+          {gateAutoMode && (
             <Text style={[styles.autoNote, { color: colors.warning }]}>
               ⚠️ Auto mode is ON. Manual dispense is disabled.
             </Text>
@@ -1181,24 +1020,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 6,
   },
-  lockBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  lockBadgeText: {
-    fontSize: 10,
-    fontWeight: "600",
-    marginLeft: 4,
-  },
-  lockedMessage: {
-    fontSize: 12,
-    textAlign: "center",
-    marginTop: 8,
-    fontStyle: "italic",
-  },
   section: {
     paddingHorizontal: 16,
     marginBottom: 16,
@@ -1207,26 +1028,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 0,
-  },
-  actionRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  actionBtn: {
-    flex: 1,
-    borderRadius: 12,
-    paddingVertical: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-  },
-  actionOpen: {},
-  actionClose: {},
-  actionBtnText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#FFFFFF",
   },
   autoCard: {
     borderRadius: 12,
