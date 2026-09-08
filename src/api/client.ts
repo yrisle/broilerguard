@@ -7,7 +7,7 @@ import { Platform } from "react-native";
 // 🔧 PALITAN ITO - ILAGAY ANG MGA IP ADDRESS
 // ============================================
 const ESP32_IP = "192.168.1.15"; // ESP32 IP
-const SERVER_IP = "192.168.1.14"; // ← PALITAN! IP ng PC/Raspberry Pi na may database
+const SERVER_IP = "192.168.8.154"; // ← PALITAN! IP ng PC/Raspberry Pi na may database
 
 const getBaseUrl = () => {
   if (Platform.OS === "android") {
