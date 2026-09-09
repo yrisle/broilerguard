@@ -226,25 +226,50 @@ const DashboardScreen = () => {
     },
   ];
 
+  const chartConfig = {
+    backgroundGradientFrom: "#ffffff",
+    backgroundGradientTo: "#ffffff",
+    decimalPlaces: 0,
+
+    color: (opacity = 1) => `rgba(0, 122, 255, ${opacity})`,
+
+    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+
+    strokeWidth: 2,
+
+    propsForDots: {
+      r: "4",
+      strokeWidth: "2",
+    },
+
+    propsForBackgroundLines: {
+      strokeDasharray: "",
+    },
+  };
+
   const chartData = {
     labels: chickHistory.map((item) => item.day),
+
     datasets: [
       {
         data: chickHistory.map((item) => item.healthy),
-        color: (opacity = 1) => (colors.success || "#4D724D") + opacity * 0.8,
+        color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
         strokeWidth: 2,
       },
+
       {
         data: chickHistory.map((item) => item.weak),
-        color: (opacity = 1) => (colors.warning || "#C8A24A") + opacity * 0.8,
+        color: (opacity = 1) => `rgba(234, 179, 8, ${opacity})`,
         strokeWidth: 2,
       },
+
       {
         data: chickHistory.map((item) => item.unhealthy),
-        color: (opacity = 1) => (colors.danger || "#A44A3F") + opacity * 0.8,
+        color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
         strokeWidth: 2,
       },
     ],
+
     legend: ["Healthy", "Weak", "Unhealthy"],
   };
 
