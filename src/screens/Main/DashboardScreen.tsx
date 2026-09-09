@@ -550,19 +550,26 @@ const DashboardScreen = () => {
               backgroundGradientFrom: "transparent",
               backgroundGradientTo: "transparent",
               decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-              labelColor: (opacity = 1) =>
-                textColor
-                  ? textColor + opacity * 100
-                  : `rgba(0,0,0,${opacity})`,
-              style: { borderRadius: 16 },
+
+              color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
+
+              labelColor: (opacity = 1) => textColor,
+
+              strokeWidth: 2,
+
               propsForDots: {
-                r: "4",
+                r: "5",
                 strokeWidth: "2",
-                stroke: "#fff",
+                stroke: "#ffffff",
+              },
+
+              propsForBackgroundLines: {
+                strokeDasharray: "",
+                stroke: "#dddddd",
               },
             }}
             bezier
+            fromZero
             style={{
               marginVertical: 8,
               borderRadius: 16,
