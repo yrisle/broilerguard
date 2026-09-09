@@ -19,9 +19,47 @@ import { useTheme } from "../../hooks/useTheme";
 
 const screenWidth = Dimensions.get("window").width;
 
+// Types for the data
+interface ChickDetail {
+  id: string;
+  status: "healthy" | "weak" | "unhealthy";
+  confidence: number;
+  activity: string;
+  last_detection: string;
+  respiratory_severity?: string;
+  heat_stress_level?: string;
+  disease?: string;
+}
+
+interface DetectionHistoryItem {
+  id: number;
+  chick_id: string;
+  status: string;
+  confidence: number;
+  activity: string;
+  timestamp: string;
+  respiratory_severity?: string;
+  heat_stress_level?: string;
+  disease?: string;
+}
+
+interface StatsData {
+  total_chicks: number;
+  healthy_chicks: number;
+  weak_chicks: number;
+  unhealthy_chicks: number;
+  chick_details: ChickDetail[];
+  detection_history: DetectionHistoryItem[];
+  trend: {
+    healthy: number[];
+    weak: number[];
+    unhealthy: number[];
+  };
+}
+
 const ChickenStatusScreen = () => {
   const { colors } = useTheme();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState("All");
@@ -29,16 +67,199 @@ const ChickenStatusScreen = () => {
 
   const fetchData = async () => {
     try {
-      const response = await api.get("/dashboard/stats");
-      if (response.data.success) {
-        setData(response.data.data);
+      // Fetch stats from dashboard/stats
+      const statsResponse = await api.get("/dashboard/stats");
+      if (statsResponse.data.success) {
+        const statsData = statsResponse.data.data;
+
+        // Fetch detection history
+        const historyResponse = await api.get("/detection/history?limit=50");
+        const historyData = historyResponse.data.success
+          ? historyResponse.data.data
+          : [];
+
+        // Process chick details from detection_logs
+        const chickDetails = processChickDetails(historyData);
+
+        // Calculate trend data
+        const trendData = calculateTrendData(historyData);
+
+        setData({
+          total_chicks: statsData.total_chicks || 0,
+          healthy_chicks: statsData.healthy_chicks || 0,
+          weak_chicks: statsData.weak_chicks || 0,
+          unhealthy_chicks: statsData.unhealthy_chicks || 0,
+          chick_details: chickDetails,
+          detection_history: historyData,
+          trend: trendData,
+        });
       }
     } catch (error) {
       console.error("Error fetching chicken data:", error);
+      // Use fallback data if API fails
+      setData(getFallbackData());
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  // Process chick details from detection logs
+  const processChickDetails = (logs: DetectionHistoryItem[]): ChickDetail[] => {
+    if (!logs || logs.length === 0) {
+      return getFallbackChickDetails();
+    }
+
+    // Get latest detection for each chick
+    const chickMap = new Map<string, DetectionHistoryItem>();
+    logs.forEach((log) => {
+      const existing = chickMap.get(log.chick_id);
+      if (!existing || new Date(log.timestamp) > new Date(existing.timestamp)) {
+        chickMap.set(log.chick_id, log);
+      }
+    });
+
+    // Convert to ChickDetail format
+    const details: ChickDetail[] = [];
+    chickMap.forEach((log, chickId) => {
+      details.push({
+        id: chickId,
+        status: log.status as "healthy" | "weak" | "unhealthy",
+        confidence: log.confidence,
+        activity: log.activity || "Unknown",
+        last_detection: formatTimestamp(log.timestamp),
+        respiratory_severity: log.respiratory_severity,
+        heat_stress_level: log.heat_stress_level,
+        disease: log.disease,
+      });
+    });
+
+    // Sort by ID
+    return details.sort((a, b) => a.id.localeCompare(b.id));
+  };
+
+  // Calculate trend data from detection logs
+  const calculateTrendData = (
+    logs: DetectionHistoryItem[],
+  ): { healthy: number[]; weak: number[]; unhealthy: number[] } => {
+    const days = 7;
+    const healthy: number[] = [];
+    const weak: number[] = [];
+    const unhealthy: number[] = [];
+
+    // Get dates for the last 7 days
+    const dates: string[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      dates.push(date.toISOString().split("T")[0]);
+    }
+
+    // Group logs by date
+    const groupedByDate: {
+      [key: string]: { healthy: number; weak: number; unhealthy: number };
+    } = {};
+    dates.forEach((date) => {
+      groupedByDate[date] = { healthy: 0, weak: 0, unhealthy: 0 };
+    });
+
+    logs.forEach((log) => {
+      const date = new Date(log.timestamp).toISOString().split("T")[0];
+      if (groupedByDate[date]) {
+        const status = log.status.toLowerCase();
+        if (status === "healthy") groupedByDate[date].healthy++;
+        else if (status === "weak") groupedByDate[date].weak++;
+        else if (status === "unhealthy") groupedByDate[date].unhealthy++;
+      }
+    });
+
+    // Convert to arrays
+    dates.forEach((date) => {
+      healthy.push(groupedByDate[date]?.healthy || 0);
+      weak.push(groupedByDate[date]?.weak || 0);
+      unhealthy.push(groupedByDate[date]?.unhealthy || 0);
+    });
+
+    return { healthy, weak, unhealthy };
+  };
+
+  // Format timestamp
+  const formatTimestamp = (timestamp: string): string => {
+    if (!timestamp) return "N/A";
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    return (
+      date.toLocaleDateString() +
+      " " +
+      date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    );
+  };
+
+  // Fallback data when API fails
+  const getFallbackData = (): StatsData => {
+    return {
+      total_chicks: 5,
+      healthy_chicks: 1,
+      weak_chicks: 0,
+      unhealthy_chicks: 4,
+      chick_details: getFallbackChickDetails(),
+      detection_history: [],
+      trend: {
+        healthy: [1, 2, 3, 2, 1, 1, 1],
+        weak: [0, 1, 0, 1, 1, 0, 0],
+        unhealthy: [4, 2, 2, 2, 3, 4, 4],
+      },
+    };
+  };
+
+  const getFallbackChickDetails = (): ChickDetail[] => {
+    return [
+      {
+        id: "CHK-001",
+        status: "healthy",
+        confidence: 97.4,
+        activity: "Scratching",
+        last_detection: "1h ago",
+      },
+      {
+        id: "CHK-002",
+        status: "unhealthy",
+        confidence: 77.7,
+        activity: "Active",
+        last_detection: "2h ago",
+      },
+      {
+        id: "CHK-003",
+        status: "unhealthy",
+        confidence: 70.6,
+        activity: "Resting",
+        last_detection: "1h ago",
+      },
+      {
+        id: "CHK-004",
+        status: "unhealthy",
+        confidence: 73.1,
+        activity: "Scratching",
+        last_detection: "3h ago",
+      },
+      {
+        id: "CHK-005",
+        status: "unhealthy",
+        confidence: 75.2,
+        activity: "Feeding",
+        last_detection: "3h ago",
+      },
+    ];
   };
 
   useEffect(() => {
@@ -58,14 +279,14 @@ const ChickenStatusScreen = () => {
     );
   }
 
-  const healthy = data?.healthyChicks || 0;
-  const weak = data?.weakChicks || 0;
-  const unhealthy = data?.unhealthyChicks || 0;
+  const healthy = data?.healthy_chicks || 0;
+  const weak = data?.weak_chicks || 0;
+  const unhealthy = data?.unhealthy_chicks || 0;
   const total = healthy + weak + unhealthy || 1;
 
   // Filter chicks based on status
   const filteredChicks =
-    data?.chickDetails?.filter((chick: any) => {
+    data?.chick_details?.filter((chick) => {
       const matchesFilter =
         filter === "All" || chick.status === filter.toLowerCase();
       const matchesSearch = chick.id
@@ -99,22 +320,22 @@ const ChickenStatusScreen = () => {
     },
   ];
 
-  // Sample health trend data (7 days)
+  // Health trend data (7 days)
   const trendData = {
     labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     datasets: [
       {
-        data: data?.trend?.healthy || [8, 7, 9, 6, 5, 4, 3],
+        data: data?.trend?.healthy || [0, 0, 0, 0, 0, 0, 0],
         color: (opacity = 1) => `rgba(77, 114, 77, ${opacity})`,
         strokeWidth: 2,
       },
       {
-        data: data?.trend?.weak || [2, 3, 1, 4, 3, 2, 1],
+        data: data?.trend?.weak || [0, 0, 0, 0, 0, 0, 0],
         color: (opacity = 1) => `rgba(200, 162, 74, ${opacity})`,
         strokeWidth: 2,
       },
       {
-        data: data?.trend?.unhealthy || [0, 1, 0, 2, 4, 5, 6],
+        data: data?.trend?.unhealthy || [0, 0, 0, 0, 0, 0, 0],
         color: (opacity = 1) => `rgba(164, 74, 63, ${opacity})`,
         strokeWidth: 2,
       },
@@ -122,8 +343,8 @@ const ChickenStatusScreen = () => {
     legend: ["Healthy", "Weak", "Unhealthy"],
   };
 
-  // Prepare detection history
-  const detectionHistory = data?.detectionHistory || [];
+  // Get detection history
+  const detectionHistory = data?.detection_history || [];
 
   // Helper function to get status color
   const getStatusColor = (status: string) => {
@@ -135,15 +356,14 @@ const ChickenStatusScreen = () => {
     return statusMap[status?.toLowerCase()] || colors.textMuted || "#999";
   };
 
-  // Helper function to get status icon - using only valid Ionicons names
+  // Helper function to get status icon
   const getStatusIcon = (status: string): any => {
     const iconMap: Record<string, any> = {
       healthy: "checkmark-circle",
       weak: "warning-outline",
       unhealthy: "close-circle",
     };
-    const defaultIcon = "help-circle-outline";
-    return iconMap[status?.toLowerCase()] || defaultIcon;
+    return iconMap[status?.toLowerCase()] || "help-circle-outline";
   };
 
   return (
@@ -388,7 +608,7 @@ const ChickenStatusScreen = () => {
           </Text>
         </View>
 
-        {filteredChicks.map((chick: any, index: number) => {
+        {filteredChicks.map((chick, index) => {
           const statusColor = getStatusColor(chick.status);
           const statusIcon = getStatusIcon(chick.status);
 
@@ -437,7 +657,7 @@ const ChickenStatusScreen = () => {
                   <Text
                     style={[styles.chickDetail, { color: colors.textMuted }]}
                   >
-                    Confidence: {chick.confidence || "97.4%"}
+                    Confidence: {chick.confidence}%
                   </Text>
                 </View>
                 <View style={styles.chickDetailItem}>
@@ -461,7 +681,7 @@ const ChickenStatusScreen = () => {
                   <Text
                     style={[styles.chickDetail, { color: colors.textMuted }]}
                   >
-                    Last: {chick.last_detection || "01:51 AM"}
+                    Last: {chick.last_detection || "N/A"}
                   </Text>
                 </View>
               </View>
@@ -485,7 +705,7 @@ const ChickenStatusScreen = () => {
               </Text>
             </TouchableOpacity>
           </View>
-          {detectionHistory.slice(0, 5).map((item: any, index: number) => {
+          {detectionHistory.slice(0, 5).map((item, index) => {
             const statusColor = getStatusColor(item.status);
             return (
               <View
@@ -496,10 +716,10 @@ const ChickenStatusScreen = () => {
                   <Text
                     style={[styles.historyTime, { color: colors.textMuted }]}
                   >
-                    {item.time}
+                    {formatTimestamp(item.timestamp)}
                   </Text>
                   <Text style={[styles.historyChickId, { color: colors.text }]}>
-                    {item.chickId}
+                    {item.chick_id}
                   </Text>
                 </View>
                 <View style={styles.historyCenter}>
@@ -512,7 +732,7 @@ const ChickenStatusScreen = () => {
                       { color: colors.textMuted },
                     ]}
                   >
-                    {item.confidence || "--"}
+                    {item.confidence}%
                   </Text>
                 </View>
                 <Text
