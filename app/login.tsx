@@ -91,9 +91,17 @@ export default function LoginScreen() {
           )}
         </TouchableOpacity>
 
-        <Text style={[styles.footerText, { color: colors.textMuted }]}>
-          Use your registered account
-        </Text>
+        {/* ✅ Register link */}
+        <View style={styles.footerRow}>
+          <Text style={[styles.footerText, { color: colors.textMuted }]}>
+            Don't have an account?{" "}
+          </Text>
+          <TouchableOpacity onPress={() => router.push("/register")}>
+            <Text style={[styles.footerLink, { color: colors.primary }]}>
+              Register
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -147,9 +155,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
   },
-  footerText: {
-    textAlign: "center",
+  footerRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 16,
-    fontSize: 12,
+  },
+  footerText: {
+    fontSize: 13,
+  },
+  footerLink: {
+    fontSize: 13,
+    fontWeight: "700",
   },
 });
